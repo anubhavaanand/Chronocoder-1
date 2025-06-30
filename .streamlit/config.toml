@@ -1,0 +1,32 @@
+[server]
+# Enable access from any device including mobile
+headless = true
+enableCORS = false
+enableXsrfProtection = false
+
+# Network configuration for mobile access
+port = 8501
+address = "0.0.0.0"
+
+# Browser configuration
+runOnSave = true
+allowRunOnSave = true
+
+[browser]
+# Don't try to open browser automatically
+gatherUsageStats = false
+serverAddress = "0.0.0.0"
+serverPort = 8501
+
+[theme]
+# Set a nice theme
+primaryColor = "#FF6B6B"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F0F2F6"
+textColor = "#262730"
+font = "sans serif"
+
+[client]
+# Client configuration
+showErrorDetails = true
+toolbarMode = "auto"

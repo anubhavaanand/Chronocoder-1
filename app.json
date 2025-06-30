@@ -1,0 +1,29 @@
+{
+  "name": "ChronoCoder",
+  "description": "AI-Powered Mentor Chatbot for Python Learning",
+  "repository": "https://github.com/yourusername/chronocoder",
+  "keywords": [
+    "python",
+    "streamlit",
+    "ai",
+    "mentor",
+    "education"
+  ],
+  "env": {
+    "STREAMLIT_SERVER_PORT": {
+      "description": "Port for Streamlit server",
+      "value": "8501"
+    }
+  },
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "free"
+    }
+  },
+  "buildpacks": [
+    {
+      "url": "heroku/python"
+    }
+  ]
+}
