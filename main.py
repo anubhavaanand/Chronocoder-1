@@ -905,14 +905,25 @@ def main():
         
         # Export options
         st.header("💾 Export Options")
-        if st.button("Save Session"):
+
+        has_history = len(st.session_state.history) > 0
+
+        if st.button(
+            "Save Session",
+            disabled=not has_history,
+            help="Save your current session" if has_history else "Submit some code first to save your session"
+        ):
             try:
                 filepath = st.session_state.session_logger.save_session()
                 st.success(f"Session saved to: {os.path.basename(filepath)}")
             except Exception as e:
                 st.error(f"❌ Failed to save session: {str(e)}")
         
-        if st.button("Export to Markdown") and st.session_state.history:
+        if st.button(
+            "Export to Markdown",
+            disabled=not has_history,
+            help="Export session history to Markdown" if has_history else "Submit some code first to export history"
+        ) and has_history:
             try:
                 output_path = f"logs/session_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
                 if FileManager.export_session_to_markdown(
@@ -975,13 +986,22 @@ print(greet("Anubhav"))
         )
         
         # Analysis button
-        analyze_button = st.button("🔍 Get Mentor Feedback", type="primary")
+        has_code = bool(user_code.strip())
+        has_mentor = bool(st.session_state.selected_mentor)
+        can_analyze = has_code and has_mentor
         
-        # Validation message
-        if analyze_button and not user_code.strip():
-            st.warning("⚠️ Please enter some Python code to analyze!")
-        elif analyze_button and not st.session_state.selected_mentor:
-            st.warning("⚠️ Please select a mentor first!")
+        analyze_help_msg = "Get feedback on your code" if can_analyze else "Select a mentor and enter some code first"
+        if not has_code and has_mentor:
+            analyze_help_msg = "Please enter some Python code to analyze"
+        elif has_code and not has_mentor:
+            analyze_help_msg = "Please select a mentor first"
+
+        analyze_button = st.button(
+            "🔍 Get Mentor Feedback",
+            type="primary",
+            disabled=not can_analyze,
+            help=analyze_help_msg
+        )
         
         # Easter egg - Konami code simulation
         if st.button("⬆️⬆️⬇️⬇️⬅️➡️⬅️➡️🅱️🅰️"):
