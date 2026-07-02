@@ -74,9 +74,9 @@ def test_brilliant_interface():
     print("🔑 ACCESS INFORMATION:")
     print("=" * 25)
     print("🌐 URL: http://localhost:8501")
-    print("🔑 Quick Admin: anubhav_admin_2025")
+    print("🔑 Quick Admin: [Check Secrets]")
     print("👤 Username: anubhav")
-    print("🔐 Password: AnubhavAnand")
+    print("🔐 Password: [Check Secrets]")
     print()
     
     print("🏆 STATUS: BRILLIANT INTERFACE ACTIVE!")

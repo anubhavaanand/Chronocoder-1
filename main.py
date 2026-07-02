@@ -877,7 +877,14 @@ def main():
     
     # Check for admin mode activation
     admin_trigger = st.sidebar.text_input("🔑 Admin Access", type="password", placeholder="Admin code")
-    if admin_trigger == "anubhav_admin_2025" and not st.session_state.admin_mode:
+    admin_secret = os.environ.get("ADMIN_CODE")
+    if not admin_secret:
+        try:
+            admin_secret = st.secrets.get("admin", {}).get("admin_code")
+        except Exception:
+            admin_secret = None
+
+    if admin_trigger and admin_trigger == admin_secret and not st.session_state.admin_mode:
         st.session_state.admin_mode = True
         st.success("🚀 Admin mode available for Anubhav!")
     
