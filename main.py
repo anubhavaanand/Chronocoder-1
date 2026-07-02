@@ -767,8 +767,23 @@ def main():
     /* Comprehensive text color override */
     .stApp * {
         color: #000000 !important;
+    }
+
+    /* Ensure high contrast on buttons */
+    .stButton > button,
+    .stButton > button * {
+        color: #ffffff !important;
+    }
     
-    /* Make sure button text stays white on colored buttons - CLEANED UP */
+    /* Accessibility: Keyboard focus indicators */
+    .stButton > button:focus-visible,
+    .stTextInput > div > div > input:focus-visible,
+    .stTextArea > div > div > textarea:focus-visible,
+    .stSelectbox > div > div:focus-visible {
+        outline: 2px solid #2563eb !important;
+        outline-offset: 2px !important;
+        box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.2) !important;
+    }
     </style>
     """, unsafe_allow_html=True)
     
