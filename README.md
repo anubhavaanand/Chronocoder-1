@@ -108,7 +108,7 @@ ChronoCoder/
 
 - **Desktop**: `http://localhost:8501`
 - **Mobile/Network**: `http://0.0.0.0:8501` or your local IP
-- **Admin Access**: Use password `anubhav_admin_2025` for full features
+- **Admin Access**: Use configured admin password for full features
 
 ## 🎨 Credits & Attribution
 

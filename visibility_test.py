@@ -48,9 +48,9 @@ def test_visibility():
     print("🔗 ACCESS:")
     print("=" * 10)
     print("🌐 URL: http://localhost:8501")
-    print("🔑 Admin: anubhav_admin_2025")
+    print("🔑 Admin: [Check Secrets]")
     print("👤 Username: anubhav")
-    print("🔐 Password: AnubhavAnand")
+    print("🔐 Password: [Check Secrets]")
     print()
     
     print("🏆 Status: Content visibility FIXED!")

@@ -17,9 +17,9 @@ def show_admin_info():
     
     print("🔑 ADMIN ACCESS CREDENTIALS:")
     print("=" * 30)
-    print("🎯 Quick Access Code: anubhav_admin_2025")
+    print("🎯 Quick Access Code: [Check Secrets/Environment]")
     print("👤 Admin Username: anubhav")
-    print("🔐 Admin Password: AnubhavAnand")
+    print("🔐 Admin Password: [Check Secrets/Environment]")
     print()
     
     print("🌊 NEW DEEP SEA INTERFACE FEATURES:")
@@ -37,8 +37,8 @@ def show_admin_info():
     print("=" * 20)
     print("1. 🌐 Open: http://localhost:8501")
     print("2. 🎨 Enjoy the beautiful deep sea mentor selection")
-    print("3. 🔑 Use sidebar: Enter 'anubhav_admin_2025' for quick admin")
-    print("4. 👑 Or use admin panel: username 'anubhav', password 'AnubhavAnand'")
+    print("3. 🔑 Use sidebar: Enter admin code for quick admin")
+    print("4. 👑 Or use admin panel with username and password")
     print()
     
     print("🏆 SPECIAL FEATURES:")

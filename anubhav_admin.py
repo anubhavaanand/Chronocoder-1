@@ -30,14 +30,37 @@ class AnubhavAdminMode:
     
     def authenticate_admin(self, username: str, admin_code: str = None) -> bool:
         """Authenticate admin access for Anubhav."""
-        if username.lower() == "anubhav":
-            # Special authentication for Anubhav
-            if admin_code == "AnubhavAnand" or admin_code == self.admin_key:
-                self.is_authenticated = True
-                self.session_start = datetime.now()
-                self.unrestricted_mode = True
-                self._log_admin_access()
-                return True
+
+        # Check environment variables
+        admin_user = os.environ.get("ADMIN_USERNAME")
+        admin_pass = os.environ.get("ADMIN_PASSWORD")
+
+        # Check streamlit secrets if not in env
+        if not admin_user or not admin_pass:
+            try:
+                import streamlit as st
+                admin_user = st.secrets.get("admin", {}).get("admin_username")
+                admin_pass = st.secrets.get("admin", {}).get("admin_password")
+            except Exception:
+                pass
+
+        # Fallback to local key check if secrets are not configured securely
+        # but don't hardcode passwords
+        if username.lower() == "anubhav" and admin_code == self.admin_key:
+            self.is_authenticated = True
+            self.session_start = datetime.now()
+            self.unrestricted_mode = True
+            self._log_admin_access()
+            return True
+
+        # Secure check against configured credentials
+        if admin_user and admin_pass and username == admin_user and admin_code == admin_pass:
+            self.is_authenticated = True
+            self.session_start = datetime.now()
+            self.unrestricted_mode = True
+            self._log_admin_access()
+            return True
+
         return False
     
     def _log_admin_access(self):

@@ -86,7 +86,7 @@ Use the Deploy button in README.md
 ### Admin Access
 - Username: Configure in secrets
 - Password: Configure in secrets
-- Access code: anubhav_admin_2025
+- Access code: [Check Secrets/Environment]
 
 ## 📊 Project Statistics
 
