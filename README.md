@@ -87,18 +87,8 @@ ChronoCoder/
 - **Smooth Navigation**: Seamless transitions between mentor selection and main app
 
 ## 🚀 Getting Started
-
-1. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-2. Run the application:
-   ```bash
-   streamlit run main.py
-   ```
-
-3. Open your browser to `http://localhost:8501`
+  
+  https://chronocoder-1.onrender.com/
 
 4. **Select Your Mentor**: Choose from 8 legendary programmers on the stunning selection page
 
