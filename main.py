@@ -884,7 +884,8 @@ def main():
         except Exception:
             admin_secret = None
 
-    if admin_trigger and admin_trigger == admin_secret and not st.session_state.admin_mode:
+    import hmac
+    if admin_trigger and admin_secret and hmac.compare_digest(admin_trigger, admin_secret) and not st.session_state.admin_mode:
         st.session_state.admin_mode = True
         st.success("🚀 Admin mode available for Anubhav!")
     

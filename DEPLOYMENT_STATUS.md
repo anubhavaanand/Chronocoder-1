@@ -86,7 +86,7 @@ Use the Deploy button in README.md
 ### Admin Access
 - Username: Configure in secrets
 - Password: Configure in secrets
-- Access code: [Check Secrets/Environment]
+- Access code: Set `ADMIN_CODE` (env) or `[admin].admin_code` in Streamlit secrets
 
 ## 📊 Project Statistics
 

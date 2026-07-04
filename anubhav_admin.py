@@ -44,22 +44,15 @@ class AnubhavAdminMode:
             except Exception:
                 pass
 
-        # Fallback to local key check if secrets are not configured securely
-        # but don't hardcode passwords
-        if username.lower() == "anubhav" and admin_code == self.admin_key:
-            self.is_authenticated = True
-            self.session_start = datetime.now()
-            self.unrestricted_mode = True
-            self._log_admin_access()
-            return True
-
         # Secure check against configured credentials
-        if admin_user and admin_pass and username == admin_user and admin_code == admin_pass:
-            self.is_authenticated = True
-            self.session_start = datetime.now()
-            self.unrestricted_mode = True
-            self._log_admin_access()
-            return True
+        if admin_user and admin_pass and username == admin_user:
+            import hmac
+            if hmac.compare_digest(admin_code, admin_pass):
+                self.is_authenticated = True
+                self.session_start = datetime.now()
+                self.unrestricted_mode = True
+                self._log_admin_access()
+                return True
 
         return False
     

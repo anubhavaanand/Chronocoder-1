@@ -108,7 +108,7 @@ ChronoCoder/
 
 - **Desktop**: `http://localhost:8501`
 - **Mobile/Network**: `http://0.0.0.0:8501` or your local IP
-- **Admin Access**: Use configured admin password for full features
+- **Admin Access**: Set `ADMIN_CODE` (env) or `[admin].admin_code` in Streamlit secrets for full features
 
 ## 🎨 Credits & Attribution
 
