@@ -5,3 +5,7 @@
 ## 2026-07-02 - Keyboard Focus and Contrast Enhancement
 **Learning:** Streamlit components lack strong default focus indicators for keyboard navigation and sometimes inherit global styles that break contrast (e.g., black text on dark buttons). Fixing syntax errors in injected CSS blocks is essential before adding overrides.
 **Action:** Added explicit `:focus-visible` styling for buttons and form inputs, enforced white text on buttons, and repaired a broken CSS block to restore correct rendering.
+
+## 2026-07-28 - Contrast, Animation Distraction, and Dynamic Mentor Selection
+**Learning:** Forcing all global elements to a single color (e.g. `* { color: #000000 !important; }`) degrades accessibility and breaks native alert/button/input contrasts. Moving floating animations out of the workspace avoids blocking user action inputs.
+**Action:** Refined CSS styles to use semantic text colors, removed disruptive snake floating animations, and designed clean button-based mentor navigation with visual selection templates.
