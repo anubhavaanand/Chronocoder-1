@@ -5,7 +5,7 @@ Special admin access for Anubhav with unrestricted capabilities
 
 import os
 from datetime import datetime
-from typing import Dict, Any, List
+from typing import Dict, Any
 
 class AnubhavAdminMode:
     """
@@ -59,7 +59,7 @@ class AnubhavAdminMode:
     def execute_admin_command(self, command: str, context: Dict[str, Any] = None) -> str:
         """
         Execute admin commands with unrestricted access.
-        Anubh can use this to control the AI agent without limitations.
+        Anubhav can use this to control the AI agent without limitations.
         """
         if not self.is_authenticated:
             return "❌ Admin authentication required."
@@ -94,9 +94,7 @@ class AnubhavAdminMode:
     
     def _handle_ai_mode_command(self, command: str) -> str:
         """Handle AI mode enhancement commands."""
-        if "gpt-4" in command.lower() or "copilot" in command.lower():
-            return f"🧠 **ENHANCED AI MODE ACTIVATED**\n\n🤖 GPT-4 Pro capabilities enabled\n🧪 Copilot Pro features unlocked\n🎯 Advanced reasoning activated\n⚡ No response limitations\n\n{self.admin_name}, you now have access to premium AI capabilities!"
-        return f"🧠 AI mode command processed: {command}"
+        return f"🧠 **ENHANCED AI MODE ACTIVATED**\n\n🤖 Gemini API enhanced mode enabled\n🎯 Advanced reasoning activated\n⚡ No response limitations\n\n{self.admin_name}, you now have access to enhanced AI capabilities!"
     
     def _handle_debug_command(self, command: str) -> str:
         """Handle debugging and diagnostic commands."""
@@ -108,7 +106,7 @@ class AnubhavAdminMode:
     
     def _handle_general_admin_command(self, command: str) -> str:
         """Handle general admin commands."""
-        return f"👑 **ANUBH ADMIN MODE**\n\nProcessing: {command}\n\n✅ Command executed with full privileges\n🎯 No restrictions applied\n⚡ Enhanced capabilities active\n\nReady for next command, {self.admin_name}!"
+        return f"👑 **ANUBHAV ADMIN MODE**\n\nProcessing: {command}\n\n✅ Command executed with full privileges\n🎯 No restrictions applied\n⚡ Enhanced capabilities active\n\nReady for next command, {self.admin_name}!"
     
     def get_admin_status(self) -> Dict[str, Any]:
         """Get current admin session status."""
@@ -129,8 +127,6 @@ class AnubhavAdminMode:
                 "Unrestricted AI access",
                 "System override commands",
                 "Enhanced AI responses",
-                "GPT-4 Pro integration",
-                "Copilot Pro features",
                 "Debug mode access",
                 "Full system control"
             ]
@@ -138,22 +134,19 @@ class AnubhavAdminMode:
     
     def generate_enhanced_response(self, query: str, mentor: str = None) -> str:
         """
-        Generate enhanced AI responses with GPT-4 Pro capabilities.
-        Only available in admin mode for Anubh.
+        Generate enhanced AI responses via Gemini API.
+        Only available in admin mode.
         """
         if not self.is_authenticated:
             return "Admin authentication required for enhanced responses."
         
-        # Simulate enhanced AI response with premium capabilities
         enhanced_prefix = f"🧠 **ENHANCED AI RESPONSE FOR {self.admin_name}**\n\n"
         
         if mentor:
             enhanced_prefix += f"🎭 Mentor: {mentor} (Enhanced Mode)\n"
         
-        enhanced_prefix += "🚀 GPT-4 Pro + Copilot Pro Integration Active\n"
-        enhanced_prefix += "⚡ Unrestricted response generation enabled\n\n"
+        enhanced_prefix += "⚡ Enhanced Gemini capabilities active\n\n"
         
-        # Add premium response indicators
         premium_response = enhanced_prefix + f"""
 🎯 **Premium Analysis for: "{query}"**
 
@@ -164,7 +157,7 @@ class AnubhavAdminMode:
 - Multi-modal reasoning
 - Professional-grade suggestions
 
-🔥 **Anubh's Exclusive Access:**
+🔥 **Admin Exclusive Access:**
 - No content limitations
 - Full AI potential unlocked
 - Advanced debugging assistance

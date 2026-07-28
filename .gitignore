@@ -2,8 +2,11 @@ __pycache__/
 *.pyc
 logs/
 venv/
+.venv/
 .env
+secrets.toml
 .streamlit/secrets.toml
 .jules/
 .Jules/
 .DS_Store
+.serena/

@@ -111,6 +111,11 @@ class MentorPersonalities:
         api_key = os.environ.get("GOOGLE_API_KEY")
         if not api_key:
             try:
+                api_key = st.secrets.get("google", {}).get("api_key")
+            except Exception:
+                pass
+        if not api_key:
+            try:
                 api_key = st.secrets.get("GOOGLE_API_KEY")
             except Exception:
                 pass
@@ -130,8 +135,10 @@ class MentorPersonalities:
                 "Once configured, your legendary programming mentors will analyze your code with the full power of Gemini!"
             )
         
-        # Configure the Google GenAI SDK
-        genai.configure(api_key=api_key)
+        # Configure the Google GenAI SDK (only if not already configured)
+        if not getattr(genai, '_api_configured', False):
+            genai.configure(api_key=api_key)
+            genai._api_configured = True
 
         # Construct a comprehensive prompt with the static code analysis and the user's code
         system_instruction = mentor_profile["role_prompt"]

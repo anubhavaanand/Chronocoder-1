@@ -1,6 +1,6 @@
 """
 Quick start script for ChronoCoder
-This script bypasses the Streamlit email prompt
+This script starts the Streamlit app with headless mode and no analytics.
 """
 
 import subprocess
@@ -11,14 +11,12 @@ def start_chronocoder():
     """Start ChronoCoder application."""
     print("🕰️ Starting ChronoCoder...")
     
-    # Set Streamlit configuration to skip email
-    os.environ['STREAMLIT_EMAIL'] = ''
-    
     # Run streamlit
     try:
         subprocess.run([
             sys.executable, "-m", "streamlit", "run", "main.py",
-            "--server.headless", "true"
+            "--server.headless=true",
+            "--browser.gatherUsageStats=false"
         ], cwd=os.path.dirname(os.path.abspath(__file__)))
     except KeyboardInterrupt:
         print("\n👋 ChronoCoder stopped.")

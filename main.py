@@ -17,6 +17,7 @@ Built with: Python, Streamlit, and 8 AI Mentor Personalities
 
 import streamlit as st
 import os
+import hmac
 from datetime import datetime
 
 # Import our custom modules
@@ -508,24 +509,25 @@ def main():
             st.success(f"🎯 **Your Mentor:** {st.session_state.selected_mentor}")
             st.info("💬 Welcome! I'm ready to help you with your Python code!")
     
-    # Check for admin mode activation
-    admin_trigger = st.sidebar.text_input("🔑 Admin Access", type="password", placeholder="Admin code")
-    admin_secret = os.environ.get("ADMIN_CODE")
+    # Check for admin mode activation via sidebar quick-access
+    admin_trigger = st.sidebar.text_input("🔑 Admin Access", type="password", placeholder="Admin password")
+    admin_secret = os.environ.get("ADMIN_PASSWORD")
     if not admin_secret:
         try:
-            admin_secret = st.secrets.get("admin", {}).get("admin_code")
+            admin_secret = st.secrets.get("admin", {}).get("admin_password")
         except Exception:
             admin_secret = None
 
-    if admin_trigger and admin_trigger == admin_secret and not st.session_state.admin_mode:
+    if admin_trigger and admin_secret and hmac.compare_digest(admin_trigger, admin_secret) and not st.session_state.admin_mode:
         st.session_state.admin_mode = True
-        st.success("🚀 Admin mode available for Anubhav!")
+        st.session_state.admin_authenticated = True
+        st.success("🚀 Admin mode activated!")
     
     st.markdown("---")
     
     # Sidebar for session info and options
     with st.sidebar:
-        st.header(f"🎯 Current Mentor")
+        st.header("🎯 Current Mentor")
         if st.session_state.selected_mentor:
             st.success(f"**{st.session_state.selected_mentor}**")
             st.markdown("*Click 'Change Mentor' above to switch*")
@@ -754,7 +756,7 @@ print(greet("Anubhav"))""",
     st.markdown("---")
     st.markdown(
         "<div style='text-align: center;'>"
-        "<small>© 2025 ChronoCoder by Anubhav | Educational Open Source Project | "
+        "<small>© 2026 ChronoCoder by Anubhav | Educational Open Source Project | "
         "<span style='color: #475569;'>Psst... admins can toggle access panel in the sidebar 😉</span>"
         "</small></div>", 
         unsafe_allow_html=True
@@ -811,7 +813,7 @@ def admin_panel():
         
         with col2:
             if st.button("🧠 Enhanced AI Mode"):
-                result = anubhav_admin.execute_admin_command("ai_mode gpt-4 copilot")
+                result = anubhav_admin.execute_admin_command("ai_mode")
                 st.markdown(result)
         
         with col3:
