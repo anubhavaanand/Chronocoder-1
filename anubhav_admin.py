@@ -4,8 +4,6 @@ Special admin access for Anubhav with unrestricted capabilities
 """
 
 import os
-import hashlib
-import time
 from datetime import datetime
 from typing import Dict, Any, List
 
@@ -17,16 +15,10 @@ class AnubhavAdminMode:
     
     def __init__(self):
         self.admin_name = "Anubhav"
-        self.admin_key = self._generate_admin_key()
         self.is_authenticated = False
         self.session_start = None
         self.admin_commands = []
         self.unrestricted_mode = False
-    
-    def _generate_admin_key(self) -> str:
-        """Generate a unique admin key for Anubh."""
-        secret = f"{self.admin_name}_chronocoder_admin_{datetime.now().strftime('%Y%m%d')}"
-        return hashlib.md5(secret.encode()).hexdigest()[:16]
     
     def authenticate_admin(self, username: str, admin_code: str = None) -> bool:
         """Authenticate admin access for Anubhav."""
@@ -44,16 +36,7 @@ class AnubhavAdminMode:
             except Exception:
                 pass
 
-        # Fallback to local key check if secrets are not configured securely
-        # but don't hardcode passwords
-        if username.lower() == "anubhav" and admin_code == self.admin_key:
-            self.is_authenticated = True
-            self.session_start = datetime.now()
-            self.unrestricted_mode = True
-            self._log_admin_access()
-            return True
-
-        # Secure check against configured credentials
+        # Secure check against configured credentials - No local/MD5 insecure fallbacks
         if admin_user and admin_pass and username == admin_user and admin_code == admin_pass:
             self.is_authenticated = True
             self.session_start = datetime.now()
@@ -65,13 +48,6 @@ class AnubhavAdminMode:
     
     def _log_admin_access(self):
         """Log admin access for security."""
-        log_entry = {
-            "admin": self.admin_name,
-            "access_time": self.session_start.isoformat(),
-            "mode": "unrestricted_admin",
-            "session_key": self.admin_key
-        }
-        
         # Create admin logs directory
         admin_log_dir = "logs/admin_access"
         os.makedirs(admin_log_dir, exist_ok=True)
@@ -149,7 +125,6 @@ class AnubhavAdminMode:
             "session_start": self.session_start.isoformat() if self.session_start else None,
             "session_duration": str(session_duration) if session_duration else None,
             "commands_executed": len(self.admin_commands),
-            "admin_key": self.admin_key,
             "capabilities": [
                 "Unrestricted AI access",
                 "System override commands",
