@@ -1,2 +1,9 @@
 __pycache__/
-logs/session_*.json
+*.pyc
+logs/
+venv/
+.env
+.streamlit/secrets.toml
+.jules/
+.Jules/
+.DS_Store
