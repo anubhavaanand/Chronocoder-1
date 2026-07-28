@@ -130,18 +130,13 @@ class MentorPersonalities:
                 "Once configured, your legendary programming mentors will analyze your code with the full power of Gemini!"
             )
         
-        try:
-            # Configure the Google GenAI SDK
-            genai.configure(api_key=api_key)
-            
-            # Use gemini-2.0-flash as requested (or fall back to gemini-1.5-pro if needed, but we try 2.0-flash first)
-            model_name = "gemini-2.0-flash"
-            model = genai.GenerativeModel(model_name)
+        # Configure the Google GenAI SDK
+        genai.configure(api_key=api_key)
 
-            # Construct a comprehensive prompt with the static code analysis and the user's code
-            system_instruction = mentor_profile["role_prompt"]
+        # Construct a comprehensive prompt with the static code analysis and the user's code
+        system_instruction = mentor_profile["role_prompt"]
 
-            prompt = f"""
+        prompt = f"""
 {system_instruction}
 
 Analyze the following Python code submitted by the student:
@@ -163,12 +158,26 @@ Static Code Analysis context to assist you:
 Provide your feedback entirely in your persona. Do not mention that you are an AI.
 Review the code thoroughly: praise what is good, point out syntax errors, edge cases, or performance bottlenecks, and offer highly educational, constructive recommendations. Use Markdown formatting, and write beautifully in your style.
 """
-            response = model.generate_content(prompt)
-            return response.text
 
-        except Exception as e:
-            return (
-                f"❌ **Error communicating with Gemini API ({model_name}):**\n\n"
-                f"`{str(e)}`\n\n"
-                "Please verify that your `GOOGLE_API_KEY` is valid and active in Google AI Studio."
-            )
+        # Robust consecutive fallbacks across supported models to prevent quota blockades
+        models_to_try = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"]
+        errors = []
+
+        for model_name in models_to_try:
+            try:
+                model = genai.GenerativeModel(model_name)
+                response = model.generate_content(prompt)
+                return response.text
+            except Exception as e:
+                errors.append(f"• **{model_name} error:** `{str(e)}`")
+                continue
+
+        # If all fallback models failed
+        err_list = "\n".join(errors)
+        return (
+            "❌ **Unable to generate mentor feedback via Gemini API.**\n\n"
+            "This usually happens when your API key has reached rate limits, is quota-blocked, or does not support "
+            "the requested model in your region.\n\n"
+            f"**Diagnostic Details:**\n{err_list}\n\n"
+            "Please verify your billing/quota state or retry in a few seconds."
+        )
