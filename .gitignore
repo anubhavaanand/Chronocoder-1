@@ -10,3 +10,9 @@ secrets.toml
 .Jules/
 .DS_Store
 .serena/
+
+# Orphan files
+deploy.py
+quick_deploy.py
+start.py
+secrets_example.toml
