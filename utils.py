@@ -7,7 +7,7 @@ Helper functions for logging, session management, and file operations.
 import os
 import json
 from datetime import datetime
-from typing import Dict, Any, List
+from typing import Dict, Any
 
 class SessionLogger:
     """Handles session logging and history management."""
@@ -19,8 +19,7 @@ class SessionLogger:
     
     def ensure_log_directory(self):
         """Create logs directory if it doesn't exist."""
-        if not os.path.exists(self.log_dir):
-            os.makedirs(self.log_dir)
+        os.makedirs(self.log_dir, exist_ok=True)
     
     def create_session(self) -> Dict[str, Any]:
         """Create a new session with timestamp."""
@@ -90,6 +89,10 @@ class SessionLogger:
         else:
             return f"{int(minutes)} minutes"
 
+    def reset_session(self):
+        """Start a fresh session."""
+        self.current_session = self.create_session()
+
 class CodeFormatter:
     """Utility functions for formatting code and text."""
     
@@ -147,61 +150,4 @@ class FileManager:
             print(f"Error exporting to markdown: {e}")
             return False
     
-    @staticmethod
-    def get_recent_sessions(log_dir: str = "logs", limit: int = 5) -> List[str]:
-        """Get list of recent session files."""
-        if not os.path.exists(log_dir):
-            return []
-        
-        session_files = [f for f in os.listdir(log_dir) if f.startswith('session_') and f.endswith('.json')]
-        session_files.sort(reverse=True)  # Most recent first
-        
-        return session_files[:limit]
 
-class DeveloperMessages:
-    """Fun developer messages and easter eggs."""
-    
-    @staticmethod
-    def get_random_error_message():
-        """Get a fun error message."""
-        messages = [
-            "🤖 Oops! Even AI mentors make mistakes sometimes!",
-            "🔧 Houston, we have a problem... but we'll fix it!",
-            "🎭 Error 404: Perfection not found, but we're working on it!",
-            "🚀 This error was brought to you by the laws of Murphy!",
-            "🐛 Grace Hopper would be proud - we found a real bug!",
-            "⚡ Dennis Ritchie says: 'That's not a bug, it's an undocumented feature!'",
-            "🧠 Alan Turing asks: 'Can machines make mistakes? Apparently, yes!'"
-        ]
-        import random
-        return random.choice(messages)
-    
-    @staticmethod
-    def get_credits():
-        """Get project credits."""
-        return """
-        🕰️ ChronoCoder - Created by Anubhav
-        🧠 Featuring 8 AI Mentor Personalities
-        🐍 Built with Python, Streamlit & Love
-        🎯 Educational Project for Learning Python
-        
-        Special Thanks:
-        • GitHub Copilot for development assistance
-        • The legendary programmers who inspire our mentors
-        • The Python community for amazing tools
-        • You, for using ChronoCoder! 🚀
-        """
-    
-    @staticmethod
-    def get_easter_egg_hint():
-        """Get a hint about easter eggs."""
-        hints = [
-            "🥚 Try typing 'Hello World' in different ways!",
-            "🔍 Mention 'fibonacci' and see what happens!",
-            "🤖 Write some AI/ML code for special responses!",
-            "👥 Reference other mentors in your code!",
-            "🎯 Type 'anubhav' or 'chronocoder' for creator appreciation!",
-            "🎮 Look for hidden buttons in the interface!"
-        ]
-        import random
-        return random.choice(hints)

@@ -1,2 +1,18 @@
 __pycache__/
-logs/session_*.json
+*.pyc
+logs/
+venv/
+.venv/
+.env
+secrets.toml
+.streamlit/secrets.toml
+.jules/
+.Jules/
+.DS_Store
+.serena/
+
+# Orphan files
+deploy.py
+quick_deploy.py
+start.py
+secrets_example.toml

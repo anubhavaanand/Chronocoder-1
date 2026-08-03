@@ -9,7 +9,6 @@ def test_get_mentor_feedback_unknown_mentor():
     code = "print('hello')"
     analysis = analyzer.parse_code(code)
 
-    # Passing an unknown mentor name
     feedback = mentors.get_mentor_feedback("Unknown Mentor", analysis, code)
 
     assert "Sorry, I don't recognize that mentor" in feedback

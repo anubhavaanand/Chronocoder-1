@@ -9,14 +9,10 @@ Python AST Parser
 """
 
 import ast
-import sys
 from typing import Dict, List, Any
 
 class CodeAnalyzer:
     """Analyzes Python code using AST to extract meaningful information."""
-    
-    def __init__(self):
-        self.analysis_results = {}
     
     def parse_code(self, code_string: str) -> Dict[str, Any]:
         """
@@ -69,8 +65,7 @@ class CodeAnalyzer:
                 'conditionals': 0,
                 'complexity_score': 0,
                 'line_count': 0,
-                'explanations': [],
-                'easter_egg': "🎯 Fun fact: The first computer 'bug' was actually a real moth found by Grace Hopper in 1947!"
+                'explanations': []
             }
         except Exception as e:
             return {
@@ -83,8 +78,7 @@ class CodeAnalyzer:
                 'conditionals': 0,
                 'complexity_score': 0,
                 'line_count': 0,
-                'explanations': [],
-                'easter_egg': "🚀 Fun fact: This error message was crafted with love by Anubhav!"
+                'explanations': []
             }
     
     def _analyze_node(self, node: ast.AST, analysis: Dict[str, Any]):
@@ -149,7 +143,7 @@ class CodeAnalyzer:
             elif line_stripped.startswith('class '):
                 class_name = line_stripped.split('(')[0].replace('class ', '').replace(':', '')
                 explanation += f"Defining class '{class_name}'"
-            elif '=' in line_stripped and not line_stripped.startswith('#'):
+            elif '=' in line_stripped and not line_stripped.startswith('#') and not any(op in line_stripped for op in ['==', '!=', '>=', '<=', '+=', '-=', '*=', '/=']):
                 var_name = line_stripped.split('=')[0].strip()
                 explanation += f"Assigning value to variable '{var_name}'"
             elif line_stripped.startswith('if '):

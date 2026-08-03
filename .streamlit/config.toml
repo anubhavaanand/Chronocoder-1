@@ -15,8 +15,6 @@ allowRunOnSave = true
 [browser]
 # Don't try to open browser automatically
 gatherUsageStats = false
-serverAddress = "0.0.0.0"
-serverPort = 8501
 
 [theme]
 # Set a nice theme

@@ -25,10 +25,10 @@ Users can now:
 | Mentor | Style | Focus Area | Personality | Icon |
 |--------|-------|------------|-------------|------|
 | **🔮 Ada Lovelace** | Poetic & Analytical | Mathematical elegance | Visionary, elegant, mathematical | The Enchantress of Numbers |
-| **� Linus Torvalds** | Direct & Blunt | Performance & efficiency | No-nonsense, practical, direct | The Kernel Master |
-| **� Grace Hopper** | Systematic & Educational | Debugging & clarity | Patient, thorough, methodical | The Debugging Admiral |
+| **🐧 Linus Torvalds** | Direct & Blunt | Performance & efficiency | No-nonsense, practical, direct | The Kernel Master |
+| **💻 Grace Hopper** | Systematic & Educational | Debugging & clarity | Patient, thorough, methodical | The Debugging Admiral |
 | **🧠 Alan Turing** | Theoretical & Philosophical | Computational thinking | Deep-thinking, curious, theoretical | The Computation Pioneer |
-| **� Margaret Hamilton** | Safety & Reliability | Error-free software | Quality-focused, rigorous, systematic | The Software Engineer |
+| **🚀 Margaret Hamilton** | Safety & Reliability | Error-free software | Quality-focused, rigorous, systematic | The Software Engineer |
 | **⚡ Dennis Ritchie** | Minimalist & Elegant | Clean, simple code | Efficient, foundational, simple | The Language Architect |
 | **🏛️ Barbara Liskov** | Academic & Principled | Software design principles | Structured, educational, principled | The Design Theorist |
 | **🐍 Guido van Rossum** | Pythonic & Community-focused | Beautiful, readable Python | Community-oriented, readable, elegant | The Python Creator |
@@ -88,20 +88,14 @@ ChronoCoder/
 
 ## 🚀 Getting Started
 
-1. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+**Try it live:** [chronocoder-1.onrender.com](https://chronocoder-1.onrender.com/)
 
-2. Run the application:
-   ```bash
-   streamlit run main.py
-   ```
+### Local Setup
 
-3. Open your browser to `http://localhost:8501`
-
-4. **Select Your Mentor**: Choose from 8 legendary programmers on the stunning selection page
-
+1. **Clone the repo**: `git clone https://github.com/anubhavaanand/Chronocoder-1.git`
+2. **Install dependencies**: `pip install -r requirements.txt`
+3. **Run the app**: `streamlit run main.py`
+4. **Select Your Mentor**: Choose from 8 legendary programmers on the selection page
 5. **Get Coding**: Input your Python code and receive personalized feedback!
 
 ## 📱 Access from Any Device
@@ -115,7 +109,7 @@ ChronoCoder/
 **Created by:** Anubhav ✨  
 **Development Environment:** VS Code with GitHub Copilot  
 **Project Type:** Educational AI Chatbot with Stunning Visual Interface  
-**License:** Open Source Educational Project  
+**License:** [MIT](LICENSE)  
 
 *Special thanks to the legendary programmers who inspired our AI mentors and continue to shape the world of computing!*
 
@@ -129,8 +123,4 @@ ChronoCoder contains several hidden features and easter eggs:
 - Find the hidden developer messages in error handling
 - Discover mentor interactions with each other's coding styles
 
-## 💬 Instructions for Copilot
-- Suggest mentor-styled feedback for any given Python code
-- Help parse AST nodes and explain them
-- Generate personality templates (e.g., poetic, blunt, detailed)
-- Assist in building Streamlit UI blocks: dropdowns, textareas, buttons
+
