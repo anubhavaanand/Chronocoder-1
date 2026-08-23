@@ -16,6 +16,7 @@ Built with: Python, Streamlit, and 8 AI Mentor Personalities
 """
 
 import streamlit as st
+import streamlit.components.v1 as components
 import os
 import hmac
 from datetime import datetime
@@ -26,6 +27,7 @@ try:
     from code_parser import CodeAnalyzer
     from utils import SessionLogger, CodeFormatter, FileManager
     from anubhav_admin import anubhav_admin  # Admin mode for Anubhav
+    import styles
 except ImportError as e:
     st.error(f"❌ Failed to import required modules: {e}")
     st.stop()
@@ -66,307 +68,94 @@ except Exception as e:
     st.stop()
 
 def mentor_selection_page():
-    """Display the stunning mentor selection interface."""
-    
-    # Custom CSS for mentor selection page with sleek design
-    st.markdown("""
-    <style>
-    /* SLEEK MENTOR SELECTION CONTAINER */
-    .mentor-selection-container {
-        background: rgba(255, 255, 255, 0.98) !important;
-        border: 2px solid #e2e8f0 !important;
-        border-radius: 20px !important;
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08) !important;
-        padding: 3rem 2.5rem !important;
-        margin: 2rem auto !important;
-        max-width: 1400px !important;
-        position: relative !important;
-        z-index: 10 !important;
-    }
-    
-    .mentor-selection-header {
-        text-align: center;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        font-size: 3.5rem;
-        font-weight: 700;
-        margin-bottom: 1rem;
-        position: relative;
-        z-index: 5;
-    }
-    
-    .mentor-subtitle {
-        text-align: center;
-        color: #1e293b !important;
-        font-size: 1.4rem;
-        margin-bottom: 1.5rem;
-        font-weight: 500;
-        position: relative;
-        z-index: 5;
-    }
-    
-    .mentor-creator {
-        text-align: center;
-        background: linear-gradient(45deg, #667eea, #764ba2);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        font-size: 1.3rem;
-        font-weight: 600;
-        margin-bottom: 3rem;
-        position: relative;
-        z-index: 5;
-    }
-    
-    /* SLEEK MENTOR CARDS */
-    .mentor-card {
-        border: 2px solid #e2e8f0 !important;
-        border-radius: 16px !important;
-        padding: 2.5rem !important;
-        margin: 1.5rem 0 !important;
-        background: rgba(255, 255, 255, 0.98) !important;
-        transition: all 0.3s ease !important;
-        cursor: pointer !important;
-        position: relative !important;
-        overflow: visible !important;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05) !important;
-        z-index: 10 !important;
-    }
-    
-    .mentor-card:hover {
-        transform: translateY(-8px) !important;
-        box-shadow: 0 12px 25px rgba(0, 0, 0, 0.1) !important;
-        border-color: #667eea !important;
-    }
-    
-    .mentor-card::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 4px;
-        border-radius: 16px 16px 0 0;
-        transition: all 0.3s ease;
-        z-index: 1;
-    }
-    
-    .mentor-card:hover::before {
-        height: 6px;
-    }
-    
-    /* Clean color schemes for each mentor */
-    .ada-card::before { background: linear-gradient(90deg, #f56565, #fc8181); }
-    .linus-card::before { background: linear-gradient(90deg, #4fd1c7, #38b2ac); }
-    .grace-card::before { background: linear-gradient(90deg, #68d391, #48bb78); }
-    .alan-card::before { background: linear-gradient(90deg, #667eea, #764ba2); }
-    .margaret-card::before { background: linear-gradient(90deg, #ed64a6, #d53f8c); }
-    .dennis-card::before { background: linear-gradient(90deg, #63b3ed, #4299e1); }
-    .barbara-card::before { background: linear-gradient(90deg, #81e6d9, #4fd1c7); }
-    .guido-card::before { background: linear-gradient(90deg, #fbb6ce, #f687b3); }
-    
-    .mentor-name {
-        font-size: 1.8rem;
-        font-weight: 600;
-        margin-bottom: 0.8rem;
-        color: #1e293b !important;
-        position: relative;
-        z-index: 5;
-    }
-    
-    .mentor-title {
-        font-size: 1.2rem;
-        color: #475569 !important;
-        font-style: italic;
-        margin-bottom: 1.2rem;
-        font-weight: 500;
-        position: relative;
-        z-index: 5;
-    }
-    
-    .mentor-traits {
-        font-size: 1rem;
-        color: #4f46e5 !important;
-        background: rgba(102, 126, 234, 0.08) !important;
-        padding: 1rem;
-        border-radius: 12px;
-        margin-bottom: 1.5rem;
-        border: 1px solid rgba(102, 126, 234, 0.2);
-        position: relative;
-        z-index: 5;
-        font-weight: 400;
-    }
-    
-    .mentor-icon {
-        font-size: 3rem;
-        float: right;
-        margin-top: -4rem;
-        position: relative;
-        z-index: 5;
-        transition: all 0.3s ease;
-    }
-    
-    .mentor-card:hover .mentor-icon {
-        transform: scale(1.1);
-    }
-    
-    /* SLEEK SELECTION BUTTONS */
-    .stButton > button {
-        width: 100% !important;
-        padding: 1rem 2rem !important;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-        color: white !important;
-        border: none !important;
-        border-radius: 10px !important;
-        font-size: 1.1rem !important;
-        font-weight: 500 !important;
-        cursor: pointer !important;
-        transition: all 0.3s ease !important;
-        position: relative !important;
-        z-index: 5 !important;
-        margin-top: 1rem !important;
-    }
-    
-    .stButton > button:hover {
-        background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%) !important;
-        transform: translateY(-2px) !important;
-    }
-    
-    /* Clean info section */
-    .info-section {
-        background: rgba(255, 255, 255, 0.98) !important;
-        border: 2px solid #e2e8f0 !important;
-        border-radius: 16px !important;
-        padding: 2.5rem !important;
-        margin-top: 3rem !important;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05) !important;
-        text-align: center !important;
-        position: relative !important;
-        z-index: 10 !important;
-    }
-    
-    .info-section h3 {
-        color: #1e293b !important;
-        margin-bottom: 1.5rem !important;
-        font-size: 1.8rem !important;
-        font-weight: 600 !important;
-    }
-    
-    .info-section p {
-        color: #475569 !important;
-        font-weight: 400 !important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-    
-    # Start mentor selection container
-    st.markdown("""
-    <div class="mentor-selection-container">
-    """, unsafe_allow_html=True)
-    
-    # Header
-    st.markdown('<h1 class="mentor-selection-header">🕰️ ChronoCoder</h1>', unsafe_allow_html=True)
-    st.markdown('<p class="mentor-subtitle">Choose Your Legendary Programming Mentor</p>', unsafe_allow_html=True)
-    st.markdown('<p class="mentor-creator">✨ Created by Anubhav ✨</p>', unsafe_allow_html=True)
-    
-    # Mentor data with enhanced descriptions
-    mentors_data = {
+    """Display the ChronoCoder Archive gallery."""
+    from themes import MENTOR_THEMES
+
+    # The Archive - selection page styles
+    st.markdown(styles.get_selection_css(), unsafe_allow_html=True)
+
+    # Hero: armillary sphere behind Fraunces headline (Three.js)
+    components.html(styles.hero_scene_html(), height=430, scrolling=False)
+
+    # Exhibit data - era pigments & labels come from the theme registry
+    exhibit_meta = {
         "Ada Lovelace": {
             "title": "The Enchantress of Numbers",
             "icon": "🔮",
-            "traits": "Poetic • Analytical • Mathematical • Visionary",
             "description": "Experience coding through the lens of mathematical poetry and algorithmic beauty.",
-            "card_class": "ada-card"
         },
         "Linus Torvalds": {
             "title": "The Kernel Master",
             "icon": "🐧",
-            "traits": "Direct • Performance-Focused • Practical • No-Nonsense",
             "description": "Get straight-to-the-point feedback with a focus on efficiency and real-world performance.",
-            "card_class": "linus-card"
         },
         "Grace Hopper": {
             "title": "The Debugging Admiral",
             "icon": "🚢",
-            "traits": "Systematic • Educational • Patient • Thorough",
             "description": "Learn through methodical debugging and step-by-step problem-solving techniques.",
-            "card_class": "grace-card"
         },
         "Alan Turing": {
             "title": "The Computation Pioneer",
             "icon": "🧠",
-            "traits": "Philosophical • Mathematical • Curious • Deep-Thinking",
             "description": "Explore the theoretical foundations and computational possibilities of your code.",
-            "card_class": "alan-card"
         },
         "Margaret Hamilton": {
             "title": "The Software Engineer",
-            "icon": "🚁",
-            "traits": "Safety-Focused • Thorough • Systematic • Quality-Oriented",
+            "icon": "🚀",
             "description": "Ensure your code is reliable, error-free, and mission-critical ready.",
-            "card_class": "margaret-card"
         },
         "Dennis Ritchie": {
             "title": "The Language Architect",
             "icon": "⚡",
-            "traits": "Elegant • Efficient • Foundational • Simple",
             "description": "Write clean, efficient code that stands the test of time with minimalist elegance.",
-            "card_class": "dennis-card"
         },
         "Barbara Liskov": {
             "title": "The Design Theorist",
             "icon": "🏛️",
-            "traits": "Principled • Structured • Educational • Design-Focused",
             "description": "Master software design principles and elegant abstraction techniques.",
-            "card_class": "barbara-card"
         },
         "Guido van Rossum": {
             "title": "The Python Creator",
             "icon": "🐍",
-            "traits": "Readable • Elegant • Practical • Community-Focused",
             "description": "Make your code beautiful and Pythonic with the wisdom of Python's creator.",
-            "card_class": "guido-card"
-        }
+        },
     }
-    
-    # Create mentor selection cards
+
+    # Create mentor exhibit plaques
     col1, col2 = st.columns(2)
-    
-    mentor_names = list(mentors_data.keys())
+
+    mentor_names = list(exhibit_meta.keys())
     for i, mentor_name in enumerate(mentor_names):
-        mentor = mentors_data[mentor_name]
-        
-        # Alternate between columns
+        meta = exhibit_meta[mentor_name]
+        theme = MENTOR_THEMES[mentor_name]
+
         with col1 if i % 2 == 0 else col2:
-            # Create clickable mentor card
             card_html = f"""
-            <div class="mentor-card {mentor['card_class']}">
-                <div class="mentor-icon">{mentor['icon']}</div>
-                <div class="mentor-name">{mentor_name}</div>
-                <div class="mentor-title">{mentor['title']}</div>
-                <div class="mentor-traits">{mentor['traits']}</div>
-                <p style="color: #475569; font-size: 0.95rem; margin-bottom: 1rem;">{mentor['description']}</p>
+            <div class="cc-exhibit" style="--accent: {theme['accent']}">
+                <div class="cc-exhibit-no">EXHIBIT {theme['exhibit_no']} &middot; {theme['era_label'].upper()} &middot; {theme['era_year'].upper()}</div>
+                <span class="cc-exhibit-icon">{meta['icon']}</span>
+                <div class="cc-exhibit-name">{mentor_name}</div>
+                <div class="cc-exhibit-title">{meta['title']}</div>
+                <div class="cc-exhibit-desc">{meta['description']}</div>
+                <div class="cc-exhibit-tags">&ldquo;{theme['tagline']}&rdquo;</div>
             </div>
             """
             st.markdown(card_html, unsafe_allow_html=True)
-            
-            # Use Streamlit button for actual selection
-            if st.button(f"Select {mentor_name}", key=f"select_{mentor_name}", help=f"Choose {mentor_name} as your coding mentor"):
+
+            if st.button(f"Study under {mentor_name.split()[-1]} →", key=f"select_{mentor_name}", help=f"Choose {mentor_name} as your coding mentor"):
                 st.session_state.selected_mentor = mentor_name
                 st.session_state.show_selection_page = False
                 st.rerun()
-    
-    # Add some additional info with enhanced styling
+
+    # Placard footer
     st.markdown("---")
     st.markdown("""
-    <div class="info-section">
-        <h3 style="color: #1e293b; margin-bottom: 1.5rem; font-size: 1.8rem; font-weight: bold;">🎯 How It Works</h3>
-        <p style="color: #475569; font-size: 1.2rem; margin-bottom: 1.5rem; font-weight: 500;">Each mentor has a unique personality and teaching style. Choose the one that resonates with your learning goals!</p>
-        <p style="color: #1e293b; font-weight: 700; margin-bottom: 1.5rem; font-size: 1.1rem;"><strong>✨ Features:</strong> Code Analysis • Dynamic Gemini-2.0-Flash Feedback • Session Logging</p>
-        <p style="color: #667eea; font-style: italic; font-size: 1.1rem; font-weight: 600;"><em>Built with ❤️ by Anubhav using Python & Streamlit</em></p>
-    </div>
+    <div class="cc-placard">
+        <h3>How it works</h3>
+        <p>Each mentor reviews your code in their own voice and by their own standards — Ada weighs elegance,
+        Linus inspects your data structures, Hamilton hunts edge cases. Pick the mind you want breathing down your neck.</p>
+        <p class="cc-fineprint">Code analysis &middot; Gemini-powered critique &middot; session logging</p>
+        <p class="cc-fineprint">The ChronoCoder Archive &middot; curated by Anubhav</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -378,136 +167,45 @@ def main():
         mentor_selection_page()
         return
     
-    # Add sleek CSS with beautiful layout definitions
-    st.markdown("""
-    <style>
-    /* MODERN GRADIENT BACKGROUND */
-    .stApp {
-        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%) !important;
-        position: relative;
-        min-height: 100vh;
-        overflow-x: hidden;
-    }
-    
-    /* SLEEK SOLID BOXES FOR ALL CONTENT */
-    .main .block-container {
-        background: #ffffff !important;
-        border: 1px solid #e2e8f0 !important;
-        border-radius: 15px !important;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
-        margin: 1.5rem auto !important;
-        padding: 2.5rem !important;
-        position: relative !important;
-        z-index: 10 !important;
-        max-width: 1300px !important;
-    }
-    
-    /* FIXED SIDEBAR VISIBILITY */
-    .stSidebar > div {
-        background: #ffffff !important;
-        border-right: 1px solid #e2e8f0 !important;
-        padding: 1.5rem !important;
-    }
-    
-    /* SLEEK TEXT - MODERN CONTRAST COLORS */
-    .stMarkdown {
-        font-size: 16px !important;
-        line-height: 1.6 !important;
-        color: #1e293b !important;
-    }
-    
-    /* CLEAN HEADERS - Slate Dark */
-    h1, h2, h3, h4, h5, h6 {
-        color: #0f172a !important;
-        font-weight: 600 !important;
-        margin: 1rem 0 0.5rem 0 !important;
-    }
-    
-    /* SLEEK BUTTONS */
-    .stButton > button {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-        color: white !important;
-        border: none !important;
-        border-radius: 8px !important;
-        padding: 0.75rem 1.5rem !important;
-        font-weight: 500 !important;
-        font-size: 0.95rem !important;
-        transition: all 0.2s ease !important;
-    }
-    
-    .stButton > button:hover {
-        background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%) !important;
-        transform: translateY(-1px) !important;
-        color: white !important;
-        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.25) !important;
-    }
-    
-    /* CLEAN INPUT FIELDS */
-    .stTextInput > div > div > input,
-    .stTextArea > div > div > textarea,
-    .stSelectbox > div > div {
-        background: #ffffff !important;
-        border: 1px solid #cbd5e1 !important;
-        border-radius: 6px !important;
-        padding: 0.75rem !important;
-        color: #1e293b !important;
-        font-size: 0.95rem !important;
-    }
-    
-    .stTextInput > div > div > input:focus,
-    .stTextArea > div > div > textarea:focus {
-        border-color: #6366f1 !important;
-        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15) !important;
-    }
-    
-    /* CLEAN SUCCESS/INFO/WARNING BOXES */
-    .stAlert {
-        border-radius: 8px !important;
-        border: 1px solid #e2e8f0 !important;
-    }
-    
-    /* Mobile responsive styles */
-    @media (max-width: 768px) {
-        .main .block-container {
-            padding: 1.5rem 1rem !important;
-            margin: 0.5rem !important;
-        }
-    }
-    
-    /* Accessibility: Keyboard focus indicators */
-    .stButton > button:focus-visible,
-    .stTextInput > div > div > input:focus-visible,
-    .stTextArea > div > div > textarea:focus-visible,
-    .stSelectbox > div > div:focus-visible {
-        outline: 2px solid #6366f1 !important;
-        outline-offset: 2px !important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-    
+    # Dark Time Travel theme - workspace styles
+    st.markdown(styles.get_app_css(), unsafe_allow_html=True)
+
+    # Per-mentor world: re-tint chrome with the mentor's era pigment
+    import scenes
+    from themes import get_mentor_theme
+    mentor_theme = get_mentor_theme(st.session_state.selected_mentor)
+    st.markdown(
+        styles.get_mentor_workspace_css(mentor_theme["accent"], mentor_theme["accent_soft"]),
+        unsafe_allow_html=True,
+    )
+
+    # Mentor hero: their signature 3D scene + exhibit placard (Three.js / ASCII)
+    components.html(scenes.get_hero_scene(st.session_state.selected_mentor), height=380, scrolling=False)
+
     # Header navigation bar layout
     nav_col1, nav_col2 = st.columns([1, 4])
     with nav_col1:
-        if st.button("← Change Mentor", help="Go back to mentor selection"):
+        if st.button("← Back to the Archive", help="Return to mentor selection"):
             st.session_state.show_selection_page = True
             st.session_state.selected_mentor = None
             st.rerun()
-    
+
     with nav_col2:
-        st.markdown('<h1 style="margin-top:0; padding-top:0;" class="main-header">🕰️ ChronoCoder</h1>', unsafe_allow_html=True)
+        st.markdown(
+            f'<div class="cc-plaque"><span class="no">EXHIBIT {mentor_theme["exhibit_no"]}</span>'
+            f'<span class="name">{st.session_state.selected_mentor}</span>'
+            f'<span class="era">{mentor_theme["era_label"]} · {mentor_theme["era_year"]}</span></div>',
+            unsafe_allow_html=True,
+        )
+
     
-    st.markdown("### *AI-Powered Mentor Chatbot for Python Learning*")
-    st.markdown("**Created by Anubhav** | *Powered by 8 Legendary Programming Mentors & Google Gemini-2.0-Flash* 🚀")
-    
-    # Display selected mentor
+    # Mentor greeting - accent plaque instead of native alert boxes
     if st.session_state.selected_mentor:
         try:
             mentor_greeting = st.session_state.mentor_personalities.get_mentor_greeting(st.session_state.selected_mentor)
-            st.success(f"🎯 **Your Mentor:** {st.session_state.selected_mentor}")
-            st.info(f"💬 {mentor_greeting}")
-        except Exception as e:
-            st.success(f"🎯 **Your Mentor:** {st.session_state.selected_mentor}")
-            st.info("💬 Welcome! I'm ready to help you with your Python code!")
+        except Exception:
+            mentor_greeting = "Welcome! I'm ready to help you with your Python code!"
+        st.markdown(f'<div class="cc-greeting">{mentor_greeting}</div>', unsafe_allow_html=True)
     
     # Check for admin mode activation via sidebar quick-access
     admin_trigger = st.sidebar.text_input("🔑 Admin Access", type="password", placeholder="Admin password")
@@ -530,7 +228,7 @@ def main():
         st.header("🎯 Current Mentor")
         if st.session_state.selected_mentor:
             st.success(f"**{st.session_state.selected_mentor}**")
-            st.markdown("*Click 'Change Mentor' above to switch*")
+            st.markdown("*Click 'Back to the Archive' above to switch*")
         else:
             st.warning("No mentor selected")
         
@@ -757,7 +455,7 @@ print(greet("Anubhav"))""",
     st.markdown(
         "<div style='text-align: center;'>"
         "<small>© 2026 ChronoCoder by Anubhav | Educational Open Source Project | "
-        "<span style='color: #475569;'>Psst... admins can toggle access panel in the sidebar 😉</span>"
+        "<span style='color: #8ea0c9;'>Psst... admins can toggle access panel in the sidebar 😉</span>"
         "</small></div>", 
         unsafe_allow_html=True
     )
