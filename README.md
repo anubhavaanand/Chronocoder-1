@@ -61,6 +61,7 @@ cd Chronocoder-1
 pip install -r requirements.txt
 
 # Configure secrets
+mkdir -p .streamlit
 cp secrets_example.toml .streamlit/secrets.toml
 # Edit .streamlit/secrets.toml and add your GOOGLE_API_KEY
 ```
@@ -68,11 +69,11 @@ cp secrets_example.toml .streamlit/secrets.toml
 ### Running the Application
 
 ```bash
-# Local development
-streamlit run main.py
+# Local development (uses config.toml settings)
+streamlit run chronocoder/main.py
 
-# Or specify port/address
-streamlit run main.py --server.port 8501 --server.address 0.0.0.0
+# Or specify custom port/address
+streamlit run chronocoder/main.py --server.port 8501 --server.address 0.0.0.0
 ```
 
 Visit **http://localhost:8501** in your browser to start coding with mentors!
@@ -95,15 +96,30 @@ Chronocoder-1/
 ├── test_mentors.py      # Test cases for mentor functionality
 ├── test_utils.py        # Utility function tests
 │
-├── .streamlit/          # Streamlit configuration & secrets
-├── logs/                # Session log storage (auto-generated)
-├── venv/                # Virtual environment (gitignored)
+├── chronocoder/                # Core application files
+│   ├── main.py                # Application entry point
+│   ├── styles.py              # Design system (CSS)
+│   ├── mentors.py             # AI personalities
+│   ├── themes.py              # Per-mentor themes
+│   ├── scenes.py              # 3D visualizations
+│   ├── code_parser.py         # AST-based analysis
+│   ├── utils.py               # Helper functions
+│   └── anubhav_admin.py       # Admin panel
+├── logs/                       # Session log storage (auto-generated)
+├── tests/                      # Test suite (optional, not tracked)
+│   ├── test_code_parser.py
+│   ├── test_mentors.py
+│   └── test_utils.py
+├── screenshots/                # Screenshots for documentation
+├── .streamlit/                 # Streamlit configuration & secrets
+├── venv/                       # Virtual environment (gitignored)
 │
-├── README.md            # This file
-├── LICENSE              # MIT License
-├── requirements.txt     # Python dependencies
-├── pyproject.toml       # Project metadata (optional)
-└── .github/             # GitHub Actions workflows
+├── README.md                   # This file
+├── CONTRIBUTING.md             # Contribution guidelines
+├── LICENSE                     # MIT License
+├── requirements.txt            # Python dependencies
+├── pyproject.toml              # Project metadata (optional)
+└── .github/                    # GitHub Actions workflows
 ```
 
 ---
@@ -190,34 +206,14 @@ pytest test_utils.py -v
 
 ## 🌐 Deployment
 
-### Deploy to Render
+### Deploy to Render or Heroku
 
 ```bash
-# Build and push image
-docker build -t chronocoder .
-docker push chronocoder:latest
+# Push to your fork
+git push origin master
 
-# Update render.yaml or use Render dashboard
-```
-
-### Deploy to Heroku
-
-```bash
-heroku create your-app-name
-git push heroku master
-```
-
-### Docker Deployment
-
-```bash
-# Build Docker image
-docker-compose build
-
-# Run containers
-docker-compose up -d
-
-# View logs
-docker-compose logs -f
+# Then configure via Render/Heroku dashboard
+# Point to: streamlit run chronocoder/main.py
 ```
 
 ### Streamlit Cloud
@@ -225,10 +221,11 @@ docker-compose logs -f
 1. Push code to GitHub
 2. Visit [share.streamlit.io](https://share.streamlit.io)
 3. Connect your repository
-4. Configure secrets in Streamlit dashboard
-5. Deploy!
+4. Configure custom command: `streamlit run chronocoder/main.py`
+5. Add secrets in Streamlit dashboard
+6. Deploy!
 
-See [`DEPLOYMENT.md`](DEPLOYMENT.md) for detailed deployment guides.
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for detailed setup guides.
 
 ---
 
@@ -309,7 +306,7 @@ THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPL
 
 ### Resources
 
-- 📖 [Documentation](DEPLOYMENT.md)
+- 📖 [Contributing Guide](CONTRIBUTING.md)
 - 🐛 [Report Bugs](https://github.com/anubhavaanand/Chronocoder-1/issues)
 - 💬 [Feature Requests](https://github.com/anubhavaanand/Chronocoder-1/issues)
 - 📧 Email: anubhav@example.com
@@ -371,13 +368,10 @@ Dependencies: 2 core (Streamlit, Google Generative AI)
 
 ```bash
 # Start the app
-streamlit run main.py
+streamlit run chronocoder/main.py
 
 # Check version
 streamlit --version
-
-# Run tests
-pytest . -v
 
 # View logs
 tail -f logs/*.json

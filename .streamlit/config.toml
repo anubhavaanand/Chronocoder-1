@@ -8,6 +8,9 @@ enableXsrfProtection = false
 port = 8501
 address = "0.0.0.0"
 
+# Main entry point
+mainScriptPath = "chronocoder/main.py"
+
 # Browser configuration
 runOnSave = true
 allowRunOnSave = true
