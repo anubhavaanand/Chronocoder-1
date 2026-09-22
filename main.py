@@ -300,13 +300,40 @@ def main():
         # Code input area
         user_code = st.text_area(
             "Paste your Python code here:",
-            height=300,
-            placeholder="""# Example
-def greet(name):
-    return f"Hello, World! Nice to meet you, {name}!"
+            height=350,
+            placeholder="""# Paste your Python code here...
+def fibonacci(n):
+    if n <= 1:
+        return n
+    else:
+        return fibonacci(n-1) + fibonacci(n-2)
 
-print(greet("Anubhav"))""",
-            help="Enter any Python code you'd like your mentor to review."
+print(fibonacci(10))""",
+            help="Enter any Python code you'd like your mentor to review.",
+            key="code_input"
+        )
+        
+        # Character count and complexity indicator
+        has_code = bool(user_code.strip())
+        char_count = len(user_code)
+        
+        # Simple complexity calculation
+        if char_count == 0:
+            complexity = "None"
+            complexity_class = ""
+        elif char_count < 100:
+            complexity = "Simple"
+            complexity_class = "complexity-simple"
+        elif char_count < 500:
+            complexity = "Medium"
+            complexity_class = "complexity-medium"
+        else:
+            complexity = "Complex"
+            complexity_class = "complexity-complex"
+        
+        st.markdown(
+            f'<div class="cc-character-count"><span class="{complexity_class}">{complexity}</span> • {char_count} characters</div>',
+            unsafe_allow_html=True
         )
         
         # Analysis button
@@ -382,27 +409,44 @@ print(greet("Anubhav"))""",
             # Display the most recent feedback
             latest = st.session_state.history[-1]
             
-            # Mentor feedback
-            st.subheader(f"💭 {latest['mentor']} says:")
-            st.markdown(latest['feedback'])
+            # Enhanced feedback section rendering with icons and colors
+            feedback_html = f"""
+            <div class="feedback-section reading-section">
+                <div class="section-header">
+                    <i class="icon">📖</i>
+                    <h4>{latest['mentor']}'s Reading</h4>
+                </div>
+                <p class="section-body">{latest['feedback']}</p>
+            </div>
             
-            # Code analysis summary
-            st.subheader("📊 Code Analysis:")
-            analysis_summary = st.session_state.code_analyzer.get_code_summary(latest['analysis'])
-            st.markdown(analysis_summary)
+            <div class="feedback-section success-section">
+                <div class="section-header">
+                    <i class="icon green-glow">✅</i>
+                    <h4>Code Structure Analysis</h4>
+                </div>
+                <ul class="feature-list">
+                    {f'<li><strong>Lines of Code:</strong> {latest["analysis"].get("line_count", 0)}</li>' if latest['analysis'].get('line_count') else ''}
+                    {f'<li><strong>Functions Defined:</strong> {len(latest["analysis"].get("functions", []))}</li>' if latest['analysis'].get('functions') else ''}
+                    {f'<li><strong>Complexity Score:</strong> {latest["analysis"].get("complexity_score", 0)}</li>' if latest['analysis'].get('complexity_score') else ''}
+                </ul>
+            </div>
+            """
+            st.markdown(feedback_html, unsafe_allow_html=True)
             
             # Show errors if any
             if latest['analysis'].get('errors'):
-                st.error("⚠️ Issues found:")
+                st.warning("⚠️ Issues found:")
                 for error in latest['analysis']['errors']:
-                    st.write(f"• {error}")
+                    st.error(error)
             
             # Detailed breakdown
             with st.expander("🔍 Detailed Code Breakdown"):
                 if latest['analysis'].get('explanations'):
                     st.subheader("Line-by-line explanation:")
-                    for explanation in latest['analysis']['explanations']:
+                    for explanation in latest['analysis']['explanations'][:5]:  # Limit to first 5 for brevity
                         st.write(f"• {explanation}")
+                    if len(latest['analysis']['explanations']) > 5:
+                        st.write(f"• ... and {len(latest['analysis']['explanations']) - 5} more lines")
                 
                 # Show code structure
                 col_a, col_b = st.columns(2)

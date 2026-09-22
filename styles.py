@@ -526,6 +526,115 @@ hr::after {
 .border-neon-green { border-color: var(--neon-green) !important; }
 
 .font-mono { font-family: 'JetBrains Mono', monospace !important; }
+
+/* ===== ENHANCED CODE EDITOR - LINE NUMBERS & HIGHLIGHTING ===== */
+.cc-code-editor-wrapper {
+    position: relative;
+    margin-bottom: var(--spacing-md);
+}
+
+.cc-terminal-editor-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    margin: -1px -1px 0;
+}
+
+.cc-editor-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.cc-editor-action-btn {
+    background: transparent;
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-sm);
+    padding: 0.4rem 0.8rem;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.cc-editor-action-btn:hover {
+    color: var(--neon-cyan);
+    border-color: var(--neon-cyan);
+}
+
+.cc-line-numbers {
+    position: absolute;
+    left: 0;
+    top: 48px;
+    width: 50px;
+    background: var(--color-bg-secondary);
+    border-right: 1px solid var(--glass-border);
+    padding: 1rem 0.5rem;
+    text-align: right;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    user-select: none;
+    z-index: 2;
+}
+
+.cc-code-input {
+    width: 100%;
+    background: var(--color-bg-secondary) !important;
+    border: 1px solid var(--glass-border) !important;
+    border-radius: var(--radius-md) !important;
+    color: var(--neon-green) !important;
+    font-family: 'JetBrains Mono', monospace !important;
+    font-size: 0.9rem !important;
+    padding: 1rem 1rem 1rem 60px !important; /* Left padding for line numbers */
+    min-height: 300px !important;
+    resize: vertical !important;
+    transition: all var(--transition-fast);
+    line-height: 1.6 !important;
+}
+
+.cc-code-input:focus {
+    border-color: var(--neon-cyan) !important;
+    box-shadow: var(--glow-cyan) !important;
+}
+
+.cc-character-count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-top: 0.5rem;
+    text-align: right;
+}
+
+.cc-complexity-indicator {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.complexity-simple {
+    background: rgba(0, 255, 65, 0.1);
+    color: var(--neon-green);
+    border: 1px solid var(--neon-green);
+}
+
+.complexity-medium {
+    background: rgba(255, 176, 0, 0.1);
+    color: var(--neon-amber);
+    border: 1px solid var(--neon-amber);
+}
+
+.complexity-complex {
+    background: rgba(255, 0, 255, 0.1);
+    color: var(--neon-magenta);
+    border: 1px solid var(--neon-magenta);
+}
 </style>
 """
 
