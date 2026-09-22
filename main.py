@@ -68,14 +68,14 @@ except Exception as e:
     st.stop()
 
 def mentor_selection_page():
-    """Display the ChronoCoder Archive gallery."""
+    """Display the ChronoCoder Archive gallery - Retro Computing Theme."""
     from themes import MENTOR_THEMES
 
-    # The Archive - selection page styles
+    # Apply the complete retro computing design system
     st.markdown(styles.get_selection_css(), unsafe_allow_html=True)
 
-    # Hero: armillary sphere behind Fraunces headline (Three.js)
-    components.html(styles.hero_scene_html(), height=430, scrolling=False)
+    # Full-bleed animated Three.js hero scene
+    components.html(styles.hero_scene_html(), height=520, scrolling=False)
 
     # Exhibit data - era pigments & labels come from the theme registry
     exhibit_meta = {
@@ -279,10 +279,22 @@ def main():
         st.markdown("**Created by:** Anubhav")
         st.markdown("**Built with:** Python, Streamlit & ❤️")
     
-    # Main content area
+    # Main content area with enhanced headers
     col1, col2 = st.columns([1, 1])
     
     with col1:
+        # Terminal-style header for code input
+        st.markdown("""
+        <div class="cc-terminal-header">
+            <div class="cc-terminal-dots">
+                <div class="cc-terminal-dot red"></div>
+                <div class="cc-terminal-dot yellow"></div>
+                <div class="cc-terminal-dot green"></div>
+            </div>
+            <span class="cc-terminal-title">EDITOR — python_code.py</span>
+        </div>
+        """, unsafe_allow_html=True)
+        
         st.header("📝 Your Python Code")
         
         # Code input area
@@ -352,6 +364,18 @@ print(greet("Anubhav"))""",
                 st.error("Please try again or contact support if the issue persists.")
     
     with col2:
+        # Terminal-style header for feedback panel
+        st.markdown("""
+        <div class="cc-terminal-header">
+            <div class="cc-terminal-dots">
+                <div class="cc-terminal-dot red"></div>
+                <div class="cc-terminal-dot yellow"></div>
+                <div class="cc-terminal-dot green"></div>
+            </div>
+            <span class="cc-terminal-title">TERMINAL — mentor_feedback.txt</span>
+        </div>
+        """, unsafe_allow_html=True)
+        
         st.header("🧠 Mentor Feedback")
         
         if st.session_state.history:
@@ -431,7 +455,13 @@ print(greet("Anubhav"))""",
     
     # Footer with credits and information
     st.markdown("---")
-    st.markdown("### 🎨 About ChronoCoder")
+    
+    # Enhanced retro-themed footer
+    st.markdown("""
+    <div class="cc-footer-section">
+        <div class="cc-creator-badge">✨ Created by Anubhav</div>
+    </div>
+    """, unsafe_allow_html=True)
     
     footer_col1, footer_col2, footer_col3 = st.columns(3)
     
@@ -461,8 +491,20 @@ print(greet("Anubhav"))""",
     )
 
 def admin_panel():
-    """Special admin panel for Anubhav with unrestricted access."""
-    st.markdown("---")
+    """Special admin panel for Anubhav with unrestricted access - Retro Edition."""
+    
+    # Terminal-style header for admin panel
+    st.markdown("""
+    <div class="cc-terminal-header">
+        <div class="cc-terminal-dots">
+            <div class="cc-terminal-dot red"></div>
+            <div class="cc-terminal-dot yellow"></div>
+            <div class="cc-terminal-dot green"></div>
+        </div>
+        <span class="cc-terminal-title">ADMIN_CONSOLE — root_access</span>
+    </div>
+    """, unsafe_allow_html=True)
+    
     st.header("👑 Anubhav's Admin Control Panel")
     
     if not st.session_state.admin_authenticated:
