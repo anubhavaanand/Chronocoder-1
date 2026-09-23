@@ -1,0 +1,205 @@
+@import "tailwindcss";
+
+/* ChronoCoder v3 Design System - Retro Computing Theme */
+:root {
+  /* Core Colors */
+  --background: #0a0a0f;
+  --foreground: #e5e5e5;
+  
+  /* Neon Palette */
+  --accent-cyan: #00f3ff;
+  --accent-magenta: #ff00ff;
+  --accent-amber: #ffb000;
+  --accent-green: #00ff41;
+  
+  /* Retro Gradients */
+  --gradient-primary: linear-gradient(135deg, var(--accent-cyan) 0%, var(--accent-magenta) 100%);
+  --gradient-glow: radial-gradient(circle at center, rgba(0, 243, 255, 0.15) 0%, transparent 70%);
+  
+  /* Background Layers */
+  --retro-dark: #1a1a1f;
+  --retro-darker: #0a0a0f;
+  --retro-panel: #15151a;
+  --retro-border: #2a2a30;
+  --retro-highlight: rgba(255, 255, 255, 0.05);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  
+  /* Custom Colors */
+  --color-retro-dark: var(--retro-dark);
+  --color-retro-darker: var(--retro-darker);
+  --color-retro-panel: var(--retro-panel);
+  --color-retro-border: var(--retro-border);
+  
+  --color-accent-cyan: var(--accent-cyan);
+  --color-accent-magenta: var(--accent-magenta);
+  --color-accent-amber: var(--accent-amber);
+  --color-accent-green: var(--accent-green);
+  
+  /* Shadows */
+  --shadow-neon: 0 0 10px rgba(0, 243, 255, 0.5), 0 0 20px rgba(0, 243, 255, 0.3);
+  --shadow-glow: 0 0 20px rgba(255, 0, 255, 0.3);
+  --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+/* Base Styles */
+body {
+  background: var(--retro-darker);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+}
+
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+/* Utilities */
+.prose {
+  max-width: 65ch;
+}
+
+.prose p {
+  margin-bottom: 1rem;
+  line-height: 1.7;
+}
+
+.prose code {
+  background: var(--retro-panel);
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  color: var(--accent-cyan);
+}
+
+.prose pre {
+  background: var(--retro-dark);
+  padding: 1rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  margin: 1rem 0;
+  border: 1px solid var(--retro-border);
+}
+
+.prose pre code {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+}
+
+/* Animations */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 1; box-shadow: 0 0 10px rgba(0, 243, 255, 0.3); }
+  50% { opacity: 0.8; box-shadow: 0 0 20px rgba(0, 243, 255, 0.6); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes scanline {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--retro-highlight) 0%,
+    rgba(255, 255, 255, 0.1) 50%,
+    var(--retro-highlight) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+/* CRT Scanline Effect (for hero sections) */
+.crt-overlay {
+  position: relative;
+  overflow: hidden;
+}
+
+.crt-overlay::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.1) 0px,
+    rgba(0, 0, 0, 0.1) 1px,
+    transparent 1px,
+    transparent 2px
+  );
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--retro-dark);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--retro-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-cyan);
+}
+
+/* Focus States */
+*:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+  border-radius: 0.25rem;
+}
+
+/* Selection */
+::selection {
+  background: var(--accent-cyan);
+  color: var(--retro-darker);
+}
+
+/* Utility Classes */
+.gradient-text {
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.glass-effect {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
