@@ -1,0 +1,48 @@
+# Multi-stage Dockerfile for FastAPI Backend
+
+# Stage 1: Dependencies
+FROM python:3.12-slim AS deps
+WORKDIR /app
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements and install
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Stage 2: Production (Minimal)
+FROM python:3.12-slim AS production
+WORKDIR /app
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app
+
+# Install only production dependencies
+COPY --from=deps /app/app /app/app
+COPY --from=deps /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=deps /usr/local/bin /usr/local/bin
+
+# Create non-root user for security
+RUN useradd -m -u 1000 chronocoder && \
+    chown -R chronocoder:chronocoder /app
+USER chronocoder
+
+# Expose port
+EXPOSE 8000
+
+# Health check endpoint file
+RUN echo 'from fastapi import FastAPI; app = FastAPI(); @app.get("/health")' > /app/health.py
+
+# Run with uvicorn
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+# Labels
+LABEL org.opencontainers.image.source="https://github.com/anubhavaanand/Chronocoder-1"
+LABEL org.opencontainers.image.description="ChronoCoder v3 - AI Mentor Platform Backend"
+LABEL maintainer="Anubhav <anubhav@example.com>"

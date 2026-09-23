@@ -1,2 +1,30 @@
-streamlit>=1.28.0
-google-generativeai>=0.3.0
+# ChronoCoder v3 - Backend Dependencies
+
+# Web Framework
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+python-multipart>=0.0.6
+
+# Database
+sqlalchemy>=2.0.25
+psycopg2-binary>=2.9.9
+
+# API Client
+aiohttp>=3.9.0
+aiogoogle>=5.3.0
+
+# Authentication (if needed later)
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+
+# Async helpers
+asyncpg>=0.29.0
+
+# Utilities
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+
+# Testing (dev)
+pytest>=7.4.0
+pytest-asyncio>=0.23.0
+httpx>=0.26.0

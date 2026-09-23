@@ -1,0 +1,45 @@
+# Fly.io Deployment Configuration for ChronoCoder v3
+app = "chronocoder-v3"
+primary_region = "sjc"
+
+[build]
+  dockerfile = "docker/Dockerfile.frontend"
+
+[env]
+  NODE_ENV = "production"
+  NEXT_TELEMETRY_DISABLED = "1"
+
+[[services]]
+  internal_port = 3000
+  processes = ["app"]
+  
+  [[services.tcp_checks]]
+    interval = "10s"
+    timeout = "2s"
+    limit = 2
+    
+  [[services.http_checks]]
+    interval = "10s"
+    timeout = "2s"
+    limit = 2
+    grace_period = "10s"
+    method = "get"
+    port = 3000
+    path = "/health"
+    
+[[statics]]
+  guest_path = "/app/public"
+  url_prefix = "/"
+
+[volumes]
+  source = "chronocoder_data"
+  destination = "/data"
+  size_gb = 1
+
+[mounts]
+  source = "chronocoder_data"
+  destination = "/data"
+
+[metrics]
+  port = 9090
+  path = "/metrics"

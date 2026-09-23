@@ -16,3 +16,18 @@ deploy.py
 quick_deploy.py
 start.py
 secrets_example.toml
+
+# Node modules (do not track)
+node_modules/
+.next/
+out/
+dist/
+build/
+*.log
+
+# Test artifacts
+coverage/
+.nyc_output/
+*.lcov
+test-results/
+playwright-report/
