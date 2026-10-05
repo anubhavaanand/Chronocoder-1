@@ -8,6 +8,7 @@ python-multipart>=0.0.6
 # Database
 sqlalchemy>=2.0.25
 psycopg2-binary>=2.9.9
+supabase>=2.0.0
 
 # API Client
 aiohttp>=3.9.0

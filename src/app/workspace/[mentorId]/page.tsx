@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
@@ -10,6 +10,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import clsx from "clsx";
 import { SearchBarSection } from "@/components/ui/SearchBarSection";
+import { useMentorWebSocket } from "@/hooks/useMentorWebSocket";
 
 // Dynamically import Monaco Editor (client-side only)
 const MonacoEditor = dynamic(
@@ -131,10 +132,8 @@ def fibonacci(n):
 # Test it
 print(fibonacci(10))`);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [feedback, setFeedback] = useState("");
   const [analysis, setAnalysis] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
-  const [tokenCount, setTokenCount] = useState(0);
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [activeTab, setActiveTab] = useState<"ask" | "review">("ask");
   
@@ -148,146 +147,67 @@ print(fibonacci(10))`);
   };
   const complexity = getComplexity();
   
-  // Simulate code analysis (in production, call actual API)
-  const analyzeCodeLocally = (code: string) => {
-    const lines = code.split("\n");
-    const functions = (code.match(/def \w+\(/g) || []).length;
-    const classes = (code.match(/class \w+\(/g) || []).length;
-    const imports = (code.match(/^import|^from/gm) || []).length;
-    const complexityScore = Math.min(Math.floor((functions + classes) * 2 + lines.length / 10), 10);
-    
-    return {
-      line_count: lines.length,
-      functions: functions,
-      classes: classes,
-      imports: imports,
-      complexity_score: complexityScore,
-      estimated_tokens: Math.ceil(code.length / 4)
-    };
-  };
+  // WebSocket feedback state
+  const [feedbackSections, setFeedbackSections] = useState<any[]>([]);
+  const [reading, setReading] = useState("");
+  const [challenge, setChallenge] = useState("");
+  const [closing, setClosing] = useState("");
   
-  // Simulate AI feedback streaming (in production, SSE/WebSocket)
-  const simulateStreamingFeedback = async (code: string) => {
-    setIsAnalyzing(true);
-    setError(null);
-    setFeedback("");
-    
-    try {
-      // Step 1: Analyze code locally
-      const localAnalysis = analyzeCodeLocally(code);
-      setAnalysis(localAnalysis);
-      
-      // Step 2: Simulate streaming tokens
-      const mockResponses: Record<string, string[]> = {
-        ada_lovelace: [
-          "Your code demonstrates elegant structural beauty,",
-          "much like the intricate patterns woven by the Jacquard loom.",
-          "",
-          "**Strengths:**",
-          "• The recursive foundation shows clear mathematical thinking",
-          "• Documentation follows the poetic tradition of clarity",
-          "",
-          "**Areas for Enhancement:**",
-          "• Consider implementing memoization for computational efficiency:",
-          "```python",
-          "from functools import lru_cache",
-          "",
-          "@lru_cache(maxsize=None)",
-          "def fibonacci(n):",
-          "    # Your implementation...",
-          "```",
-          "",
-          "This would allow the Analytical Engine to reuse previously calculated results,",
-          "saving precious resources for more complex computations."
-        ],
-        linus_torvalds: [
-          "The code works, but let's talk about performance.",
-          "",
-          "**What's Good:**",
-          "- It's functional. Bare minimum met.",
-          "",
-          "**What Needs Fixing:**",
-          "- O(n) time complexity when you could have O(1) space with iteration",
-          "- No caching - redundant calculations wasting CPU cycles",
-          "- Type hints missing. I don't want to guess what this accepts",
-          "",
-          "Here's how it should be done:",
-          "```python",
-          "def fibonacci(n: int) -> list[int]:",
-          "    if n <= 0: return []",
-          "    if n == 1: return [0]",
-          "",
-          "    seq = [0, 1]",
-          "    for _ in range(2, n):",
-          "        seq.append(seq[-1] + seq[-2])",
-          "    return seq",
-          "```",
-          "",
-          "Clean, fast, no nonsense."
-        ],
-        grace_hopper: [
-          "Good start! Let me walk through this systematically.",
-          "",
-          "**Code Review Breakdown:**",
-          "",
-          "✓ **Positive Observations:**",
-          "  - Clear function naming convention",
-          "  - Docstring present (excellent habit!) 👍",
-          "  - Base cases handled appropriately",
-          "",
-          "⚠ **Suggestions for Improvement:**",
-          "",
-          "  1. **Edge Case Handling** - What if someone passes a negative number?",
-          "     Currently returns empty list, which is correct, but let's make it explicit:",
-          "     `if n < 0: raise ValueError(\"n must be non-negative\")`",
-          "",
-          "  2. **Type Safety** - Adding type hints helps prevent errors:",
-          "     `def fibonacci(n: int) -> list[int]:`",
-          "",
-          "  3. **Space Efficiency** - Iterative approach is better than recursion for this problem.",
-          "     Recursion has overhead; iteration uses constant stack space.",
-          "",
-          "Remember: A bug found early is a feature waiting to be fixed!",
-          ""
-        ],
-        alan_turing: [
-          "Fascinating exploration of algorithmic thought.",
-          "",
-          "Your implementation raises questions about computational limits:",
-          "",
-          "1. **Termination Conditions** - How do we know this always halts?",
-          "   The base cases provide guarantees, which aligns with my thoughts on decision problems.",
-          "",
-          "2. **Computational Complexity** - Can we construct a more efficient machine?",
-          "   Consider whether memoization represents a form of 'memory' in the abstract sense.",
-          "",
-          "3. **Mathematical Beauty** - The recursive definition mirrors the mathematical recurrence relation perfectly.",
-          "",
-          "**Alternative Perspective:**",
-          "Could this computation be performed by a simpler mechanism? Perhaps an iterative automaton would suffice...",
-          ""
-        ]
-      };
-      
-      // Default response for other mentors
-      const responses = mockResponses[mentorId] || mockResponses.ada_lovelace;
-      let cumulativeText = "";
-      
-      // Stream tokens with realistic delays
-      for (let i = 0; i < responses.length; i++) {
-        await new Promise(resolve => setTimeout(resolve, 50 + Math.random() * 100));
-        cumulativeText += responses[i] + "\n";
-        setFeedback(cumulativeText);
-        setTokenCount(i + 1);
-      }
-      
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An unexpected error occurred");
-    } finally {
+  const sessionIdRef = useRef<string>(`session_${Date.now()}_${Math.random().toString(36).slice(2)}`);
+
+  // Computed feedback content for export button visibility
+  const feedbackContent = useMemo(() => [
+    reading,
+    ...feedbackSections.map((s: any) => `${s.label}: ${s.content}`),
+    challenge,
+    closing,
+  ].filter(Boolean).join("\n\n"), [reading, feedbackSections, challenge, closing]);
+
+  const {
+    isConnected,
+    isAnalyzing: wsIsAnalyzing,
+    disconnect,
+  } = useMentorWebSocket({
+    mentorId,
+    userCode,
+    sessionId: sessionIdRef.current,
+    onAnalysisComplete: (analysisData) => {
+      setAnalysis(analysisData);
+    },
+    onFeedbackChunk: (chunk) => {
+      if (chunk.reading) setReading(chunk.reading);
+      if (chunk.sections) setFeedbackSections(chunk.sections);
+      if (chunk.challenge) setChallenge(chunk.challenge);
+      if (chunk.closing) setClosing(chunk.closing);
+    },
+    onFeedbackComplete: () => {
+      persistSession();
+    },
+    onError: (err) => {
+      setError(err);
       setIsAnalyzing(false);
+    },
+  });
+
+  // Session persistence
+  const persistSession = async () => {
+    try {
+      await fetch("/api/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId: sessionIdRef.current,
+          mentorId,
+          userCode,
+          feedback: { reading, sections: feedbackSections, challenge, closing },
+          analysis,
+        }),
+      });
+    } catch (err) {
+      console.warn("Failed to persist session:", err);
     }
   };
-  
+
   // Handle submission
   const handleSubmit = () => {
     if (!userCode.trim()) {
@@ -296,16 +216,29 @@ print(fibonacci(10))`);
     }
     setHasSubmitted(true);
     setActiveTab("ask");
-    simulateStreamingFeedback(userCode);
+    setReading("");
+    setFeedbackSections([]);
+    setChallenge("");
+    setClosing("");
+    setAnalysis(null);
+    setError(null);
+    setIsAnalyzing(true);
   };
-  
+
   // Handle export
   const handleExport = () => {
-    if (!feedback) return;
+    const feedbackContent = [
+      reading,
+      ...feedbackSections.map((s: any) => `${s.label}: ${s.content}`),
+      challenge,
+      closing,
+    ].filter(Boolean).join("\n\n");
+    
+    if (!feedbackContent) return;
     
     const content = `## ChronoCoder Session Export\n\n**Mentor:** ${mentor.name}\n**Date:** ${new Date().toISOString()}\n\n### Your Code\n\`\`\`python
 ${userCode}
-\`\`\`\n\n### ${mentor.name}'s Feedback\n\n${feedback}\n\n---\nGenerated by ChronoCoder v3.0`;
+\`\`\`\n\n### ${mentor.name}'s Feedback\n\n${feedbackContent}\n\n---\nGenerated by ChronoCoder v3.0`;
     
     const blob = new Blob([content], { type: "text/markdown" });
     const url = URL.createObjectURL(blob);
@@ -353,10 +286,10 @@ ${userCode}
           </div>
           
           <div className="flex items-center space-x-3">
-            {feedback && (
+            {feedbackContent && (
               <button
                 onClick={handleExport}
-                disabled={!feedback}
+                disabled={!feedbackContent}
                 className="flex items-center space-x-2 px-4 py-2 glass-effect rounded-lg hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Download className="w-4 h-4" />
@@ -451,7 +384,10 @@ ${userCode}
                               <button
                                 onClick={() => {
                                   setError(null);
-                                  setFeedback("");
+                                  setReading("");
+                                  setFeedbackSections([]);
+                                  setChallenge("");
+                                  setClosing("");
                                 }}
                                 className="mt-2 px-4 py-2 bg-red-400/20 hover:bg-red-400/30 text-red-300 rounded transition-colors"
                               >
@@ -463,7 +399,7 @@ ${userCode}
                       )}
                       
                       {/* Loading State */}
-                      {!error && isAnalyzing && !feedback && (
+                      {!error && isAnalyzing && !reading && feedbackSections.length === 0 && !challenge && (
                         <div className="flex flex-col items-center justify-center h-96 space-y-4">
                           <Loader2 className="w-12 h-12 text-accent-cyan animate-spin" />
                           <p className="text-gray-400">Generating personalized feedback...</p>
@@ -471,57 +407,59 @@ ${userCode}
                       )}
                       
                       {/* Streaming Feedback */}
-                      {!error && feedback && (
-                        <div className="animate-fade-in">
-                          <ReactMarkdown
-                            remarkPlugins={[remarkGfm]}
-                            components={{
-                              p: ({ children }) => (
-                                <p className="mb-3 last:mb-0 text-gray-200 leading-relaxed">{children}</p>
-                              ),
-                              h1: ({ children }) => (
-                                <h1 className="text-2xl font-bold text-white mb-4">{children}</h1>
-                              ),
-                              h2: ({ children }) => (
-                                <h2 className="text-xl font-semibold text-white mb-3">{children}</h2>
-                              ),
-                              h3: ({ children }) => (
-                                <h3 className="text-lg font-semibold text-white mb-2">{children}</h3>
-                              ),
-                              blockquote: ({ children }) => (
-                                <blockquote className="border-l-4 border-accent-magenta pl-4 italic text-gray-300 my-3">
-                                  {children}
-                                </blockquote>
-                              ),
-                              code: ({ children, className, inline, ...rest }: { children?: React.ReactNode; className?: string; inline?: boolean }) => {
-                                const match = className ? /language-(\w+)/.exec(className) : null;
-                                return !inline && match ? (
-                                  <pre className="bg-retro-darker p-4 rounded-lg overflow-x-auto my-3 border border-retro-border">
-                                    <code className={match[1]}>{children}</code>
-                                  </pre>
-                                ) : (
-                                  <code className="bg-retro-panel px-1.5 py-0.5 rounded text-accent-cyan font-mono text-sm" {...rest}>
-                                    {children}
-                                  </code>
-                                );
-                              },
-                              ul: ({ children }) => (
-                                <ul className="list-disc list-inside space-y-1 mb-3 text-gray-200">
-                                  {children}
-                                </ul>
-                              ),
-                              li: ({ children }) => (
-                                <li className="ml-4">{children}</li>
-                              ),
-                            }}
-                          >
-                            {feedback}
-                          </ReactMarkdown>
+                      {!error && (reading || feedbackSections.length > 0 || challenge) && (
+                        <div className="animate-fade-in space-y-6">
+                          {reading && (
+                            <p className="italic text-gray-300 mb-4">{reading}</p>
+                          )}
+                          {feedbackSections.map((section: any, idx: number) => (
+                            <div key={section.id || idx} className="mb-6 p-4 border-l-4 border-accent-cyan bg-retro-darker/50 rounded-r-lg">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="text-xl">{section.icon}</span>
+                                <h4 className="font-bold text-white">{section.label}</h4>
+                              </div>
+                              <div className="ml-6 prose prose-invert max-w-none">
+                                <ReactMarkdown
+                                  remarkPlugins={[remarkGfm]}
+                                  components={{
+                                    code: ({ children, className, inline, ...rest }: { children?: React.ReactNode; className?: string; inline?: boolean }) => {
+                                      const match = className ? /language-(\w+)/.exec(className) : null;
+                                      return !inline && match ? (
+                                        <pre className="bg-retro-darker p-4 rounded-lg overflow-x-auto my-3 border border-retro-border">
+                                          <code className={match[1]}>{children}</code>
+                                        </pre>
+                                      ) : (
+                                        <code className="bg-retro-panel px-1.5 py-0.5 rounded text-accent-cyan font-mono text-sm" {...rest}>
+                                          {children}
+                                        </code>
+                                      );
+                                    },
+                                  }}
+                                >
+                                  {section.content}
+                                </ReactMarkdown>
+                              </div>
+                            </div>
+                          ))}
+                          {challenge && (
+                            <div className="mb-6 p-4 border-l-4 border-accent-magenta bg-retro-darker/50 rounded-r-lg">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="text-xl">🎯</span>
+                                <h4 className="font-bold text-white">Your Challenge</h4>
+                              </div>
+                              <p className="ml-6 text-gray-200">{challenge}</p>
+                            </div>
+                          )}
+                          {closing && (
+                            <div className="text-center text-sm text-gray-400 mt-6 pt-4 border-t border-retro-border">
+                              {closing}
+                            </div>
+                          )}
                         </div>
                       )}
                       
                       {/* Initial State */}
-                      {!error && !isAnalyzing && !feedback && (
+                      {!error && !isAnalyzing && !reading && feedbackSections.length === 0 && !challenge && (
                         <div className="flex flex-col items-center justify-center h-96 text-center text-gray-400">
                           <div className="text-6xl mb-4">{mentor.icon}</div>
                           <h3 className="text-xl font-semibold text-white mb-2">Ready for Your Code</h3>
