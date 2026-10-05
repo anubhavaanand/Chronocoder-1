@@ -9,6 +9,7 @@ import { ArrowLeft, Send, Download, Loader2, AlertCircle } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import clsx from "clsx";
+import { SearchBarSection } from "@/components/ui/SearchBarSection";
 
 // Dynamically import Monaco Editor (client-side only)
 const MonacoEditor = dynamic(
@@ -134,6 +135,8 @@ print(fibonacci(10))`);
   const [analysis, setAnalysis] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [tokenCount, setTokenCount] = useState(0);
+  const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [activeTab, setActiveTab] = useState<"ask" | "review">("ask");
   
   // Character count and complexity calculation
   const characterCount = userCode.length;
@@ -291,7 +294,8 @@ print(fibonacci(10))`);
       setError("Please enter some code to analyze");
       return;
     }
-    
+    setHasSubmitted(true);
+    setActiveTab("ask");
     simulateStreamingFeedback(userCode);
   };
   
@@ -382,198 +386,246 @@ ${userCode}
       
       {/* Main Content */}
       <main className="flex-1 container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Left Column: Code Editor */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold">Your Code</h2>
-              <div className="flex items-center space-x-3 text-sm">
-                <span className="text-gray-400">{characterCount.toLocaleString()} characters</span>
-                {characterCount > 0 && (
-                  <span className={clsx("font-semibold", complexity.class)}>
-                    {complexity.label}
-                  </span>
-                )}
-              </div>
+        {!hasSubmitted ? (
+          <div className="flex items-center justify-center min-h-[60vh]">
+            <SearchBarSection className="max-w-[800px]" />
+          </div>
+        ) : (
+          <>
+            <div className="flex justify-center mb-8">
+              <SearchBarSection className="max-w-[800px]" />
             </div>
             
-            <div className="glass-effect rounded-lg p-4 border border-retro-border">
-              <MonacoEditor
-                height="600px"
-                language="python"
-                theme="vs-dark"
-                value={userCode}
-                onChange={(val) => setUserCode(val || "")}
-                options={{
-                  minimap: { enabled: false },
-                  fontSize: 14,
-                  lineHeight: 1.5,
-                  tabSize: 2,
-                  wordWrap: "on",
-                  automaticLayout: true,
-                  scrollBeyondLastLine: false,
-                  renderWhitespace: "selection",
-                  cursorBlinking: "smooth",
-                  smoothScrolling: true,
-                  suggest: { showKeywords: true },
-                }}
-                onMount={() => {}}
-              />
-              
-              <div className="mt-2 text-xs text-gray-500 text-right">
-                Ctrl/Cmd + Enter to submit
+            <div className="max-w-6xl mx-auto">
+              {/* Tab headers */}
+              <div className="flex space-x-1 mb-6 border-b border-retro-border">
+                <button
+                  onClick={() => setActiveTab("ask")}
+                  className={clsx(
+                    "pb-3 px-6 font-semibold transition-colors relative",
+                    activeTab === "ask" ? "text-accent-cyan" : "text-gray-400 hover:text-gray-200"
+                  )}
+                >
+                  Ask Question
+                  {activeTab === "ask" && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-cyan" />
+                  )}
+                </button>
+                <button
+                  onClick={() => setActiveTab("review")}
+                  className={clsx(
+                    "pb-3 px-6 font-semibold transition-colors relative",
+                    activeTab === "review" ? "text-accent-cyan" : "text-gray-400 hover:text-gray-200"
+                  )}
+                >
+                  Code Review
+                  {activeTab === "review" && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-cyan" />
+                  )}
+                </button>
               </div>
-            </div>
-            
-            {/* Local Analysis Results */}
-            {analysis && (
-              <div className="glass-effect rounded-lg p-6 border border-retro-border">
-                <h3 className="text-lg font-semibold mb-4">Static Analysis</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {[
-                    { label: "Lines", value: analysis.line_count?.toLocaleString() || 0 },
-                    { label: "Functions", value: analysis.functions || 0 },
-                    { label: "Classes", value: analysis.classes || 0 },
-                    { label: "Imports", value: analysis.imports || 0 },
-                  ].map((stat) => (
-                    <div key={stat.label} className="text-center">
-                      <div className="text-2xl font-bold text-accent-cyan">
-                        {stat.value}
-                      </div>
-                      <div className="text-xs text-gray-400">{stat.label}</div>
+
+              {/* Ask Question Tab */}
+              {activeTab === "ask" && (
+                <div className="space-y-4">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-xl font-bold">{mentor.name}'s Analysis</h2>
+                      {isAnalyzing && (
+                        <div className="flex items-center space-x-2 text-sm text-accent-cyan animate-pulse">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Receiving feedback...</span>
+                        </div>
+                      )}
                     </div>
-                  ))}
-                  
-                  {/* Complexity Score Badge */}
-                  {analysis.complexity_score && (
-                    <div className="col-span-2 md:col-span-4 mt-4 pt-4 border-t border-retro-border">
-                      <div className="flex items-center justify-center space-x-3">
-                        <span className="text-sm text-gray-400">Complexity Score:</span>
-                        <div className="relative">
-                          <div className="w-48 h-2 bg-retro-dark rounded-full overflow-hidden">
-                            <div
-                              className="absolute inset-y-0 left-0 bg-gradient-primary rounded-full"
-                              style={{ width: `${(analysis.complexity_score / 10) * 100}%` }}
-                            />
-                          </div>
-                          <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-white">
-                            {analysis.complexity_score}/10
+                    
+                    <div className="glass-effect rounded-lg p-6 border border-retro-border min-h-[600px]">
+                      {/* Error State */}
+                      {error && (
+                        <div className="text-red-400 bg-red-400/10 border border-red-400/30 p-4 rounded-lg">
+                          <div className="flex items-start space-x-3">
+                            <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                            <div>
+                              <p className="font-semibold">Error:</p>
+                              <p className="text-sm">{error}</p>
+                              <button
+                                onClick={() => {
+                                  setError(null);
+                                  setFeedback("");
+                                }}
+                                className="mt-2 px-4 py-2 bg-red-400/20 hover:bg-red-400/30 text-red-300 rounded transition-colors"
+                              >
+                                Try Again
+                              </button>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-          
-          {/* Right Column: Feedback Display */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold">{mentor.name}'s Analysis</h2>
-              {isAnalyzing && (
-                <div className="flex items-center space-x-2 text-sm text-accent-cyan animate-pulse">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Receiving feedback...</span>
-                </div>
-              )}
-            </div>
-            
-            <div className="glass-effect rounded-lg p-6 border border-retro-border min-h-[600px]">
-              {/* Error State */}
-              {error && (
-                <div className="text-red-400 bg-red-400/10 border border-red-400/30 p-4 rounded-lg">
-                  <div className="flex items-start space-x-3">
-                    <AlertError className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-semibold">Error:</p>
-                      <p className="text-sm">{error}</p>
-                      <button
-                        onClick={() => {
-                          setError(null);
-                          setFeedback("");
-                        }}
-                        className="mt-2 px-4 py-2 bg-red-400/20 hover:bg-red-400/30 text-red-300 rounded transition-colors"
-                      >
-                        Try Again
-                      </button>
+                      )}
+                      
+                      {/* Loading State */}
+                      {!error && isAnalyzing && !feedback && (
+                        <div className="flex flex-col items-center justify-center h-96 space-y-4">
+                          <Loader2 className="w-12 h-12 text-accent-cyan animate-spin" />
+                          <p className="text-gray-400">Generating personalized feedback...</p>
+                        </div>
+                      )}
+                      
+                      {/* Streaming Feedback */}
+                      {!error && feedback && (
+                        <div className="animate-fade-in">
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            components={{
+                              p: ({ children }) => (
+                                <p className="mb-3 last:mb-0 text-gray-200 leading-relaxed">{children}</p>
+                              ),
+                              h1: ({ children }) => (
+                                <h1 className="text-2xl font-bold text-white mb-4">{children}</h1>
+                              ),
+                              h2: ({ children }) => (
+                                <h2 className="text-xl font-semibold text-white mb-3">{children}</h2>
+                              ),
+                              h3: ({ children }) => (
+                                <h3 className="text-lg font-semibold text-white mb-2">{children}</h3>
+                              ),
+                              blockquote: ({ children }) => (
+                                <blockquote className="border-l-4 border-accent-magenta pl-4 italic text-gray-300 my-3">
+                                  {children}
+                                </blockquote>
+                              ),
+                              code: ({ children, inline, className }) => {
+                                const match = /language-(\w+)/.exec(className || "");
+                                return !inline && match ? (
+                                  <pre className="bg-retro-darker p-4 rounded-lg overflow-x-auto my-3 border border-retro-border">
+                                    <code className={match[1]}>{children}</code>
+                                  </pre>
+                                ) : (
+                                  <code className="bg-retro-panel px-1.5 py-0.5 rounded text-accent-cyan font-mono text-sm">
+                                    {children}
+                                  </code>
+                                );
+                              },
+                              ul: ({ children }) => (
+                                <ul className="list-disc list-inside space-y-1 mb-3 text-gray-200">
+                                  {children}
+                                </ul>
+                              ),
+                              li: ({ children }) => (
+                                <li className="ml-4">{children}</li>
+                              ),
+                            }}
+                          >
+                            {feedback}
+                          </ReactMarkdown>
+                        </div>
+                      )}
+                      
+                      {/* Initial State */}
+                      {!error && !isAnalyzing && !feedback && (
+                        <div className="flex flex-col items-center justify-center h-96 text-center text-gray-400">
+                          <div className="text-6xl mb-4">{mentor.icon}</div>
+                          <h3 className="text-xl font-semibold text-white mb-2">Ready for Your Code</h3>
+                          <p className="max-w-md">
+                            Paste your Python code above and click "Get Feedback" to receive personalized guidance from {mentor.name.split()[0]}.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
               )}
-              
-              {/* Loading State */}
-              {!error && isAnalyzing && !feedback && (
-                <div className="flex flex-col items-center justify-center h-96 space-y-4">
-                  <Loader2 className="w-12 h-12 text-accent-cyan animate-spin" />
-                  <p className="text-gray-400">Generating personalized feedback...</p>
-                </div>
-              )}
-              
-              {/* Streaming Feedback */}
-              {!error && feedback && (
-                <div className="animate-fade-in">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    components={{
-                      p: ({ children }) => (
-                        <p className="mb-3 last:mb-0 text-gray-200 leading-relaxed">{children}</p>
-                      ),
-                      h1: ({ children }) => (
-                        <h1 className="text-2xl font-bold text-white mb-4">{children}</h1>
-                      ),
-                      h2: ({ children }) => (
-                        <h2 className="text-xl font-semibold text-white mb-3">{children}</h2>
-                      ),
-                      h3: ({ children }) => (
-                        <h3 className="text-lg font-semibold text-white mb-2">{children}</h3>
-                      ),
-                      blockquote: ({ children }) => (
-                        <blockquote className="border-l-4 border-accent-magenta pl-4 italic text-gray-300 my-3">
-                          {children}
-                        </blockquote>
-                      ),
-                      code: ({ children, inline, className }) => {
-                        const match = /language-(\w+)/.exec(className || "");
-                        return !inline && match ? (
-                          <pre className="bg-retro-darker p-4 rounded-lg overflow-x-auto my-3 border border-retro-border">
-                            <code className={match[1]}>{children}</code>
-                          </pre>
-                        ) : (
-                          <code className="bg-retro-panel px-1.5 py-0.5 rounded text-accent-cyan font-mono text-sm">
-                            {children}
-                          </code>
-                        );
-                      },
-                      ul: ({ children }) => (
-                        <ul className="list-disc list-inside space-y-1 mb-3 text-gray-200">
-                          {children}
-                        </ul>
-                      ),
-                      li: ({ children }) => (
-                        <li className="ml-4">{children}</li>
-                      ),
-                    }}
-                  >
-                    {feedback}
-                  </ReactMarkdown>
-                </div>
-              )}
-              
-              {/* Initial State */}
-              {!error && !isAnalyzing && !feedback && (
-                <div className="flex flex-col items-center justify-center h-96 text-center text-gray-400">
-                  <div className="text-6xl mb-4">{mentor.icon}</div>
-                  <h3 className="text-xl font-semibold text-white mb-2">Ready for Your Code</h3>
-                  <p className="max-w-md">
-                    Paste your Python code above and click "Get Feedback" to receive personalized guidance from {mentor.name.split()[0]}.
-                  </p>
+
+              {/* Code Review Tab */}
+              {activeTab === "review" && (
+                <div className="space-y-4">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-xl font-bold">Your Code</h2>
+                      <div className="flex items-center space-x-3 text-sm">
+                        <span className="text-gray-400">{characterCount.toLocaleString()} characters</span>
+                        {characterCount > 0 && (
+                          <span className={clsx("font-semibold", complexity.class)}>
+                            {complexity.label}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="glass-effect rounded-lg p-4 border border-retro-border">
+                      <MonacoEditor
+                        height="600px"
+                        language="python"
+                        theme="vs-dark"
+                        value={userCode}
+                        onChange={(val) => setUserCode(val || "")}
+                        options={{
+                          minimap: { enabled: false },
+                          fontSize: 14,
+                          lineHeight: 1.5,
+                          tabSize: 2,
+                          wordWrap: "on",
+                          automaticLayout: true,
+                          scrollBeyondLastLine: false,
+                          renderWhitespace: "selection",
+                          cursorBlinking: "smooth",
+                          smoothScrolling: true,
+                          suggest: { showKeywords: true },
+                        }}
+                        onMount={() => {}}
+                      />
+                      
+                      <div className="mt-2 text-xs text-gray-500 text-right">
+                        Ctrl/Cmd + Enter to submit
+                      </div>
+                    </div>
+                    
+                    {/* Local Analysis Results */}
+                    {analysis && (
+                      <div className="glass-effect rounded-lg p-6 border border-retro-border">
+                        <h3 className="text-lg font-semibold mb-4">Static Analysis</h3>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          {[
+                            { label: "Lines", value: analysis.line_count?.toLocaleString() || 0 },
+                            { label: "Functions", value: analysis.functions || 0 },
+                            { label: "Classes", value: analysis.classes || 0 },
+                            { label: "Imports", value: analysis.imports || 0 },
+                          ].map((stat) => (
+                            <div key={stat.label} className="text-center">
+                              <div className="text-2xl font-bold text-accent-cyan">
+                                {stat.value}
+                              </div>
+                              <div className="text-xs text-gray-400">{stat.label}</div>
+                            </div>
+                          ))}
+                          
+                          {/* Complexity Score Badge */}
+                          {analysis.complexity_score && (
+                            <div className="col-span-2 md:col-span-4 mt-4 pt-4 border-t border-retro-border">
+                              <div className="flex items-center justify-center space-x-3">
+                                <span className="text-sm text-gray-400">Complexity Score:</span>
+                                <div className="relative">
+                                  <div className="w-48 h-2 bg-retro-dark rounded-full overflow-hidden">
+                                    <div
+                                      className="absolute inset-y-0 left-0 bg-gradient-primary rounded-full"
+                                      style={{ width: `${(analysis.complexity_score / 10) * 100}%` }}
+                                    />
+                                  </div>
+                                  <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-white">
+                                    {analysis.complexity_score}/10
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
-          </div>
-        </div>
+          </>
+        )}
       </main>
     </div>
   );
