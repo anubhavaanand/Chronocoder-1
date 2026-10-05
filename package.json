@@ -12,6 +12,7 @@
     "@monaco-editor/react": "^4.7.0",
     "@tanstack/react-query": "^5.103.2",
     "axios": "^1.20.0",
+    "border-beam": "^1.4.1",
     "clsx": "^2.1.1",
     "framer-motion": "^13.4.1",
     "lucide-react": "^1.47.0",
@@ -21,13 +22,15 @@
     "react-dom": "^19.3.0",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
-    "tailwind-merge": "^3.7.0"
+    "tailwind-merge": "^3.7.0",
+    "three": "^0.169.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/three": "^0.169.0",
     "eslint": "^9.39.5",
     "eslint-config-next": "16.3.6",
     "tailwindcss": "^4",
