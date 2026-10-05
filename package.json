@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
+    "@tailwindcss/postcss": "^4",
     "@tanstack/react-query": "^5.103.2",
     "axios": "^1.20.0",
     "border-beam": "^1.4.1",
@@ -26,7 +27,6 @@
     "three": "^0.169.0"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
