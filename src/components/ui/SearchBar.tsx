@@ -57,7 +57,6 @@ export function SearchBar({ large }: { large?: boolean }) {
             outline: "none",
             color: "var(--fg)",
             fontFamily: "var(--font-sans)",
-            "&::placeholder": { color: "var(--muted)" },
           }}
           autoComplete="off"
           spellCheck={false}

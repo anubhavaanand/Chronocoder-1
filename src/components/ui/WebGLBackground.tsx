@@ -176,7 +176,7 @@ export default function WebGLBackground() {
     const store: PlaneEntry[] = [];
 
     /* ---- Media class: one instance per img[data-gl-src] ---- */
-    class Media {
+    class Media implements PlaneEntry {
       el: HTMLImageElement;
       enter: number;
       over: { cx: number; cy: number; tx: number; ty: number };
@@ -188,12 +188,20 @@ export default function WebGLBackground() {
       h: number;
       mesh: THREE.Mesh;
       mat: THREE.ShaderMaterial;
+      material: THREE.ShaderMaterial;
+      domEl: HTMLImageElement;
 
       constructor(el: HTMLImageElement) {
         this.el = el;
+        this.domEl = el;
         this.enter = 0;
         this.over = { cx: 0.5, cy: 0.5, tx: 0.5, ty: 0.5 };
         this.tEnter = 0;
+        this.b = el.getBoundingClientRect();
+        this.top = this.b.top + window.scrollY;
+        this.left = this.b.left;
+        this.w = this.b.width;
+        this.h = this.b.height;
 
         this.mat = new THREE.ShaderMaterial({
           glslVersion: THREE.GLSL3,
@@ -209,6 +217,7 @@ export default function WebGLBackground() {
             uTime: { value: 0 },
           },
         });
+        this.material = this.mat;
 
         this.mesh = new THREE.Mesh(geometry, this.mat);
         scene.add(this.mesh);
@@ -281,16 +290,14 @@ export default function WebGLBackground() {
     function boot() {
       Array.from(document.querySelectorAll<HTMLImageElement>("img[data-gl-src]")).forEach((im) => store.push(new Media(im)));
 
-      (function frame(t: number) {
+      (function frame(t?: number) {
         requestAnimationFrame(frame);
         resize();
-
         const time = (t || 0) / 1000;
         const y = window.scrollY;
         const raw = y - prevY;
         prevY = y;
         vel = lerp(vel, raw * 0.065, 0.1);
-
         store.forEach((m) => m.update(y, vel, time));
         renderer.render(scene, camera);
       })();

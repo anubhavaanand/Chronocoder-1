@@ -493,14 +493,14 @@ ${userCode}
                                   {children}
                                 </blockquote>
                               ),
-                              code: ({ children, inline, className }) => {
-                                const match = /language-(\w+)/.exec(className || "");
+                              code: ({ children, className, inline, ...rest }: { children?: React.ReactNode; className?: string; inline?: boolean }) => {
+                                const match = className ? /language-(\w+)/.exec(className) : null;
                                 return !inline && match ? (
                                   <pre className="bg-retro-darker p-4 rounded-lg overflow-x-auto my-3 border border-retro-border">
                                     <code className={match[1]}>{children}</code>
                                   </pre>
                                 ) : (
-                                  <code className="bg-retro-panel px-1.5 py-0.5 rounded text-accent-cyan font-mono text-sm">
+                                  <code className="bg-retro-panel px-1.5 py-0.5 rounded text-accent-cyan font-mono text-sm" {...rest}>
                                     {children}
                                   </code>
                                 );
@@ -526,7 +526,7 @@ ${userCode}
                           <div className="text-6xl mb-4">{mentor.icon}</div>
                           <h3 className="text-xl font-semibold text-white mb-2">Ready for Your Code</h3>
                           <p className="max-w-md">
-                            Paste your Python code above and click "Get Feedback" to receive personalized guidance from {mentor.name.split()[0]}.
+                            Paste your Python code above and click "Get Feedback" to receive personalized guidance from {mentor.name.split(' ')[0]}.
                           </p>
                         </div>
                       )}
@@ -543,7 +543,7 @@ ${userCode}
                       <h2 className="text-xl font-bold">Your Code</h2>
                       <div className="flex items-center space-x-3 text-sm">
                         <span className="text-gray-400">{characterCount.toLocaleString()} characters</span>
-                        {characterCount > 0 && (
+                        {characterCount > 0 && complexity !== "None" && (
                           <span className={clsx("font-semibold", complexity.class)}>
                             {complexity.label}
                           </span>
