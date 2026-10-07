@@ -5,11 +5,10 @@ Loads mentor personas from JSON registry; enforces structured feedback schema.
 
 import aiohttp
 import json
-import os
 from pathlib import Path
 from typing import AsyncGenerator, Optional
-from pydantic import BaseModel, Field
-from typing import List, Literal
+from pydantic import BaseModel
+from typing import List
 
 
 MENTORS_DIR = Path(__file__).parent.parent / "mentors"

@@ -1,17 +1,22 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { Search, ChevronRight, Sparkles } from "lucide-react";
+import { useState, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { Search, ChevronRight } from "lucide-react";
 
-export function SearchBar({ large }: { large?: boolean }) {
+export function SearchBar({ large, onQuerySubmit }: { large?: boolean; onQuerySubmit?: (query: string) => void }) {
   const [query, setQuery] = useState("");
   const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (query.trim()) {
-      window.location.href = `/workspace/ada_lovelace?query=${encodeURIComponent(query.trim())}`;
+    if (!query.trim()) return;
+    if (onQuerySubmit) {
+      onQuerySubmit(query.trim());
+    } else {
+      router.push(`/workspace/ada_lovelace?query=${encodeURIComponent(query.trim())}`);
     }
   };
 

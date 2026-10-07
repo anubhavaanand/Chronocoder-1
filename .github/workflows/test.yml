@@ -41,28 +41,39 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
 
       - name: Install dependencies
         run: |
           pip install ruff
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
+      # Rule set is pinned in ruff.toml so newer ruff releases can't
+      # silently change what CI enforces.
       - name: Run ruff
         run: ruff check backend/
 
-  # Optional: Run vitest unit tests when they're fixed
-  # frontend-test:
-  #   name: Frontend Tests
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - name: Setup Node
-  #       uses: actions/setup-node@v4
-  #       with:
-  #         node-version: '20'
-  #         cache: 'npm'
-  #     - name: Install test dependencies
-  #       run: cd tests && npm ci
-  #     - name: Run tests
-  #       run: cd tests && npm run test
+  backend-tests:
+    name: Backend Tests (WebSocket contract)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      # Pinned by pytest.ini (testpaths=backend/tests, pythonpath=.)
+      - name: Run pytest
+        run: python -m pytest backend/tests -v
+
+  # The vitest/playwright suite under tests/ is stale: it imports modules
+  # that no longer exist (src/hooks/useMentorAnalysis, src/services/api)
+  # and is excluded from the build (tsconfig.json) and lint. Re-enable a
+  # frontend-tests job here only after that suite is modernized.

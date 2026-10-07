@@ -2,20 +2,19 @@
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import dynamic from "next/dynamic";
-import { useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
-import { motion } from "framer-motion";
+import { useRouter, useParams } from "next/navigation";
 import { ArrowLeft, Send, Download, Loader2, AlertCircle } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import clsx from "clsx";
 import { SearchBarSection } from "@/components/ui/SearchBarSection";
-import { useMentorWebSocket } from "@/hooks/useMentorWebSocket";
+import { useMentorWebSocket, type FeedbackSectionView, type CodeAnalysis } from "@/hooks/useMentorWebSocket";
+import { MENTORS_BY_ID } from "@/data/mentors";
 
 // Dynamically import Monaco Editor (client-side only)
 const MonacoEditor = dynamic(
   () => import("@monaco-editor/react"),
-  { 
+  {
     ssr: false,
     loading: () => (
       <div className="animate-pulse h-96 bg-retro-darker rounded-lg border border-retro-border" />
@@ -23,95 +22,14 @@ const MonacoEditor = dynamic(
   }
 );
 
-interface Mentor {
-  id: string;
-  name: string;
-  era: string;
-  icon: string;
-  greeting: string;
-  accentColor: string;
-  expertise: string;
-}
+const MENTORS: Record<string, (typeof MENTORS_BY_ID)[string]> = MENTORS_BY_ID;
 
-const MENTORS: Record<string, Mentor> = {
-  ada_lovelace: {
-    id: "ada_lovelace",
-    name: "Ada Lovelace",
-    era: "London, 1843",
-    icon: "🔮",
-    greeting: "The Analytical Engine weaves algebraic patterns, just as the Jacquard loom weaves flowers.",
-    accentColor: "#c08585",
-    expertise: "Algorithmic elegance & mathematical vision",
-  },
-  linus_torvalds: {
-    id: "linus_torvalds",
-    name: "Linus Torvalds",
-    era: "Helsinki, 1991",
-    icon: "🐧",
-    greeting: "Talk is cheap. Show me the code.",
-    accentColor: "#e0a458",
-    expertise: "Performance, structure & practical solutions",
-  },
-  grace_hopper: {
-    id: "grace_hopper",
-    name: "Grace Hopper",
-    era: "Harvard, 1947",
-    icon: "💻",
-    greeting: "It's easier to ask forgiveness than it is to get permission.",
-    accentColor: "#7492ad",
-    expertise: "Debugging, clarity & systematic thinking",
-  },
-  alan_turing: {
-    id: "alan_turing",
-    name: "Alan Turing",
-    era: "Milton Keynes, 1941",
-    icon: "🧠",
-    greeting: "We can only see a short distance ahead, but we can see plenty there that needs to be done.",
-    accentColor: "#a3a380",
-    expertise: "Computational theory & logical precision",
-  },
-  margaret_hamilton: {
-    id: "margaret_hamilton",
-    name: "Margaret Hamilton",
-    era: "MIT Apollo 11, 1969",
-    icon: "🚀",
-    greeting: "I began to realize that the software was not getting the respect it deserved.",
-    accentColor: "#c4696f",
-    expertise: "Reliability, safety & mission-critical systems",
-  },
-  dennis_ritchie: {
-    id: "dennis_ritchie",
-    name: "Dennis Ritchie",
-    era: "Murray Hill, 1973",
-    icon: "⚡",
-    greeting: "Unix is simple. It just takes a genius to understand its simplicity.",
-    accentColor: "#9aa5ad",
-    expertise: "Minimalism, portability & foundational design",
-  },
-  barbara_liskov: {
-    id: "barbara_liskov",
-    name: "Barbara Liskov",
-    era: "MIT, 1987",
-    icon: "🏛️",
-    greeting: "What is wanted is that objects should be substitutable for one another without breaking the program.",
-    accentColor: "#6f87c4",
-    expertise: "Abstraction principles & software design",
-  },
-  guido_van_rossum: {
-    id: "guido_van_rossum",
-    name: "Guido van Rossum",
-    era: "CWI Amsterdam, 1990",
-    icon: "🐍",
-    greeting: "Code is read much more often than it is written.",
-    accentColor: "#d9b64e",
-    expertise: "Readability, elegance & Pythonic style",
-  },
-};
-
-export default function WorkspacePage({ params }: { params: { mentorId: string } }) {
+export default function WorkspacePage() {
   const router = useRouter();
-  const { mentorId } = params;
-  
+  // params is a Promise in Next 16 — useParams() is the client-side accessor
+  const routeParams = useParams<{ mentorId: string }>();
+  const { mentorId } = routeParams;
+
   // Get mentor data
   const mentor = MENTORS[mentorId] || MENTORS.ada_lovelace;
   
@@ -131,12 +49,10 @@ def fibonacci(n):
 
 # Test it
 print(fibonacci(10))`);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysis, setAnalysis] = useState<any>(null);
+  const [analysis, setAnalysis] = useState<CodeAnalysis | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [activeTab, setActiveTab] = useState<"ask" | "review">("ask");
-  
   // Character count and complexity calculation
   const characterCount = userCode.length;
   const getComplexity = () => {
@@ -148,29 +64,25 @@ print(fibonacci(10))`);
   const complexity = getComplexity();
   
   // WebSocket feedback state
-  const [feedbackSections, setFeedbackSections] = useState<any[]>([]);
+  const [feedbackSections, setFeedbackSections] = useState<FeedbackSectionView[]>([]);
   const [reading, setReading] = useState("");
   const [challenge, setChallenge] = useState("");
   const [closing, setClosing] = useState("");
-  
-  const sessionIdRef = useRef<string>(`session_${Date.now()}_${Math.random().toString(36).slice(2)}`);
 
   // Computed feedback content for export button visibility
   const feedbackContent = useMemo(() => [
     reading,
-    ...feedbackSections.map((s: any) => `${s.label}: ${s.content}`),
+    ...feedbackSections.map((s) => `${s.label}: ${s.content}`),
     challenge,
     closing,
   ].filter(Boolean).join("\n\n"), [reading, feedbackSections, challenge, closing]);
 
   const {
-    isConnected,
-    isAnalyzing: wsIsAnalyzing,
-    disconnect,
+    isAnalyzing,
+    requestFeedback,
+    getSessionId,
   } = useMentorWebSocket({
     mentorId,
-    userCode,
-    sessionId: sessionIdRef.current,
     onAnalysisComplete: (analysisData) => {
       setAnalysis(analysisData);
     },
@@ -185,7 +97,6 @@ print(fibonacci(10))`);
     },
     onError: (err) => {
       setError(err);
-      setIsAnalyzing(false);
     },
   });
 
@@ -196,7 +107,7 @@ print(fibonacci(10))`);
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          sessionId: sessionIdRef.current,
+          sessionId: getSessionId(),
           mentorId,
           userCode,
           feedback: { reading, sections: feedbackSections, challenge, closing },
@@ -222,14 +133,14 @@ print(fibonacci(10))`);
     setClosing("");
     setAnalysis(null);
     setError(null);
-    setIsAnalyzing(true);
+    requestFeedback(userCode);
   };
 
   // Handle export
   const handleExport = () => {
     const feedbackContent = [
       reading,
-      ...feedbackSections.map((s: any) => `${s.label}: ${s.content}`),
+      ...feedbackSections.map((s) => `${s.label}: ${s.content}`),
       challenge,
       closing,
     ].filter(Boolean).join("\n\n");
@@ -278,6 +189,16 @@ ${userCode}
           </button>
           
           <div className="flex items-center space-x-4">
+            <img
+              src={mentor.avatarUrl}
+              alt={`Portrait of ${mentor.name}`}
+              className="hidden sm:block w-11 h-11 rounded-full object-cover"
+              style={{
+                objectPosition: mentor.portraitPosition || "center",
+                border: `1px solid ${mentor.accentColor}66`,
+                boxShadow: `0 0 16px ${mentor.accentColor}33`,
+              }}
+            />
             {mentor.icon && <span className="text-2xl">{mentor.icon}</span>}
             <div className="hidden md:block">
               <h1 className="text-lg font-bold">{mentor.name}</h1>
@@ -363,7 +284,7 @@ ${userCode}
                 <div className="space-y-4">
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <h2 className="text-xl font-bold">{mentor.name}'s Analysis</h2>
+                      <h2 className="text-xl font-bold">{mentor.name}&apos;s Analysis</h2>
                       {isAnalyzing && (
                         <div className="flex items-center space-x-2 text-sm text-accent-cyan animate-pulse">
                           <Loader2 className="w-4 h-4 animate-spin" />
@@ -412,7 +333,7 @@ ${userCode}
                           {reading && (
                             <p className="italic text-gray-300 mb-4">{reading}</p>
                           )}
-                          {feedbackSections.map((section: any, idx: number) => (
+                          {feedbackSections.map((section: FeedbackSectionView, idx: number) => (
                             <div key={section.id || idx} className="mb-6 p-4 border-l-4 border-accent-cyan bg-retro-darker/50 rounded-r-lg">
                               <div className="flex items-center gap-2 mb-2">
                                 <span className="text-xl">{section.icon}</span>
@@ -464,7 +385,7 @@ ${userCode}
                           <div className="text-6xl mb-4">{mentor.icon}</div>
                           <h3 className="text-xl font-semibold text-white mb-2">Ready for Your Code</h3>
                           <p className="max-w-md">
-                            Paste your Python code above and click "Get Feedback" to receive personalized guidance from {mentor.name.split(' ')[0]}.
+                            Paste your Python code above and click &ldquo;Get Feedback&rdquo; to receive personalized guidance from {mentor.name.split(' ')[0]}.
                           </p>
                         </div>
                       )}

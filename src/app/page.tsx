@@ -1,93 +1,11 @@
 import { MentorCard } from "@/components/mentor/MentorCard";
+import { MentorJourney } from "@/components/mentor/MentorJourney";
 import { HeroGLTarget, ScrollIndicator } from "@/components/mentor/HeroDistortion";
 import WebGLBackgroundWrapper from "@/components/ui/WebGLBackgroundWrapper";
+import { HeroSearch } from "@/components/ui/HeroSearch";
 import { ScrollProgressTracker } from "@/components/ui/ScrollProgressTracker";
+import { MENTORS } from "@/data/mentors";
 import Link from "next/link";
-
-interface Mentor {
-  id: string;
-  name: string;
-  era: string;
-  icon: string;
-  greeting: string;
-  accentColor: string;
-  expertise: string;
-}
-
-const MENTORS: Mentor[] = [
-  {
-    id: "ada_lovelace",
-    name: "Ada Lovelace",
-    era: "London, 1843",
-    icon: "🔮",
-    greeting: "The Analytical Engine weaves algebraic patterns, just as the Jacquard loom weaves flowers.",
-    accentColor: "#c08585",
-    expertise: "Algorithmic elegance & mathematical vision",
-  },
-  {
-    id: "linus_torvalds",
-    name: "Linus Torvalds",
-    era: "Helsinki, 1991",
-    icon: "🐧",
-    greeting: "Talk is cheap. Show me the code.",
-    accentColor: "#e0a458",
-    expertise: "Performance, structure & practical solutions",
-  },
-  {
-    id: "grace_hopper",
-    name: "Grace Hopper",
-    era: "Harvard, 1947",
-    icon: "💻",
-    greeting: "It's easier to ask forgiveness than it is to get permission.",
-    accentColor: "#7492ad",
-    expertise: "Debugging, clarity & systematic thinking",
-  },
-  {
-    id: "alan_turing",
-    name: "Alan Turing",
-    era: "Milton Keynes, 1941",
-    icon: "🧠",
-    greeting: "We can only see a short distance ahead, but we can see plenty there that needs to be done.",
-    accentColor: "#a3a380",
-    expertise: "Computational theory & logical precision",
-  },
-  {
-    id: "margaret_hamilton",
-    name: "Margaret Hamilton",
-    era: "MIT Apollo 11, 1969",
-    icon: "🚀",
-    greeting: "I began to realize that the software was not getting the respect it deserved.",
-    accentColor: "#c4696f",
-    expertise: "Reliability, safety & mission-critical systems",
-  },
-  {
-    id: "dennis_ritchie",
-    name: "Dennis Ritchie",
-    era: "Murray Hill, 1973",
-    icon: "⚡",
-    greeting: "Unix is simple. It just takes a genius to understand its simplicity.",
-    accentColor: "#9aa5ad",
-    expertise: "Minimalism, portability & foundational design",
-  },
-  {
-    id: "barbara_liskov",
-    name: "Barbara Liskov",
-    era: "MIT, 1987",
-    icon: "🏛️",
-    greeting: "What is wanted is that objects should be substitutable for one another without breaking the program.",
-    accentColor: "#6f87c4",
-    expertise: "Abstraction principles & software design",
-  },
-  {
-    id: "guido_van_rossum",
-    name: "Guido van Rossum",
-    era: "CWI Amsterdam, 1990",
-    icon: "🐍",
-    greeting: "Code is read much more often than it is written.",
-    accentColor: "#d9b64e",
-    expertise: "Readability, elegance & Pythonic style",
-  },
-];
 
 export default function Home() {
   return (
@@ -99,6 +17,9 @@ export default function Home() {
         simplex-noise cursor ripple, and film grain applied.
       */}
       <WebGLBackgroundWrapper />
+
+      {/* Scroll progress fill (updates #trackFill on scroll) */}
+      <ScrollProgressTracker />
 
       {/* ── Scroll progress track (from gallery) ───────────────────── */}
       <div
@@ -211,7 +132,7 @@ export default function Home() {
         {/* ── Hero Section ────────────────────────────────────────── */}
         <section
           data-od-id="hero"
-          className="relative min-h-[70vh] flex items-center justify-center px-6 py-24 overflow-hidden"
+          className="relative min-h-[80vh] flex items-center justify-center px-6 py-24 overflow-hidden"
           style={{ zIndex: 1 }}
         >
           {/* WebGL distortion target for hero background */}
@@ -237,8 +158,8 @@ export default function Home() {
               className="text-lg md:text-xl mb-10 max-w-2xl mx-auto leading-relaxed"
               style={{ color: "var(--fg-mid)" }}
             >
-              Get personalized code reviews from 8 legendary programmers who
-              analyze your work through their unique historical lens and
+              Choose a legend as your model — eight pioneering minds, each
+              reviewing your Python through their own historical lens and
               teaching philosophy.
             </p>
 
@@ -265,6 +186,8 @@ export default function Home() {
               </Link>
             </div>
 
+            {/* Glowing search bar */}
+            <HeroSearch />
           </div>
 
           {/* Scroll indicator (from gallery) */}
@@ -287,11 +210,11 @@ export default function Home() {
           <span style={{ flex: 1, height: "1px", background: "var(--border)" }} />
         </div>
 
-        {/* ── Mentors Gallery ─────────────────────────────────────── */}
+        {/* ── Mentors Gallery Journey ─────────────────────────────── */}
         <section
           id="mentors"
           data-od-id="mentors-section"
-          className="relative py-24 px-6"
+          className="relative py-10 px-6"
           style={{ zIndex: 1 }}
         >
           <div className="container mx-auto max-w-7xl">
@@ -308,25 +231,54 @@ export default function Home() {
                 className="text-4xl md:text-5xl font-black mb-4"
                 style={{ fontFamily: "var(--font-display)", letterSpacing: "-0.035em" }}
               >
-                Choose Your{" "}
-                <span className="gradient-text">Guide</span>
+                A Century of{" "}
+                <span className="gradient-text">Minds</span>
               </h2>
               <p
                 className="max-w-2xl mx-auto leading-relaxed"
                 style={{ color: "var(--fg-mid)" }}
               >
-                Each mentor represents a pivotal moment in computing history.
-                Select one to begin receiving personalized feedback on your code.
+                Walk from 1843 to 1991 — eight portraits, eight ways of
+                thinking. Stop at any of them and make their lens yours.
               </p>
             </div>
 
-            {/* Mentor Grid */}
+            {/* Quick-select grid (original gallery cards) */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
               {MENTORS.map((mentor, index) => (
-                <MentorCard key={mentor.id} {...mentor} index={index} />
+                <MentorCard
+                  key={mentor.id}
+                  id={mentor.id}
+                  name={mentor.name}
+                  era={mentor.era}
+                  icon={mentor.icon}
+                  greeting={mentor.greeting}
+                  accentColor={mentor.accentColor}
+                  expertise={mentor.expertise}
+                  index={index}
+                />
               ))}
             </div>
+
+            {/* Divider into the journey */}
+            <div
+              className="flex items-center gap-4 mt-20 mb-4"
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: "10px",
+                letterSpacing: "0.2em",
+                textTransform: "uppercase",
+                color: "var(--muted)",
+              }}
+            >
+              <span>Their Stories</span>
+              <span style={{ flex: 1, height: "1px", background: "var(--border)" }} />
+              <span>1843 — 1991</span>
+            </div>
           </div>
+
+          {/* The journey */}
+          <MentorJourney />
         </section>
 
         {/* ── Section Divider (from gallery) ───────────────────────── */}
@@ -373,9 +325,9 @@ export default function Home() {
               {[
                 {
                   label: "01",
-                  title: "Personalised Feedback",
+                  title: "Personas as Models",
                   description:
-                    "Each mentor has a distinct teaching style, reviewing your code through their unique historical perspective and expertise.",
+                    "Pick a legend the way you'd pick an AI model. Each persona has its own voice, values, and feedback structure — from Ada's poetical science to Linus's show-me-the-code.",
                 },
                 {
                   label: "02",
@@ -464,24 +416,6 @@ export default function Home() {
             </div>
           </div>
         </footer>
-
-        {/* ── Scroll progress updater (from gallery) ───────────────── */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                const trackFill = document.getElementById('trackFill');
-                function updateTrack() {
-                  const max = document.documentElement.scrollHeight - window.innerHeight;
-                  const pct = max > 0 ? (window.scrollY / max) * 100 : 0;
-                  if (trackFill) trackFill.style.height = pct.toFixed(1) + '%';
-                }
-                window.addEventListener('scroll', updateTrack, { passive: true });
-                updateTrack();
-              })();
-            `,
-          }}
-        />
       </main>
     </>
   );

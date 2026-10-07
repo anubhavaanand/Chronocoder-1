@@ -245,6 +245,19 @@ h1, h2, h3, h4, h5, h6 {
   to   { opacity: 1; transform: translateY(0); }
 }
 
+/* Rotating conic glow ring (HeroSearch) — @property lets the keyframe
+   animate the gradient's start angle. Browsers without @property show a
+   static ring instead. */
+@property --glow-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes glow-rotate {
+  to { --glow-angle: 360deg; }
+}
+
 .animate-float {
   animation: float 7s ease-in-out infinite;
 }
@@ -350,6 +363,11 @@ h1, h2, h3, h4, h5, h6 {
 
   .glass-card {
     transition: none;
+  }
+
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
   }
 }
 
