@@ -31,33 +31,13 @@ function mentorTextureSrc(accentColor: string): string {
     <rect width="400" height="560" fill="#06060f"/>
     <rect width="400" height="560" fill="url(#g)"/>
   </svg>`;
-  if (typeof window === "undefined") return "";
+  // btoa is global in Node 18+ and the browser, so this renders
+  // identically on server and client — no hydration mismatch.
   return `data:image/svg+xml;base64,${btoa(svg)}`;
 }
 
 export function MentorGLTarget({ mentorId, accentColor }: MentorGLTargetProps) {
   const src = mentorTextureSrc(accentColor);
-  if (!src) {
-    // Server-side or no src: render placeholder to avoid hydration mismatch
-    return (
-      <img
-        data-gl-src=""
-        data-gl-mentor={mentorId}
-        alt=""
-        aria-hidden="true"
-        style={{
-          position: "absolute",
-          inset: 0,
-          width: "100%",
-          height: "100%",
-          objectFit: "cover",
-          zIndex: -1,
-          opacity: 0,
-          pointerEvents: "none",
-        }}
-      />
-    );
-  }
   return (
     <img
       data-gl-src={src}
@@ -105,27 +85,6 @@ export function HeroGLTarget() {
     <rect width="1920" height="800" fill="url(#c)"/>
   </svg>`;
 
-  if (typeof window === "undefined") {
-    // Server-side: render placeholder to avoid hydration mismatch
-    return (
-      <img
-        data-gl-src=""
-        data-gl-target="hero"
-        alt=""
-        aria-hidden="true"
-        style={{
-          position: "absolute",
-          inset: 0,
-          width: "100%",
-          height: "100%",
-          objectFit: "cover",
-          zIndex: -1,
-          opacity: 0,
-          pointerEvents: "none",
-        }}
-      />
-    );
-  }
   const src = `data:image/svg+xml;base64,${btoa(svg)}`;
 
   return (

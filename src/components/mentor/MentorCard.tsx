@@ -101,7 +101,7 @@ export function MentorCard({
 
             {/* Greeting Quote */}
             <p className="text-sm text-gray-300 italic line-clamp-2 mb-auto leading-relaxed">
-              "{greeting}"
+              &ldquo;{greeting}&rdquo;
             </p>
 
             {/* Decorative Corner Accent */}

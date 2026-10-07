@@ -306,7 +306,8 @@ export default function WebGLBackground() {
     /* Wait for all img[data-gl-src] textures to have natural dimensions */
     (function whenReady(cb: () => void) {
       const imgs = Array.from(document.querySelectorAll<HTMLImageElement>("img[data-gl-src]"));
-      let n = 0, total = imgs.length;
+      let n = 0;
+      const total = imgs.length;
       const done = () => { if (++n >= total) cb(); };
       imgs.forEach((im) => {
         if (im.complete && im.naturalWidth) done();
