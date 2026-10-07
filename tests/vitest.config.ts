@@ -49,7 +49,7 @@ export default defineConfig({
     root: path.resolve(__dirname, '../../..'),
     
     // Global setup file
-    globalSetup: './global-setup.ts',
+    // globalSetup: './global-setup.ts',
     
     // Setup files before each test suite
     setupFiles: ['./setup.ts'],
@@ -271,10 +271,10 @@ export default defineConfig({
         summary: true,
       }],
       // JUnit XML for CI/CD
-      ['jest', {
+      ['junit', {
         outputFile: './reports/test-results.xml',
       }],
-      // HTML coverage report
+      // JSON output
       ['json', {
         outputFile: './reports/vitest-results.json',
       }],
