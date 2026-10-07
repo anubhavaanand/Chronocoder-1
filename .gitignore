@@ -31,3 +31,8 @@ coverage/
 *.lcov
 test-results/
 playwright-report/
+
+# Local-only assets & session exports (portraits are tracked in public/mentors/)
+avatars/
+session-*.md
+tsconfig.tsbuildinfo

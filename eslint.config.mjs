@@ -12,6 +12,16 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Local-only artifacts that must never be linted:
+    "venv/**",
+    "avatars/**",
+    ".streamlit/**",
+    "logs/**",
+    "__pycache__/**",
+    "session-*.md",
+    // Stale test suite (own package.json, disabled in CI until modernized;
+    // also excluded from the build in tsconfig.json)
+    "tests/**",
   ]),
 ]);
 
