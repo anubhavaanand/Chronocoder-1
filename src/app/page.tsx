@@ -1,8 +1,10 @@
-import { HeroGLTarget, ScrollIndicator } from "@/components/mentor/HeroDistortion";
+import { MentorCard } from "@/components/mentor/MentorCard";
 import { MentorJourney } from "@/components/mentor/MentorJourney";
+import { HeroGLTarget, ScrollIndicator } from "@/components/mentor/HeroDistortion";
 import WebGLBackgroundWrapper from "@/components/ui/WebGLBackgroundWrapper";
 import { HeroSearch } from "@/components/ui/HeroSearch";
 import { ScrollProgressTracker } from "@/components/ui/ScrollProgressTracker";
+import { MENTORS } from "@/data/mentors";
 import Link from "next/link";
 
 export default function Home() {
@@ -241,9 +243,42 @@ export default function Home() {
               </p>
             </div>
 
-            {/* The journey */}
-            <MentorJourney />
+            {/* Quick-select grid (original gallery cards) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+              {MENTORS.map((mentor, index) => (
+                <MentorCard
+                  key={mentor.id}
+                  id={mentor.id}
+                  name={mentor.name}
+                  era={mentor.era}
+                  icon={mentor.icon}
+                  greeting={mentor.greeting}
+                  accentColor={mentor.accentColor}
+                  expertise={mentor.expertise}
+                  index={index}
+                />
+              ))}
+            </div>
+
+            {/* Divider into the journey */}
+            <div
+              className="flex items-center gap-4 mt-20 mb-4"
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: "10px",
+                letterSpacing: "0.2em",
+                textTransform: "uppercase",
+                color: "var(--muted)",
+              }}
+            >
+              <span>Their Stories</span>
+              <span style={{ flex: 1, height: "1px", background: "var(--border)" }} />
+              <span>1843 — 1991</span>
+            </div>
           </div>
+
+          {/* The journey */}
+          <MentorJourney />
         </section>
 
         {/* ── Section Divider (from gallery) ───────────────────────── */}
