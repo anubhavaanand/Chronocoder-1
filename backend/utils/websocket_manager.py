@@ -3,7 +3,7 @@ WebSocket Connection Manager
 Manages multiple client connections for real-time streaming
 """
 
-from typing import Dict, Set
+from typing import Set
 from fastapi import WebSocket
 
 

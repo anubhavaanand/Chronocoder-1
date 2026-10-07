@@ -2,9 +2,9 @@
 Session & Message models + repository layer for Supabase.
 """
 from datetime import datetime
-from typing import Optional, List, Any
+from typing import Optional, List
 from uuid import UUID
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from supabase import create_client, Client
 import os
 

@@ -5,13 +5,10 @@ FastAPI Application Server with Supabase Auth + Structured AI Feedback
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
-import json
 import asyncio
 from datetime import datetime
-from typing import AsyncGenerator, Optional, List
-import aiohttp
+from typing import Optional
 import os
 from jose import jwt, JWTError
 from supabase import create_client, Client
@@ -19,7 +16,6 @@ from supabase import create_client, Client
 # Import services
 from backend.services.ai_service import AIGateway
 from backend.utils.websocket_manager import ConnectionManager
-from backend.db.session_repo import get_session_repo
 
 app = FastAPI(
     title="ChronoCoder API",
@@ -179,7 +175,6 @@ async def create_session(
     session_data: dict,
     user_id: str = Depends(verify_jwt_token)
 ):
-    repo = get_session_repo()
     # For now, just acknowledge - full persistence in session_repo
     return {"status": "received", "session_id": session_data.get("sessionId")}
 
@@ -266,9 +261,9 @@ async def feedback_websocket(websocket: WebSocket):
 
 def analyze_code_locally(code: str) -> dict:
     lines = code.split("\n")
-    functions = len([l for l in code.split('\n') if 'def ' in l])
-    classes = len([l for l in code.split('\n') if 'class ' in l])
-    imports = len([l for l in code.split('\n') if l.strip().startswith('import ') or l.strip().startswith('from ')])
+    functions = len([line for line in lines if 'def ' in line])
+    classes = len([line for line in lines if 'class ' in line])
+    imports = len([line for line in lines if line.strip().startswith('import ') or line.strip().startswith('from ')])
     
     complexity_score = min((functions * 2 + classes + imports), 10)
     
