@@ -185,7 +185,7 @@ async def create_session(
 
 
 # WebSocket endpoint with auth
-@app.websocket("/ws/feedback", tags=["realtime"])
+@app.websocket("/ws/feedback")
 async def feedback_websocket(websocket: WebSocket):
     await manager.connect(websocket)
     
@@ -201,6 +201,13 @@ async def feedback_websocket(websocket: WebSocket):
                 await websocket.send_json({
                     "type": "error",
                     "payload": {"code": "INVALID_INPUT", "message": "Missing mentor_id or user_code"}
+                })
+                continue
+
+            if ai_gateway and mentor_id not in ai_gateway.mentors:
+                await websocket.send_json({
+                    "type": "error",
+                    "payload": {"code": "UNKNOWN_MENTOR", "message": f"Unknown mentor: {mentor_id}"}
                 })
                 continue
             
@@ -234,7 +241,11 @@ async def feedback_websocket(websocket: WebSocket):
                         # chunk is already a dict with type/payload from new AIGateway
                         await websocket.send_json(chunk)
                         await asyncio.sleep(0.01)
-                    
+
+                    await websocket.send_json({
+                        "type": "feedback_complete",
+                        "payload": {"mentor_id": mentor_id, "session_id": session_id}
+                    })
                 except Exception as e:
                     await websocket.send_json({
                         "type": "error",
