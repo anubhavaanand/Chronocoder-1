@@ -15,35 +15,17 @@ import '@testing-library/jest-dom';
 // MOCK ENVIRONMENT VARIABLES
 // ============================================================================
 
-Object.defineProperty(process.env, 'NODE_ENV', {
-  value: 'test',
-  writable: false,
-});
+process.env.NODE_ENV = 'test';
+process.env.NEXT_PUBLIC_GEMINI_API_KEY = 'test-api-key-for-mock-responses-only';
+process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co';
+process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test';
+process.env.NEXT_PUBLIC_RATE_LIMIT_WINDOW_MS = '60000';
+process.env.NEXT_PUBLIC_RATE_LIMIT_MAX_REQUESTS = '100';
 
-Object.defineProperty(process.env, 'VITE_GEMINI_API_KEY', {
-  value: 'test-api-key-for-mock-responses-only',
-  writable: false,
-});
-
-Object.defineProperty(process.env, 'VITE_SUPABASE_URL', {
-  value: 'https://test.supabase.co',
-  writable: false,
-});
-
-Object.defineProperty(process.env, 'VITE_SUPABASE_ANON_KEY', {
-  value: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test',
-  writable: false,
-});
-
-Object.defineProperty(process.env, 'VITE_RATE_LIMIT_WINDOW_MS', {
-  value: '60000', // 60 seconds
-  writable: false,
-});
-
-Object.defineProperty(process.env, 'VITE_RATE_LIMIT_MAX_REQUESTS', {
-  value: '100',
-  writable: false,
-});
+// Backward compatibility for legacy tests
+process.env.VITE_GEMINI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+process.env.VITE_SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+process.env.VITE_SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 // ============================================================================
 // MOCK SUPABASE CLIENT
