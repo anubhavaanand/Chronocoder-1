@@ -18,13 +18,13 @@ export default defineConfig({
   
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, '../../../src'),
-      '@components': path.resolve(__dirname, '../../../src/components'),
-      '@hooks': path.resolve(__dirname, '../../../src/hooks'),
-      '@services': path.resolve(__dirname, '../../../src/services'),
-      '@types': path.resolve(__dirname, '../../../src/types'),
-      '@utils': path.resolve(__dirname, '../../../src/utils'),
-      '@config': path.resolve(__dirname, '../../../src/config'),
+      '@': path.resolve(__dirname, '../src'),
+      '@components': path.resolve(__dirname, '../src/components'),
+      '@hooks': path.resolve(__dirname, '../src/hooks'),
+      '@services': path.resolve(__dirname, '../src/services'),
+      '@types': path.resolve(__dirname, '../src/types'),
+      '@utils': path.resolve(__dirname, '../src/utils'),
+      '@config': path.resolve(__dirname, '../src/config'),
     },
   },
   
@@ -36,23 +36,24 @@ export default defineConfig({
     name: 'ChronoCoder',
     
     // Test directory
-    include: ['**/*.{test,spec}.{ts,tsx}'],
+    include: ['tests/**/*.{test,spec}.{ts,tsx}'],
     exclude: [
       '**/node_modules/**',
       '**/dist/**',
       '**/cypress/**',
+      '**/e2e/**',
       '**/.{idea,git,cache,output,temp}/**',
       '**/{karma,rollup,webpack,vite,vitest,jest,ava,babel,nyc,cypress,tsup,build}.config.*',
     ],
     
     // Root directory
-    root: path.resolve(__dirname, '../../..'),
+    root: path.resolve(__dirname, '..'),
     
     // Global setup file
     // globalSetup: './global-setup.ts',
     
     // Setup files before each test suite
-    setupFiles: ['./setup.ts'],
+    setupFiles: [path.resolve(__dirname, './setup.ts')],
     
     // Environment
     environment: 'jsdom',
@@ -162,9 +163,6 @@ export default defineConfig({
     
     // Update snapshots automatically during CI (if explicitly enabled)
     updateSnapshot: 'new',
-    
-    // Snapshot directory
-    snapshotEnvironment: 'node',
     
     // ============================================================================
     // PARALLELIZATION & CONCURRENCY
