@@ -21,7 +21,7 @@ export default defineConfig({
       allow: [path.resolve(__dirname, '..')],
     },
     deps: {
-      inline: [/react/, /@testing-library/, /framer-motion/],
+      inline: [/react/, /@testing-library/, /framer-motion/, /@monaco-editor/, /monaco-editor/],
     },
   },
   
@@ -39,6 +39,10 @@ export default defineConfig({
       { find: '@types', replacement: path.resolve(__dirname, '../src/types') },
       { find: '@utils', replacement: path.resolve(__dirname, '../src/utils') },
       { find: '@config', replacement: path.resolve(__dirname, '../src/config') },
+      // Pin Monaco to the test-suite copy so component imports and test mocks
+      // resolve to a single module instance (avoids dual-React invalid hooks).
+      { find: /^@monaco-editor\/react$/, replacement: path.resolve(__dirname, './node_modules/@monaco-editor/react') },
+      { find: /^monaco-editor$/, replacement: path.resolve(__dirname, './node_modules/monaco-editor') },
     ],
   },
   
