@@ -4,7 +4,16 @@ import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Search, ChevronRight } from "lucide-react";
 
-export function SearchBar({ large, onQuerySubmit }: { large?: boolean; onQuerySubmit?: (query: string) => void }) {
+export function SearchBar({
+  large,
+  onQuerySubmit,
+  currentMentorId,
+}: {
+  large?: boolean;
+  onQuerySubmit?: (query: string) => void;
+  /** When inside a workspace, preserve this mentor instead of the default. */
+  currentMentorId?: string;
+}) {
   const [query, setQuery] = useState("");
   const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -16,7 +25,8 @@ export function SearchBar({ large, onQuerySubmit }: { large?: boolean; onQuerySu
     if (onQuerySubmit) {
       onQuerySubmit(query.trim());
     } else {
-      router.push(`/workspace/ada_lovelace?query=${encodeURIComponent(query.trim())}`);
+      const mentorId = currentMentorId ?? "ada_lovelace";
+      router.push(`/workspace/${mentorId}?query=${encodeURIComponent(query.trim())}`);
     }
   };
 

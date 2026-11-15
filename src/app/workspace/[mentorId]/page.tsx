@@ -205,7 +205,7 @@ ${userCode}
 {/* Main Content */}
       <main className="flex-1 container mx-auto px-4 py-8">
         <div className="flex justify-center mb-8">
-          <SearchBarSection className="max-w-[800px]" />
+          <SearchBarSection className="max-w-[800px]" currentMentorId={mentorId} />
         </div>
 
         <div className="max-w-6xl mx-auto">
