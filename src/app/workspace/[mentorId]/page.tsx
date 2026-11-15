@@ -39,7 +39,6 @@ def fibonacci(n):
 print(fibonacci(10))`);
   const [analysis, setAnalysis] = useState<CodeAnalysis | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [hasSubmitted, setHasSubmitted] = useState(false);
   const [activeTab, setActiveTab] = useState<"ask" | "review">("ask");
 
   // WebSocket feedback state
@@ -104,7 +103,6 @@ print(fibonacci(10))`);
       setError("Please enter some code to analyze");
       return;
     }
-    setHasSubmitted(true);
     setActiveTab("ask");
     setReading("");
     setFeedbackSections([]);
@@ -204,136 +202,129 @@ ${userCode}
         </div>
       </header>
       
-      {/* Main Content */}
+{/* Main Content */}
       <main className="flex-1 container mx-auto px-4 py-8">
-        {!hasSubmitted ? (
-          <div className="flex items-center justify-center min-h-[60vh]">
-            <SearchBarSection className="max-w-[800px]" />
+        <div className="flex justify-center mb-8">
+          <SearchBarSection className="max-w-[800px]" />
+        </div>
+
+        <div className="max-w-6xl mx-auto">
+          {/* Tab headers — visible from the start so the code editor is
+              reachable without submitting first (#CC-036). */}
+          <div className="flex space-x-1 mb-6 border-b border-retro-border">
+            <button
+              onClick={() => setActiveTab("ask")}
+              className={clsx(
+                "pb-3 px-6 font-semibold transition-colors relative",
+                activeTab === "ask" ? "text-accent-cyan" : "text-gray-400 hover:text-gray-200"
+              )}
+            >
+              Ask Question
+              {activeTab === "ask" && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-cyan" />
+              )}
+            </button>
+            <button
+              onClick={() => setActiveTab("review")}
+              className={clsx(
+                "pb-3 px-6 font-semibold transition-colors relative",
+                activeTab === "review" ? "text-accent-cyan" : "text-gray-400 hover:text-gray-200"
+              )}
+            >
+              Code Review
+              {activeTab === "review" && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-cyan" />
+              )}
+            </button>
           </div>
-        ) : (
-          <>
-            <div className="flex justify-center mb-8">
-              <SearchBarSection className="max-w-[800px]" />
-            </div>
-            
-            <div className="max-w-6xl mx-auto">
-              {/* Tab headers */}
-              <div className="flex space-x-1 mb-6 border-b border-retro-border">
-                <button
-                  onClick={() => setActiveTab("ask")}
-                  className={clsx(
-                    "pb-3 px-6 font-semibold transition-colors relative",
-                    activeTab === "ask" ? "text-accent-cyan" : "text-gray-400 hover:text-gray-200"
-                  )}
-                >
-                  Ask Question
-                  {activeTab === "ask" && (
-                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-cyan" />
-                  )}
-                </button>
-                <button
-                  onClick={() => setActiveTab("review")}
-                  className={clsx(
-                    "pb-3 px-6 font-semibold transition-colors relative",
-                    activeTab === "review" ? "text-accent-cyan" : "text-gray-400 hover:text-gray-200"
-                  )}
-                >
-                  Code Review
-                  {activeTab === "review" && (
-                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-cyan" />
-                  )}
-                </button>
+
+          {/* Ask Question Tab */}
+          {activeTab === "ask" && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold">{mentor.name}&apos;s Analysis</h2>
+                {isAnalyzing && (
+                  <div className="flex items-center space-x-2 text-sm text-accent-cyan animate-pulse">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Receiving feedback...</span>
+                  </div>
+                )}
               </div>
 
-{/* Ask Question Tab */}
-              {activeTab === "ask" && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-bold">{mentor.name}&apos;s Analysis</h2>
-                    {isAnalyzing && (
-                      <div className="flex items-center space-x-2 text-sm text-accent-cyan animate-pulse">
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>Receiving feedback...</span>
+              <FeedbackRenderer
+                mentorName={mentor.name}
+                mentorIcon={mentor.icon}
+                reading={reading}
+                sections={feedbackSections}
+                challenge={challenge}
+                closing={closing}
+                isAnalyzing={isAnalyzing}
+                error={error}
+                onClearError={() => {
+                  setError(null);
+                  setReading("");
+                  setFeedbackSections([]);
+                  setChallenge("");
+                  setClosing("");
+                }}
+              />
+            </div>
+          )}
+
+          {/* Code Review Tab */}
+          {activeTab === "review" && (
+            <div className="space-y-4">
+              <CodeEditor
+                value={userCode}
+                onChange={setUserCode}
+                onSubmit={handleSubmit}
+                characterLimit={50000}
+              />
+
+              {/* Local Analysis Results */}
+              {analysis && (
+                <div className="glass-effect rounded-lg p-6 border border-retro-border">
+                  <h3 className="text-lg font-semibold mb-4">Static Analysis</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {[
+                      { label: "Lines", value: analysis.line_count?.toLocaleString() || 0 },
+                      { label: "Functions", value: analysis.functions || 0 },
+                      { label: "Classes", value: analysis.classes || 0 },
+                      { label: "Imports", value: analysis.imports || 0 },
+                    ].map((stat) => (
+                      <div key={stat.label} className="text-center">
+                        <div className="text-2xl font-bold text-accent-cyan">
+                          {stat.value}
+                        </div>
+                        <div className="text-xs text-gray-400">{stat.label}</div>
+                      </div>
+                    ))}
+
+                    {/* Complexity Score Badge */}
+                    {analysis.complexity_score != null && analysis.complexity_score > 0 && (
+                      <div className="col-span-2 md:col-span-4 mt-4 pt-4 border-t border-retro-border">
+                        <div className="flex items-center justify-center space-x-3">
+                          <span className="text-sm text-gray-400">Complexity Score:</span>
+                          <div className="relative">
+                            <div className="w-48 h-2 bg-retro-dark rounded-full overflow-hidden">
+                              <div
+                                className="absolute inset-y-0 left-0 bg-gradient-primary rounded-full"
+                                style={{ width: `${(analysis.complexity_score / 10) * 100}%` }}
+                              />
+                            </div>
+                            <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-white">
+                              {analysis.complexity_score}/10
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>
-
-                  <FeedbackRenderer
-                    mentorName={mentor.name}
-                    mentorIcon={mentor.icon}
-                    reading={reading}
-                    sections={feedbackSections}
-                    challenge={challenge}
-                    closing={closing}
-                    isAnalyzing={isAnalyzing}
-                    error={error}
-                    onClearError={() => {
-                      setError(null);
-                      setReading("");
-                      setFeedbackSections([]);
-                      setChallenge("");
-                      setClosing("");
-                    }}
-                  />
-                </div>
-              )}
-
-{/* Code Review Tab */}
-              {activeTab === "review" && (
-                <div className="space-y-4">
-                  <CodeEditor
-                    value={userCode}
-                    onChange={setUserCode}
-                    onSubmit={handleSubmit}
-                    characterLimit={50000}
-                  />
-
-                  {/* Local Analysis Results */}
-                  {analysis && (
-                    <div className="glass-effect rounded-lg p-6 border border-retro-border">
-                      <h3 className="text-lg font-semibold mb-4">Static Analysis</h3>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        {[
-                          { label: "Lines", value: analysis.line_count?.toLocaleString() || 0 },
-                          { label: "Functions", value: analysis.functions || 0 },
-                          { label: "Classes", value: analysis.classes || 0 },
-                          { label: "Imports", value: analysis.imports || 0 },
-                        ].map((stat) => (
-                          <div key={stat.label} className="text-center">
-                            <div className="text-2xl font-bold text-accent-cyan">
-                              {stat.value}
-                            </div>
-                            <div className="text-xs text-gray-400">{stat.label}</div>
-                          </div>
-                        ))}
-
-                        {/* Complexity Score Badge */}
-                        {analysis.complexity_score != null && analysis.complexity_score > 0 && (
-                          <div className="col-span-2 md:col-span-4 mt-4 pt-4 border-t border-retro-border">
-                            <div className="flex items-center justify-center space-x-3">
-                              <span className="text-sm text-gray-400">Complexity Score:</span>
-                              <div className="relative">
-                                <div className="w-48 h-2 bg-retro-dark rounded-full overflow-hidden">
-                                  <div
-                                    className="absolute inset-y-0 left-0 bg-gradient-primary rounded-full"
-                                    style={{ width: `${(analysis.complexity_score / 10) * 100}%` }}
-                                  />
-                                </div>
-                                <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-white">
-                                  {analysis.complexity_score}/10
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
                 </div>
               )}
             </div>
-          </>
-        )}
+          )}
+        </div>
       </main>
     </div>
   );
