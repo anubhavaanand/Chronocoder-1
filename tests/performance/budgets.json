@@ -1,0 +1,26 @@
+[
+  {
+    "options": {
+      "path": "/"
+    },
+    "resourceSizes": [
+      { "resourceType": "document", "budget": 15 },
+      { "resourceType": "script", "budget": 200 },
+      { "resourceType": "stylesheet", "budget": 20 },
+      { "resourceType": "image", "budget": 300 },
+      { "resourceType": "total", "budget": 800 }
+    ]
+  },
+  {
+    "options": {
+      "path": "/workspace/ada_lovelace"
+    },
+    "resourceSizes": [
+      { "resourceType": "document", "budget": 25 },
+      { "resourceType": "script", "budget": 250 },
+      { "resourceType": "stylesheet", "budget": 30 },
+      { "resourceType": "image", "budget": 400 },
+      { "resourceType": "total", "budget": 1000 }
+    ]
+  }
+]
