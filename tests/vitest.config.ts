@@ -21,7 +21,7 @@ export default defineConfig({
       allow: [path.resolve(__dirname, '..')],
     },
     deps: {
-      inline: [/react/, /@testing-library/, /framer-motion/, /@monaco-editor/, /monaco-editor/],
+      inline: [/react/, /@testing-library/, /framer-motion/, /@monaco-editor/, /monaco-editor/, /lucide-react/],
     },
   },
   
@@ -43,6 +43,9 @@ export default defineConfig({
       // resolve to a single module instance (avoids dual-React invalid hooks).
       { find: /^@monaco-editor\/react$/, replacement: path.resolve(__dirname, './node_modules/@monaco-editor/react') },
       { find: /^monaco-editor$/, replacement: path.resolve(__dirname, './node_modules/monaco-editor') },
+      { find: /^lucide-react$/, replacement: path.resolve(__dirname, './node_modules/lucide-react') },
+      { find: /^react-markdown$/, replacement: path.resolve(__dirname, './node_modules/react-markdown') },
+      { find: /^remark-gfm$/, replacement: path.resolve(__dirname, './node_modules/remark-gfm') },
     ],
   },
   

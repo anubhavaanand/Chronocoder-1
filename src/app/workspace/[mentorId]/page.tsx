@@ -2,12 +2,11 @@
 
 import { useState, useMemo } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { ArrowLeft, Send, Download, Loader2, AlertCircle } from "lucide-react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { ArrowLeft, Send, Download, Loader2 } from "lucide-react";
 import clsx from "clsx";
 import { SearchBarSection } from "@/components/ui/SearchBarSection";
 import { CodeEditor } from "@/components/code/CodeEditor";
+import { FeedbackRenderer } from "@/components/feedback/FeedbackRenderer";
 import { useMentorWebSocket, type FeedbackSectionView, type CodeAnalysis } from "@/hooks/useMentorWebSocket";
 import { MENTORS_BY_ID } from "@/data/mentors";
 
@@ -246,118 +245,36 @@ ${userCode}
                 </button>
               </div>
 
-              {/* Ask Question Tab */}
+{/* Ask Question Tab */}
               {activeTab === "ask" && (
                 <div className="space-y-4">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h2 className="text-xl font-bold">{mentor.name}&apos;s Analysis</h2>
-                      {isAnalyzing && (
-                        <div className="flex items-center space-x-2 text-sm text-accent-cyan animate-pulse">
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          <span>Receiving feedback...</span>
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div className="glass-effect rounded-lg p-6 border border-retro-border min-h-[600px]">
-                      {/* Error State */}
-                      {error && (
-                        <div className="text-red-400 bg-red-400/10 border border-red-400/30 p-4 rounded-lg">
-                          <div className="flex items-start space-x-3">
-                            <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                            <div>
-                              <p className="font-semibold">Error:</p>
-                              <p className="text-sm">{error}</p>
-                              <button
-                                onClick={() => {
-                                  setError(null);
-                                  setReading("");
-                                  setFeedbackSections([]);
-                                  setChallenge("");
-                                  setClosing("");
-                                }}
-                                className="mt-2 px-4 py-2 bg-red-400/20 hover:bg-red-400/30 text-red-300 rounded transition-colors"
-                              >
-                                Try Again
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* Loading State */}
-                      {!error && isAnalyzing && !reading && feedbackSections.length === 0 && !challenge && (
-                        <div className="flex flex-col items-center justify-center h-96 space-y-4">
-                          <Loader2 className="w-12 h-12 text-accent-cyan animate-spin" />
-                          <p className="text-gray-400">Generating personalized feedback...</p>
-                        </div>
-                      )}
-                      
-                      {/* Streaming Feedback */}
-                      {!error && (reading || feedbackSections.length > 0 || challenge) && (
-                        <div className="animate-fade-in space-y-6">
-                          {reading && (
-                            <p className="italic text-gray-300 mb-4">{reading}</p>
-                          )}
-                          {feedbackSections.map((section: FeedbackSectionView, idx: number) => (
-                            <div key={section.id || idx} className="mb-6 p-4 border-l-4 border-accent-cyan bg-retro-darker/50 rounded-r-lg">
-                              <div className="flex items-center gap-2 mb-2">
-                                <span className="text-xl">{section.icon}</span>
-                                <h4 className="font-bold text-white">{section.label}</h4>
-                              </div>
-                              <div className="ml-6 prose prose-invert max-w-none">
-                                <ReactMarkdown
-                                  remarkPlugins={[remarkGfm]}
-                                  components={{
-                                    code: ({ children, className, inline, ...rest }: { children?: React.ReactNode; className?: string; inline?: boolean }) => {
-                                      const match = className ? /language-(\w+)/.exec(className) : null;
-                                      return !inline && match ? (
-                                        <pre className="bg-retro-darker p-4 rounded-lg overflow-x-auto my-3 border border-retro-border">
-                                          <code className={match[1]}>{children}</code>
-                                        </pre>
-                                      ) : (
-                                        <code className="bg-retro-panel px-1.5 py-0.5 rounded text-accent-cyan font-mono text-sm" {...rest}>
-                                          {children}
-                                        </code>
-                                      );
-                                    },
-                                  }}
-                                >
-                                  {section.content}
-                                </ReactMarkdown>
-                              </div>
-                            </div>
-                          ))}
-                          {challenge && (
-                            <div className="mb-6 p-4 border-l-4 border-accent-magenta bg-retro-darker/50 rounded-r-lg">
-                              <div className="flex items-center gap-2 mb-2">
-                                <span className="text-xl">🎯</span>
-                                <h4 className="font-bold text-white">Your Challenge</h4>
-                              </div>
-                              <p className="ml-6 text-gray-200">{challenge}</p>
-                            </div>
-                          )}
-                          {closing && (
-                            <div className="text-center text-sm text-gray-400 mt-6 pt-4 border-t border-retro-border">
-                              {closing}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      
-                      {/* Initial State */}
-                      {!error && !isAnalyzing && !reading && feedbackSections.length === 0 && !challenge && (
-                        <div className="flex flex-col items-center justify-center h-96 text-center text-gray-400">
-                          <div className="text-6xl mb-4">{mentor.icon}</div>
-                          <h3 className="text-xl font-semibold text-white mb-2">Ready for Your Code</h3>
-                          <p className="max-w-md">
-                            Paste your Python code above and click &ldquo;Get Feedback&rdquo; to receive personalized guidance from {mentor.name.split(' ')[0]}.
-                          </p>
-                        </div>
-                      )}
-                    </div>
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-xl font-bold">{mentor.name}&apos;s Analysis</h2>
+                    {isAnalyzing && (
+                      <div className="flex items-center space-x-2 text-sm text-accent-cyan animate-pulse">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Receiving feedback...</span>
+                      </div>
+                    )}
                   </div>
+
+                  <FeedbackRenderer
+                    mentorName={mentor.name}
+                    mentorIcon={mentor.icon}
+                    reading={reading}
+                    sections={feedbackSections}
+                    challenge={challenge}
+                    closing={closing}
+                    isAnalyzing={isAnalyzing}
+                    error={error}
+                    onClearError={() => {
+                      setError(null);
+                      setReading("");
+                      setFeedbackSections([]);
+                      setChallenge("");
+                      setClosing("");
+                    }}
+                  />
                 </div>
               )}
 
