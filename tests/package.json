@@ -12,7 +12,7 @@
     "test:integration": "vitest run --dir tests/integration",
     "test:unit": "vitest run --dir tests/components",
     "test:hooks": "vitest run --dir tests/hooks",
-    "test:performance": "node performance-test-runner.js",
+    "test:performance": "node performance/performance-test-runner.js",
     "test:ci": "vitest run --coverage --reporter=junit --reporter=json",
     "test:debug": "vitest run --inspect-brk --no-file-parallelism",
     "test:update-snapshots": "vitest run -u",
