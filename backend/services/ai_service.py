@@ -52,6 +52,37 @@ class AIGateway:
         self.base_url = "https://generativelanguage.googleapis.com/v1beta/models"
         self.mentors: dict[str, MentorConfig] = self._load_mentor_registry()
 
+    @staticmethod
+    def _extract_sse_text(event: str) -> str:
+        """Extract concatenated text parts from a single SSE event payload.
+
+        Gemini streams ``data: {json}`` lines where each JSON object holds
+        ``candidates[].content.parts[].text`` fragments of the model output.
+        Comment lines (``:``) and the ``[DONE]`` sentinel are ignored.
+        """
+        data_lines = [
+            line[len("data:"):].strip()
+            for line in event.split("\n")
+            if line.startswith("data:")
+        ]
+        if not data_lines:
+            return ""
+        raw = "\n".join(data_lines)
+        if not raw or raw == "[DONE]":
+            return ""
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError:
+            return ""
+        parts = []
+        for candidate in data.get("candidates", []):
+            content = candidate.get("content", {})
+            for part in content.get("parts", []):
+                text = part.get("text", "")
+                if text:
+                    parts.append(text)
+        return "".join(parts)
+
     def _load_mentor_registry(self) -> dict[str, MentorConfig]:
         """Load all mentor JSON files from backend/mentors/."""
         mentors = {}
@@ -129,8 +160,11 @@ Tone: {mentor.tone}
         mentor = self.mentors[mentor_id]
         prompt = self._build_prompt(mentor, user_code, code_analysis)
 
-        # Gemini supports response_schema for structured output
-        url = f"{self.base_url}/gemini-2.0-flash:streamGenerateContent?key={self.api_key}"
+        # Gemini supports response_schema for structured output.
+        # alt=sse returns one `data: {json}` event per token batch instead of
+        # a raw JSON array, so arbitrary TCP chunk boundaries can never split
+        # a JSON value (the old raw-chunk decoder silently dropped those).
+        url = f"{self.base_url}/gemini-2.0-flash:streamGenerateContent?alt=sse&key={self.api_key}"
 
         headers = {"Content-Type": "application/json"}
 
@@ -173,36 +207,36 @@ Tone: {mentor.tone}
             async with session.post(url, json=payload, headers=headers) as response:
                 if response.status != 200:
                     error_text = await response.text()
-                    raise Exception(f"Gemini API error: {error_text}")
+                    raise Exception(f"Gemini API error (HTTP {response.status}): {error_text}")
 
-                buffer = ""
+                # Buffer raw network bytes and split complete SSE events on
+                # the blank-line delimiter — a JSON value is never parsed
+                # from a partial TCP chunk.
+                sse_buffer = ""
+                text_buffer = ""
                 async for chunk in response.content:
                     if not chunk:
                         continue
-                    try:
-                        data = json.loads(chunk.decode("utf-8"))
-                        if "candidates" in data and data["candidates"]:
-                            content = data["candidates"][0].get("content", {})
-                            parts = content.get("parts", [])
-                            for part in parts:
-                                text = part.get("text", "")
-                                if text:
-                                    buffer += text
-                                    # Try to parse complete JSON objects from buffer
-                                    while True:
-                                        try:
-                                            obj, idx = json.JSONDecoder().raw_decode(buffer)
-                                            yield {"type": "feedback_chunk", "payload": obj}
-                                            buffer = buffer[idx:].lstrip()
-                                        except json.JSONDecodeError:
-                                            break
-                    except json.JSONDecodeError:
-                        continue
+                    sse_buffer += chunk.decode("utf-8")
+                    while "\n\n" in sse_buffer:
+                        event, sse_buffer = sse_buffer.split("\n\n", 1)
+                        text_buffer += self._extract_sse_text(event)
+                        # Yield every complete JSON object the model has
+                        # streamed so far.
+                        while True:
+                            try:
+                                obj, idx = json.JSONDecoder().raw_decode(text_buffer)
+                                yield {"type": "feedback_chunk", "payload": obj}
+                                text_buffer = text_buffer[idx:].lstrip()
+                            except json.JSONDecodeError:
+                                break
 
-                # Yield any remaining complete object
-                if buffer.strip():
+                # Flush a trailing event that arrived without its blank line.
+                if sse_buffer.strip():
+                    text_buffer += self._extract_sse_text(sse_buffer)
+                if text_buffer.strip():
                     try:
-                        obj = json.loads(buffer)
+                        obj = json.loads(text_buffer)
                         yield {"type": "feedback_chunk", "payload": obj}
                     except json.JSONDecodeError:
                         pass
