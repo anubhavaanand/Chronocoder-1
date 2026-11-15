@@ -1,4 +1,4 @@
-# Fly.io Deployment Configuration for ChronoCoder v3
+# Fly.io Deployment Configuration for ChronoCoder Frontend
 app = "chronocoder-v3"
 primary_region = "sjc"
 
@@ -8,9 +8,11 @@ primary_region = "sjc"
 [env]
   NODE_ENV = "production"
   NEXT_TELEMETRY_DISABLED = "1"
+  PORT = "3000"
 
 [[services]]
   internal_port = 3000
+  protocol = "tcp"
   processes = ["app"]
   
   [[services.tcp_checks]]
@@ -31,15 +33,6 @@ primary_region = "sjc"
   guest_path = "/app/public"
   url_prefix = "/"
 
-[volumes]
-  source = "chronocoder_data"
-  destination = "/data"
-  size_gb = 1
-
 [mounts]
   source = "chronocoder_data"
   destination = "/data"
-
-[metrics]
-  port = 9090
-  path = "/metrics"
