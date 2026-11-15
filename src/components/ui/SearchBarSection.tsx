@@ -3,7 +3,15 @@
 import { SearchBar } from "./SearchBar";
 import { BorderBeam } from "border-beam";
 
-export function SearchBarSection({ className, large }: { className?: string; large?: boolean }) {
+export function SearchBarSection({
+  className,
+  large,
+  currentMentorId,
+}: {
+  className?: string;
+  large?: boolean;
+  currentMentorId?: string;
+}) {
   return (
     <div className={`mt-10 mx-auto w-full ${className || "max-w-2xl"}`}>
       <BorderBeam size="md" colorVariant="colorful" duration={3.1} borderRadius={20}>
@@ -18,7 +26,7 @@ export function SearchBarSection({ className, large }: { className?: string; lar
             WebkitBackdropFilter: "blur(20px) saturate(160%)",
           }}
         >
-          <SearchBar large={large} />
+          <SearchBar large={large} currentMentorId={currentMentorId} />
         </div>
       </BorderBeam>
     </div>
