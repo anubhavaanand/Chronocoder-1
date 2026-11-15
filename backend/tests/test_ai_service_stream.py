@@ -1,11 +1,17 @@
 """
 Streaming decoder tests for AIGateway.get_feedback_streaming.
 
-Regression coverage for the aiohttp raw-chunk JSON decoder bug: the old
-implementation called json.loads() on each raw TCP chunk, so any chunk that
-did not end on a JSON boundary threw JSONDecodeError and was silently
-dropped. The fixed implementation buffers bytes and parses complete SSE
-events, so arbitrary chunk splits never lose data.
+Regression coverage for two transport/decoding bugs:
+
+1. The old aiohttp decoder called json.loads() on each raw TCP chunk, so
+   any chunk not aligned to a JSON boundary was silently dropped. The fix
+   buffers bytes and parses complete SSE events (regression test splits the
+   stream at every byte boundary).
+
+2. The old raw_decode loop could not emit anything until the whole
+   MentorFeedback object closed, defeating real-time streaming. The fix
+   extracts partial fields as they grow — unterminated strings yield their
+   decoded prefix, and arrays yield completed elements.
 
 Run: python -m pytest backend/tests -v
 """
@@ -111,39 +117,54 @@ async def test_complete_json_split_across_arbitrary_chunk_boundaries(monkeypatch
 
 
 @pytest.mark.asyncio
-async def test_multiple_events_in_single_chunk(monkeypatch):
+async def test_multiple_fragments_in_single_chunk_yield_progressive_partials(monkeypatch):
+    """Two fragments of one object inside a single TCP chunk: the client sees
+    the partial reading first, then the completed object."""
     events = (
         model_event('{"reading": "One", "sec')
         + model_event('tions": [], "challenge": "", "closing": ""}')
-        + model_event('{"reading": "Two", "sections": [], "challenge": "", "closing": ""}')
     )
     patch_session(monkeypatch, FakeResponse([events]), {})
 
     chunks = await collect(make_gateway())
     payloads = [c["payload"] for c in chunks if c["type"] == "feedback_chunk"]
     assert payloads == [
+        {"reading": "One"},
         {"reading": "One", "sections": [], "challenge": "", "closing": ""},
-        {"reading": "Two", "sections": [], "challenge": "", "closing": ""},
     ]
 
 
 @pytest.mark.asyncio
-async def test_one_event_per_chunk(monkeypatch):
+async def test_one_fragment_per_chunk_yields_progressive_partials(monkeypatch):
     events = [
-        model_event('{"reading": "A", "sections": [], "challenge": "", "closing": ""}'),
-        model_event('{"reading": "B", "sections": [], "challenge": "", "closing": ""}'),
-        model_event('{"reading": "C", "sections": [], "challenge": "", "closing": ""}'),
+        model_event('{"reading": "A", "sections": [{"id": "harmonies", '),
+        model_event('"label": "Harmonies", "icon": "✨", "content": "Base case."}], '),
+        model_event('"challenge": "Memoize.", "closing": "Done."}'),
     ]
     patch_session(monkeypatch, FakeResponse(events), {})
 
     chunks = await collect(make_gateway())
     payloads = [c["payload"] for c in chunks if c["type"] == "feedback_chunk"]
-    assert [p["reading"] for p in payloads] == ["A", "B", "C"]
+
+    # Progressive typewriter-style growth
+    assert payloads[0] == {"reading": "A", "sections": []}
+    assert payloads[1]["sections"][0]["label"] == "Harmonies"
+    assert "challenge" not in payloads[1]
+    # Final payload is the complete object
+    assert payloads[-1] == {
+        "reading": "A",
+        "sections": [
+            {"id": "harmonies", "label": "Harmonies", "icon": "✨", "content": "Base case."}
+        ],
+        "challenge": "Memoize.",
+        "closing": "Done.",
+    }
 
 
 @pytest.mark.asyncio
-async def test_text_fragments_accumulate_until_complete(monkeypatch):
-    """Partial JSON text across events only yields once a full object exists."""
+async def test_text_fragments_accumulate_progressively(monkeypatch):
+    """Partial JSON text across events streams out as it grows instead of
+    waiting for the closing brace (the raw_decode deadlock fix)."""
     events = [
         model_event('{"reading": "Hel'),
         model_event('lo ", "sections": [], "challenge": "", '),
@@ -153,9 +174,17 @@ async def test_text_fragments_accumulate_until_complete(monkeypatch):
 
     chunks = await collect(make_gateway())
     payloads = [c["payload"] for c in chunks if c["type"] == "feedback_chunk"]
-    assert payloads == [
-        {"reading": "Hello ", "sections": [], "challenge": "", "closing": ""}
-    ]
+
+    # Typewriter growth of the reading field
+    assert payloads[0] == {"reading": "Hel"}
+    assert payloads[1]["reading"] == "Hello "
+    # Final payload is the complete object
+    assert payloads[-1] == {
+        "reading": "Hello ",
+        "sections": [],
+        "challenge": "",
+        "closing": "",
+    }
 
 
 @pytest.mark.asyncio
@@ -247,3 +276,74 @@ def test_extract_sse_text_concatenates_parts():
 
 def test_extract_sse_text_tolerates_malformed_json():
     assert AIGateway._extract_sse_text("data: {not json") == ""
+
+
+# ---------------------------------------------------------------------------
+# extract_partial_feedback unit coverage (the raw_decode deadlock fix)
+# ---------------------------------------------------------------------------
+
+def test_partial_object_extraction_grows_with_input():
+    from backend.services.ai_service import extract_partial_feedback
+
+    full = '{"reading": "Hello world", "sections": [], "challenge": "", "closing": ""}'
+    # At every prefix length the reading prefix decodes cleanly
+    for end in range(13, len(full)):
+        partial = extract_partial_feedback(full[:end])
+        assert "reading" in partial
+        assert full[12:13] not in partial["reading"] or partial["reading"] == ""
+
+    assert extract_partial_feedback(full) == json.loads(full)
+
+
+def test_partial_string_trims_incomplete_escape():
+    from backend.services.ai_service import extract_partial_feedback
+
+    # Lone trailing backslash is an incomplete escape — trimmed.
+    assert extract_partial_feedback('{"reading": "abc\\')['reading'] == "abc"
+    # Complete escaped characters decode.
+    assert extract_partial_feedback('{"reading": "a\\"b')['reading'] == 'a"b'
+    assert extract_partial_feedback('{"reading": "a\\\\b')['reading'] == "a\\b"
+    assert extract_partial_feedback('{"reading": "a\\nb')['reading'] == "a\nb"
+    assert extract_partial_feedback('{"reading": "caf\\u00e9')['reading'] == "café"
+    # Incomplete \u escape is trimmed, not garbage.
+    assert extract_partial_feedback('{"reading": "caf\\u00')['reading'] == "caf"
+
+
+def test_partial_array_yields_completed_elements_only():
+    from backend.services.ai_service import extract_partial_feedback
+
+    text = '{"reading": "", "sections": [{"id": "a", "label": "A", "icon": "x", "content": "one"}, {"id": "b"'
+    partial = extract_partial_feedback(text)
+    assert partial["sections"] == [
+        {"id": "a", "label": "A", "icon": "x", "content": "one"}
+    ]
+
+
+def test_partial_object_stops_at_incomplete_value():
+    from backend.services.ai_service import extract_partial_feedback
+
+    # challenge is complete; the unterminated closing string still yields its
+    # decoded prefix (typewriter), while a value that cannot start at all is
+    # simply omitted.
+    text = '{"reading": "r", "sections": [], "challenge": "try it", "closing": "half'
+    partial = extract_partial_feedback(text)
+    assert partial == {
+        "reading": "r",
+        "sections": [],
+        "challenge": "try it",
+        "closing": "half",
+    }
+
+    # A literal cut in half (e.g. `tru`) is omitted until complete.
+    assert extract_partial_feedback('{"reading": "r", "n": tru') == {"reading": "r"}
+
+
+def test_partial_object_handles_empty_and_whitespace():
+    from backend.services.ai_service import extract_partial_feedback
+
+    assert extract_partial_feedback("") == {}
+    assert extract_partial_feedback("   ") == {}
+    assert extract_partial_feedback("[1, 2]") == {}  # not an object
+    assert extract_partial_feedback("{") == {}
+    assert extract_partial_feedback('{"reading"') == {}
+    assert extract_partial_feedback('{"reading":') == {}
