@@ -88,15 +88,10 @@ test.describe('ChronoCoder Mentor Flow', () => {
     await expect(feedbackOrError).toBeVisible({ timeout: 15000 });
   });
 
-  test('code review tab shows editor and character count', async ({ page }) => {
+  test('code editor is reachable without submitting first', async ({ page }) => {
     await page.goto(`${BASE_URL}/workspace/ada_lovelace`);
 
-    // Submit once so the tabbed workspace (with Code Review) is revealed
-    await page.getByRole('button', { name: /get feedback/i }).click();
-    await expect(
-      page.getByRole('heading', { name: /Ada Lovelace's Analysis/i })
-    ).toBeVisible();
-
+    // Tabs (and the code editor behind them) are visible before any submit
     await page.getByRole('button', { name: /^Code Review$/ }).click();
 
     // Character count and complexity badge come from CodeEditor
@@ -110,8 +105,12 @@ test.describe('ChronoCoder Mentor Flow', () => {
   test('submit is disabled while the editor is empty', async ({ page }) => {
     await page.goto(`${BASE_URL}/workspace/ada_lovelace`);
 
-    // Clear the pre-filled code via keyboard (realistic user interaction)
+    // Open the Code Review tab so the Monaco editor is mounted
+    await page.getByRole('button', { name: /^Code Review$/ }).click();
     const editorTextarea = page.locator('.monaco-editor textarea').first();
+    await expect(editorTextarea).toBeVisible({ timeout: 10000 });
+
+    // Clear the pre-filled code via keyboard (realistic user interaction)
     await editorTextarea.click();
     await page.keyboard.press('Control+A');
     await page.keyboard.press('Delete');
