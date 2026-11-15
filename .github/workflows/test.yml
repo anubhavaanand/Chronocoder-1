@@ -73,7 +73,27 @@ jobs:
       - name: Run pytest
         run: python -m pytest backend/tests -v
 
-  # The vitest/playwright suite under tests/ is stale: it imports modules
-  # that no longer exist (src/hooks/useMentorAnalysis, src/services/api)
-  # and is excluded from the build (tsconfig.json) and lint. Re-enable a
-  # frontend-tests job here only after that suite is modernized.
+  docker-validation:
+    name: Docker Build Validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Frontend Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile.frontend
+          push: false
+          tags: chronocoder-frontend:test
+
+      - name: Build Backend Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile.backend
+          push: false
+          tags: chronocoder-backend:test
