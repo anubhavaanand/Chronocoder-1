@@ -38,8 +38,8 @@ module.exports = {
       },
     },
     {
-      name: 'mentor-detail-budget',
-      path: '/mentors/*',
+      name: 'workspace-budget',
+      path: '/workspace/ada_lovelace',
       resourceSizes: {
         html: 25000,
         javascript: 250000,
@@ -50,7 +50,7 @@ module.exports = {
     },
     {
       name: 'api-endpoint-budget',
-      path: '/api/v1/*',
+      path: '/api/sessions',
       responseSize: 50000,
       transferSize: 40000,
     },
@@ -309,7 +309,8 @@ module.exports = {
   
   ci: {
     collect: {
-      startServerCommand: 'npm run serve',
+      // tests/ has no start script; the Next.js app lives in the repo root.
+      startServerCommand: 'npm --prefix .. run start',
       startServerReadyMatch: /ready/i,
       pauseAfterLoadMs: 2000,
       url: ['http://localhost:3000'],
