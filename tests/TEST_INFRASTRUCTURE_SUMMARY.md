@@ -122,23 +122,17 @@ All test files have been successfully created in `/tmp/chronocoder-v3/tests/`:
 
 ### 5. Integration Tests ✅
 
-#### integration/api-integration.test.ts (21.6 KB)
+#### integration/api-integration.test.ts
 **Test Coverage:**
-- ✅ WebSocket stream establishment
-- ✅ SSE token delivery verification
-- ✅ Rate limiting enforcement
-- ✅ Error recovery mechanisms
-- ✅ Concurrent connection management
-- ✅ Security & input validation
-- ✅ Response integrity checking
-
-**Features:**
-- WebSocket mock with heartbeat testing
-- Server-Sent Events parser testing
-- Rate limiter quota tracking
-- Connection pool management
-- Fallback endpoint switching
-- Response checksum validation
+- ✅ GET /health service status and ISO 8601 timestamp
+- ✅ POST /api/sessions backend proxy request forwarding
+- ✅ Authorization header propagation
+- ✅ Upstream error status code propagation (400, 429, 500)
+- ✅ 502 Bad Gateway fallback with `backend_unreachable` detail
+- ✅ WebSocket endpoint URL resolution and fallback
+- ✅ Request envelope structure for historical mentor personas
+- ✅ Special character, newline, and HTML escaping preservation
+- ✅ Response envelope contract validation for all message types
 
 ### 6. Performance Configuration ✅
 
