@@ -1,7 +1,9 @@
-# Docker ignore for ChronoCoder v3
-# Exclude old v2 Streamlit files and build artifacts
+# Docker ignore for ChronoCoder
+.git
+.github
+.gitignore
 
-# Old v2 Streamlit app directory
+# Old v2 Streamlit app directory & cache
 chronocoder/
 *.pyc
 __pycache__/
@@ -19,13 +21,11 @@ build/
 dist/
 *.egg-info/
 
-# IDE
+# IDE & OS
 .vscode/
 .idea/
 *.swp
 *.swo
-
-# OS
 .DS_Store
 Thumbs.db
 
@@ -33,17 +33,18 @@ Thumbs.db
 logs/
 *.log
 
-# Testing
+# Testing & Local files
 .coverage
 .pytest_cache/
 .tox/
+tests/node_modules/
+tests/reports/
+tests/coverage/
+session-*.md
+avatars/
 
 # Docker
 docker-compose.override.yml
-
-# Render/Deploy specific
-*.styles.py
-styles.py
 
 # Node
 node_modules/

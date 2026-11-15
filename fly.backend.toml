@@ -1,0 +1,29 @@
+# Fly.io Deployment Configuration for ChronoCoder Backend (FastAPI)
+app = "chronocoder-backend"
+primary_region = "sjc"
+
+[build]
+  dockerfile = "docker/Dockerfile.backend"
+
+[env]
+  FASTAPI_ENV = "production"
+  PYTHONUNBUFFERED = "1"
+  PORT = "8000"
+
+[[services]]
+  internal_port = 8000
+  protocol = "tcp"
+  processes = ["app"]
+
+  [[services.http_checks]]
+    interval = "15s"
+    timeout = "5s"
+    limit = 3
+    grace_period = "10s"
+    method = "get"
+    port = 8000
+    path = "/api/health"
+
+[mounts]
+  source = "chronocoder_backend_data"
+  destination = "/app/logs"
