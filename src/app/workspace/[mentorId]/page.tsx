@@ -1,26 +1,15 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
-import dynamic from "next/dynamic";
+import { useState, useMemo } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { ArrowLeft, Send, Download, Loader2, AlertCircle } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import clsx from "clsx";
 import { SearchBarSection } from "@/components/ui/SearchBarSection";
+import { CodeEditor } from "@/components/code/CodeEditor";
 import { useMentorWebSocket, type FeedbackSectionView, type CodeAnalysis } from "@/hooks/useMentorWebSocket";
 import { MENTORS_BY_ID } from "@/data/mentors";
-
-// Dynamically import Monaco Editor (client-side only)
-const MonacoEditor = dynamic(
-  () => import("@monaco-editor/react"),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="animate-pulse h-96 bg-retro-darker rounded-lg border border-retro-border" />
-    )
-  }
-);
 
 const MENTORS: Record<string, (typeof MENTORS_BY_ID)[string]> = MENTORS_BY_ID;
 
@@ -53,16 +42,7 @@ print(fibonacci(10))`);
   const [error, setError] = useState<string | null>(null);
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [activeTab, setActiveTab] = useState<"ask" | "review">("ask");
-  // Character count and complexity calculation
-  const characterCount = userCode.length;
-  const getComplexity = () => {
-    if (!characterCount) return "None";
-    if (characterCount < 100) return { label: "Simple", class: "text-accent-green" };
-    if (characterCount < 500) return { label: "Medium", class: "text-accent-amber" };
-    return { label: "Complex", class: "text-accent-magenta" };
-  };
-  const complexity = getComplexity();
-  
+
   // WebSocket feedback state
   const [feedbackSections, setFeedbackSections] = useState<FeedbackSectionView[]>([]);
   const [reading, setReading] = useState("");
@@ -161,20 +141,7 @@ ${userCode}
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
-  
-  // Keyboard shortcut (Ctrl/Cmd + Enter)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-        e.preventDefault();
-        handleSubmit();
-      }
-    };
-    
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [userCode]);
-  
+
   return (
     <div className="min-h-screen flex flex-col">
       {/* Header */}
@@ -394,92 +361,57 @@ ${userCode}
                 </div>
               )}
 
-              {/* Code Review Tab */}
+{/* Code Review Tab */}
               {activeTab === "review" && (
                 <div className="space-y-4">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h2 className="text-xl font-bold">Your Code</h2>
-                      <div className="flex items-center space-x-3 text-sm">
-                        <span className="text-gray-400">{characterCount.toLocaleString()} characters</span>
-                        {characterCount > 0 && complexity !== "None" && (
-                          <span className={clsx("font-semibold", complexity.class)}>
-                            {complexity.label}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    
-                    <div className="glass-effect rounded-lg p-4 border border-retro-border">
-                      <MonacoEditor
-                        height="600px"
-                        language="python"
-                        theme="vs-dark"
-                        value={userCode}
-                        onChange={(val) => setUserCode(val || "")}
-                        options={{
-                          minimap: { enabled: false },
-                          fontSize: 14,
-                          lineHeight: 1.5,
-                          tabSize: 2,
-                          wordWrap: "on",
-                          automaticLayout: true,
-                          scrollBeyondLastLine: false,
-                          renderWhitespace: "selection",
-                          cursorBlinking: "smooth",
-                          smoothScrolling: true,
-                          suggest: { showKeywords: true },
-                        }}
-                        onMount={() => {}}
-                      />
-                      
-                      <div className="mt-2 text-xs text-gray-500 text-right">
-                        Ctrl/Cmd + Enter to submit
-                      </div>
-                    </div>
-                    
-                    {/* Local Analysis Results */}
-                    {analysis && (
-                      <div className="glass-effect rounded-lg p-6 border border-retro-border">
-                        <h3 className="text-lg font-semibold mb-4">Static Analysis</h3>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                          {[
-                            { label: "Lines", value: analysis.line_count?.toLocaleString() || 0 },
-                            { label: "Functions", value: analysis.functions || 0 },
-                            { label: "Classes", value: analysis.classes || 0 },
-                            { label: "Imports", value: analysis.imports || 0 },
-                          ].map((stat) => (
-                            <div key={stat.label} className="text-center">
-                              <div className="text-2xl font-bold text-accent-cyan">
-                                {stat.value}
-                              </div>
-                              <div className="text-xs text-gray-400">{stat.label}</div>
+                  <CodeEditor
+                    value={userCode}
+                    onChange={setUserCode}
+                    onSubmit={handleSubmit}
+                    characterLimit={50000}
+                  />
+
+                  {/* Local Analysis Results */}
+                  {analysis && (
+                    <div className="glass-effect rounded-lg p-6 border border-retro-border">
+                      <h3 className="text-lg font-semibold mb-4">Static Analysis</h3>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {[
+                          { label: "Lines", value: analysis.line_count?.toLocaleString() || 0 },
+                          { label: "Functions", value: analysis.functions || 0 },
+                          { label: "Classes", value: analysis.classes || 0 },
+                          { label: "Imports", value: analysis.imports || 0 },
+                        ].map((stat) => (
+                          <div key={stat.label} className="text-center">
+                            <div className="text-2xl font-bold text-accent-cyan">
+                              {stat.value}
                             </div>
-                          ))}
-                          
-                          {/* Complexity Score Badge */}
-                          {analysis.complexity_score && (
-                            <div className="col-span-2 md:col-span-4 mt-4 pt-4 border-t border-retro-border">
-                              <div className="flex items-center justify-center space-x-3">
-                                <span className="text-sm text-gray-400">Complexity Score:</span>
-                                <div className="relative">
-                                  <div className="w-48 h-2 bg-retro-dark rounded-full overflow-hidden">
-                                    <div
-                                      className="absolute inset-y-0 left-0 bg-gradient-primary rounded-full"
-                                      style={{ width: `${(analysis.complexity_score / 10) * 100}%` }}
-                                    />
-                                  </div>
-                                  <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-white">
-                                    {analysis.complexity_score}/10
-                                  </div>
+                            <div className="text-xs text-gray-400">{stat.label}</div>
+                          </div>
+                        ))}
+
+                        {/* Complexity Score Badge */}
+                        {analysis.complexity_score != null && analysis.complexity_score > 0 && (
+                          <div className="col-span-2 md:col-span-4 mt-4 pt-4 border-t border-retro-border">
+                            <div className="flex items-center justify-center space-x-3">
+                              <span className="text-sm text-gray-400">Complexity Score:</span>
+                              <div className="relative">
+                                <div className="w-48 h-2 bg-retro-dark rounded-full overflow-hidden">
+                                  <div
+                                    className="absolute inset-y-0 left-0 bg-gradient-primary rounded-full"
+                                    style={{ width: `${(analysis.complexity_score / 10) * 100}%` }}
+                                  />
+                                </div>
+                                <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-white">
+                                  {analysis.complexity_score}/10
                                 </div>
                               </div>
                             </div>
-                          )}
-                        </div>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
