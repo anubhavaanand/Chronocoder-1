@@ -16,16 +16,30 @@ import path from 'path';
 export default defineConfig({
   plugins: [react()],
   
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, '../src'),
-      '@components': path.resolve(__dirname, '../src/components'),
-      '@hooks': path.resolve(__dirname, '../src/hooks'),
-      '@services': path.resolve(__dirname, '../src/services'),
-      '@types': path.resolve(__dirname, '../src/types'),
-      '@utils': path.resolve(__dirname, '../src/utils'),
-      '@config': path.resolve(__dirname, '../src/config'),
+  server: {
+    fs: {
+      allow: [path.resolve(__dirname, '..')],
     },
+    deps: {
+      inline: [/react/, /@testing-library/, /framer-motion/],
+    },
+  },
+  
+  resolve: {
+    dedupe: ['react', 'react-dom'],
+    alias: [
+      { find: /^react$/, replacement: path.resolve(__dirname, './node_modules/react') },
+      { find: /^react\/(.*)$/, replacement: path.resolve(__dirname, './node_modules/react/$1') },
+      { find: /^react-dom$/, replacement: path.resolve(__dirname, './node_modules/react-dom') },
+      { find: /^react-dom\/(.*)$/, replacement: path.resolve(__dirname, './node_modules/react-dom/$1') },
+      { find: '@', replacement: path.resolve(__dirname, '../src') },
+      { find: '@components', replacement: path.resolve(__dirname, '../src/components') },
+      { find: '@hooks', replacement: path.resolve(__dirname, '../src/hooks') },
+      { find: '@services', replacement: path.resolve(__dirname, '../src/services') },
+      { find: '@types', replacement: path.resolve(__dirname, '../src/types') },
+      { find: '@utils', replacement: path.resolve(__dirname, '../src/utils') },
+      { find: '@config', replacement: path.resolve(__dirname, '../src/config') },
+    ],
   },
   
   test: {
@@ -34,6 +48,12 @@ export default defineConfig({
     // ============================================================================
     
     name: 'ChronoCoder',
+    
+    server: {
+      deps: {
+        inline: ['framer-motion', '@testing-library/react'],
+      },
+    },
     
     // Test directory
     include: ['tests/**/*.{test,spec}.{ts,tsx}'],

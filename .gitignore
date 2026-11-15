@@ -28,6 +28,8 @@ build/
 # Test artifacts
 coverage/
 .nyc_output/
+reports/
+tests/reports/
 *.lcov
 test-results/
 playwright-report/
