@@ -14,6 +14,148 @@ from typing import List
 MENTORS_DIR = Path(__file__).parent.parent / "mentors"
 
 
+def _find_string_end(text: str, start: int) -> Optional[int]:
+    """Return the index of the closing quote of the JSON string starting at
+    ``start`` (which must point at the opening quote), or ``None`` while the
+    string is still open. Handles backslash escapes."""
+    i = start + 1
+    n = len(text)
+    while i < n:
+        c = text[i]
+        if c == "\\":
+            i += 2
+            continue
+        if c == '"':
+            return i
+        i += 1
+    return None
+
+
+def _decode_json_string_prefix(body: str) -> str:
+    """Decode a partial JSON string body (the raw characters after the
+    opening quote, with no closing quote yet).
+
+    A trailing incomplete escape (``\\``, ``\\u12``) is trimmed so the prefix
+    decodes cleanly; clients get a typewriter-style growing string.
+    """
+    trailing_backslashes = len(body) - len(body.rstrip("\\"))
+    if trailing_backslashes % 2 == 1:
+        body = body[:-1]
+    unicode_start = body.rfind("\\u")
+    if unicode_start != -1:
+        tail = body[unicode_start + 2:]
+        if len(tail) < 4 and all(c in "0123456789abcdefABCDEF" for c in tail):
+            body = body[:unicode_start]
+    try:
+        return json.loads(f'"{body}"')
+    except json.JSONDecodeError:
+        return body
+
+
+def _skip_ws(text: str, i: int) -> int:
+    n = len(text)
+    while i < n and text[i] in " \t\r\n":
+        i += 1
+    return i
+
+
+def _extract_partial_array(
+    text: str, start: int, decoder: json.JSONDecoder
+) -> tuple[list, int]:
+    """Extract array elements completed so far from a partial JSON array.
+
+    ``start`` points at ``[``. Returns ``(items, new_index)`` where
+    ``new_index`` is the position after the last consumed character.
+    """
+    n = len(text)
+    i = _skip_ws(text, start + 1)
+    items: list = []
+    while i < n:
+        if text[i] == "]":
+            return items, i + 1
+        if text[i] == ",":
+            i += 1
+            continue
+        try:
+            value, i = decoder.raw_decode(text, i)
+            items.append(value)
+        except json.JSONDecodeError:
+            break
+    return items, i
+
+
+def extract_partial_feedback(text: str) -> dict:
+    """Best-effort extraction of the MentorFeedback fields from a partial
+    JSON object text (possibly a prefix of the full object).
+
+    - Complete fields decode fully.
+    - An unterminated string value yields its decoded prefix (typewriter).
+    - An unterminated array yields the elements completed so far.
+    - Anything after the first incomplete value is ignored until it arrives.
+
+    This lets the backend stream real-time partial feedback instead of
+    waiting for the closing brace of the whole object (the raw_decode
+    deadlock).
+    """
+    result: dict = {}
+    decoder = json.JSONDecoder()
+    n = len(text)
+
+    i = _skip_ws(text, 0)
+    if i >= n or text[i] != "{":
+        return result
+    i += 1
+
+    while True:
+        i = _skip_ws(text, i)
+        if i >= n:
+            break
+        if text[i] == "}":
+            break
+        if text[i] == ",":
+            i += 1
+            continue
+        if text[i] != '"':
+            break
+
+        key_end = _find_string_end(text, i)
+        if key_end is None:
+            break
+        try:
+            key = json.loads(text[i:key_end + 1])
+        except json.JSONDecodeError:
+            break
+
+        i = _skip_ws(text, key_end + 1)
+        if i >= n or text[i] != ":":
+            break
+        i = _skip_ws(text, i + 1)
+        if i >= n:
+            break
+
+        if text[i] == '"':
+            end = _find_string_end(text, i)
+            if end is None:
+                result[key] = _decode_json_string_prefix(text[i + 1:])
+            else:
+                try:
+                    result[key] = json.loads(text[i:end + 1])
+                except json.JSONDecodeError:
+                    pass
+                i = end + 1
+        elif text[i] == "[":
+            value, i = _extract_partial_array(text, i, decoder)
+            result[key] = value
+        else:
+            try:
+                value, i = decoder.raw_decode(text, i)
+                result[key] = value
+            except json.JSONDecodeError:
+                break
+
+    return result
+
+
 class FeedbackSection(BaseModel):
     id: str
     label: str
@@ -214,6 +356,19 @@ Tone: {mentor.tone}
                 # from a partial TCP chunk.
                 sse_buffer = ""
                 text_buffer = ""
+                last_partial: dict | None = None
+
+                def emit_partial() -> dict | None:
+                    """Best-effort partial feedback object, but only when it
+                    changed — the client replaces fields wholesale, so
+                    identical repeats are wasted bandwidth."""
+                    nonlocal last_partial
+                    partial = extract_partial_feedback(text_buffer)
+                    if partial and partial != last_partial:
+                        last_partial = partial
+                        return partial
+                    return None
+
                 async for chunk in response.content:
                     if not chunk:
                         continue
@@ -221,25 +376,16 @@ Tone: {mentor.tone}
                     while "\n\n" in sse_buffer:
                         event, sse_buffer = sse_buffer.split("\n\n", 1)
                         text_buffer += self._extract_sse_text(event)
-                        # Yield every complete JSON object the model has
-                        # streamed so far.
-                        while True:
-                            try:
-                                obj, idx = json.JSONDecoder().raw_decode(text_buffer)
-                                yield {"type": "feedback_chunk", "payload": obj}
-                                text_buffer = text_buffer[idx:].lstrip()
-                            except json.JSONDecodeError:
-                                break
+                        partial = emit_partial()
+                        if partial is not None:
+                            yield {"type": "feedback_chunk", "payload": partial}
 
                 # Flush a trailing event that arrived without its blank line.
                 if sse_buffer.strip():
                     text_buffer += self._extract_sse_text(sse_buffer)
-                if text_buffer.strip():
-                    try:
-                        obj = json.loads(text_buffer)
-                        yield {"type": "feedback_chunk", "payload": obj}
-                    except json.JSONDecodeError:
-                        pass
+                partial = emit_partial()
+                if partial is not None:
+                    yield {"type": "feedback_chunk", "payload": partial}
 
     def get_mentor_config(self, mentor_id: str) -> Optional[MentorConfig]:
         return self.mentors.get(mentor_id)
