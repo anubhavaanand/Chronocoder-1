@@ -35,16 +35,16 @@
     "vitest": "^2.1.4"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.46.1",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "monaco-editor": "^0.52.0",
     "@monaco-editor/react": "^4.7.0",
+    "@supabase/supabase-js": "^2.46.1",
     "framer-motion": "^11.11.0",
-    "remark-gfm": "^4.0.0",
+    "monaco-editor": "^0.52.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "react-markdown": "^9.0.1",
+    "react-syntax-highlighter": "^15.6.1",
     "rehype-highlight": "^7.0.1",
-    "react-syntax-highlighter": "^15.6.1"
+    "remark-gfm": "^4.0.0"
   },
   "engines": {
     "node": ">=18.0.0",

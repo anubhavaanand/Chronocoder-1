@@ -8,8 +8,14 @@
  * - Custom matchers and utilities
  */
 
-import { vi } from 'vitest';
+import { vi, afterEach } from 'vitest';
 import '@testing-library/jest-dom';
+import { cleanup } from '@testing-library/react';
+
+// Automatically unmount and cleanup React component trees after each test
+afterEach(() => {
+  cleanup();
+});
 
 // ============================================================================
 // MOCK ENVIRONMENT VARIABLES
@@ -356,7 +362,11 @@ declare global {
 
 expect.extend({
   toBeInTheDocument(received) {
-    const pass = received.parentNode !== null;
+    const pass = Boolean(
+      received &&
+        received.ownerDocument &&
+        received.ownerDocument.body.contains(received)
+    );
     return {
       pass,
       message: () => `Expected element ${pass ? 'not ' : ''}to be in document`,
