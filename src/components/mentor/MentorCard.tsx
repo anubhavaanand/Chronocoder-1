@@ -36,7 +36,7 @@ export function MentorCard({
   const formattedIndex = String(index + 1).padStart(2, "0");
 
   return (
-    <Link href={`/workspace/${id}`}>
+    <Link href={`/workspace/${id}`} data-testid="mentor-card" data-mentor-id={id}>
       <motion.div
         ref={cardRef}
         initial={{ opacity: 0, y: 20 }}
