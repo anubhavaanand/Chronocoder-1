@@ -68,15 +68,17 @@ All test files have been successfully created in `/tmp/chronocoder-v3/tests/`:
 
 ### 3. Hook Unit Tests ✅
 
-#### useMentorAnalysis.test.ts (25.4 KB)
+#### useMentorWebSocket.test.ts
 **Test Coverage:**
-- ✅ API call success scenarios
-- ✅ Error handling paths (network, auth, rate limit)
-- ✅ State transitions (idle → analyzing → complete/error)
-- ✅ Cleanup on unmount (memory leak prevention)
-- ✅ Concurrent analysis handling
-- ✅ Quota tracking
-- ✅ Performance benchmarks
+- ✅ Lazy connection on requestFeedback
+- ✅ Empty code submission handling
+- ✅ Custom and generated session persistence
+- ✅ Socket reuse on active connection
+- ✅ Message dispatch: analysis_complete, feedback_chunk, feedback_token, feedback_complete, error
+- ✅ WebSocket transport error propagation
+- ✅ Disconnect and state cleanup
+- ✅ Clean unmount without leaks
+- ✅ Exponential backoff reconnection on abnormal closure
 
 **Key Features:**
 - Mocked API service layer

@@ -13,7 +13,7 @@
 - [x] `components/FeedbackRenderer.test.tsx` - 28+ test cases (27.6 KB)
 
 ### Hook Unit Tests ✅
-- [x] `hooks/useMentorAnalysis.test.ts` - 25+ test cases (24.8 KB)
+- [x] `hooks/useMentorWebSocket.test.ts` - WebSocket streaming hook tests
 
 ### E2E Tests ✅
 - [x] `e2e/mentor-flow.spec.ts` - Playwright E2E tests (21.8 KB)

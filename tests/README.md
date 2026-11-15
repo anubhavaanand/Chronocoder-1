@@ -19,7 +19,7 @@ tests/
 │   ├── CodeEditor.test.tsx     # Editor functionality tests
 │   └── FeedbackRenderer.test.tsx # Streaming feedback tests
 ├── hooks/
-│   └── useMentorAnalysis.test.ts    # Custom hook tests
+│   └── useMentorWebSocket.test.ts   # Custom hook tests for WebSocket streaming
 ├── e2e/
 │   └── mentor-flow.spec.ts       # Playwright E2E tests
 ├── integration/
