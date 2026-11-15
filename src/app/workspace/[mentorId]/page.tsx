@@ -121,13 +121,6 @@ print(fibonacci(10))`);
 
   // Handle export
   const handleExport = () => {
-    const feedbackContent = [
-      reading,
-      ...feedbackSections.map((s) => `${s.label}: ${s.content}`),
-      challenge,
-      closing,
-    ].filter(Boolean).join("\n\n");
-    
     if (!feedbackContent) return;
     
     const content = `## ChronoCoder Session Export\n\n**Mentor:** ${mentor.name}\n**Date:** ${new Date().toISOString()}${incomingQuery ? `\n**Question:** ${incomingQuery}` : ""}\n\n### Your Code\n\`\`\`python
