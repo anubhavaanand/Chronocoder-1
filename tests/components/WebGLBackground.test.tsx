@@ -6,6 +6,7 @@ import { render, cleanup } from '@testing-library/react';
 const geometryConstructMock = vi.fn();
 const geometryDisposeMock = vi.fn();
 const rendererDisposeMock = vi.fn();
+const textureDisposeMock = vi.fn();
 
 vi.mock('three', () => {
   const renderMock = vi.fn();
@@ -40,27 +41,46 @@ vi.mock('three', () => {
   class MockTextureLoader {
     load = vi.fn(() => ({
       needsUpdate: false,
-      dispose: vi.fn(),
+      dispose: textureDisposeMock,
     }));
   }
 
+  class MockShaderMaterial {
+    dispose = vi.fn();
+    uniforms: any;
+    constructor(options?: any) {
+      this.uniforms = options?.uniforms || {};
+    }
+  }
+
+  class MockMesh {
+    geometry = { dispose: vi.fn() };
+    position = { x: 0, y: 0, z: 0, set: vi.fn() };
+    scale = { x: 1, y: 1, z: 1, set: vi.fn() };
+  }
+
   return {
+    GLSL3: '300 es',
+    SRGBColorSpace: 'srgb',
+    Vector2: class MockVector2 {
+      x = 0;
+      y = 0;
+      constructor(x = 0, y = 0) {
+        this.x = x;
+        this.y = y;
+      }
+      set(x: number, y: number) {
+        this.x = x;
+        this.y = y;
+      }
+    },
     WebGLRenderer: MockWebGLRenderer,
     Scene: MockScene,
     PerspectiveCamera: MockPerspectiveCamera,
     PlaneGeometry: MockPlaneGeometry,
     TextureLoader: MockTextureLoader,
-    ShaderMaterial: vi.fn().mockImplementation(() => ({
-      dispose: vi.fn(),
-      uniforms: {
-        uTexture: { value: null },
-      },
-    })),
-    Mesh: vi.fn().mockImplementation(() => ({
-      geometry: { dispose: vi.fn() },
-      position: { x: 0, y: 0, z: 0, set: vi.fn() },
-      scale: { x: 1, y: 1, z: 1, set: vi.fn() },
-    })),
+    ShaderMaterial: MockShaderMaterial,
+    Mesh: MockMesh,
   };
 });
 
@@ -136,5 +156,21 @@ describe('WebGLBackground component (#CC-051)', () => {
 
     img1.remove();
     img2.remove();
+  });
+
+  it('disposes loaded textures in material uniforms during cleanup (#CC-053)', () => {
+    const img = document.createElement('img');
+    img.setAttribute('data-gl-src', 'true');
+    img.src = 'https://example.com/test-texture.png';
+    Object.defineProperty(img, 'complete', { value: true });
+    Object.defineProperty(img, 'naturalWidth', { value: 100 });
+    document.body.appendChild(img);
+
+    const { unmount } = render(<WebGLBackground />);
+    unmount();
+
+    expect(textureDisposeMock).toHaveBeenCalled();
+
+    img.remove();
   });
 });

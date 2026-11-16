@@ -334,6 +334,7 @@ export default function WebGLBackground() {
       window.removeEventListener("resize", resize);
       store.forEach(({ mesh, mat }) => {
         scene.remove(mesh);
+        mat.uniforms.uTexture.value?.dispose();
         mat.dispose();
       });
       geometry.dispose();
