@@ -115,6 +115,7 @@ export function MentorCard({
 
           {/* Glass Caption Bar (from gallery design) ───────────────── */}
           <div
+            data-testid="mentor-caption-bar"
             className="absolute bottom-0 left-0 right-0 mx-4 mb-4 flex justify-between items-center px-4 py-2"
             style={{
               background: "var(--surface)",
@@ -122,9 +123,10 @@ export function MentorCard({
               WebkitBackdropFilter: "var(--glass-blur)",
               border: "1px solid var(--border)",
               borderRadius: "8px",
-              transform: "translateY(0)",
+              transform: isHovered ? "translateY(8px)" : "translateY(0)",
               transition: "transform 200ms ease, opacity 200ms ease",
-              opacity: 1,
+              opacity: isHovered ? 0 : 1,
+              pointerEvents: isHovered ? "none" : "auto",
             }}
           >
             <div className="flex items-center gap-3">

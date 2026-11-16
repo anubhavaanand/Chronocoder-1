@@ -164,5 +164,25 @@ describe('MentorCard', () => {
         fireEvent.mouseLeave(interactiveCard);
       }
     });
+
+    it('fades out the glass caption bar on hover to prevent visual collision (#CC-059)', () => {
+      const { container } = render(<MentorCard {...mockMentor} />);
+      const interactiveCard = container.querySelector('.group');
+      expect(interactiveCard).toBeInTheDocument();
+
+      const captionBar = container.querySelector('[data-testid="mentor-caption-bar"]');
+      expect(captionBar).toBeInTheDocument();
+
+      // Initially visible
+      expect(captionBar).toHaveStyle({ opacity: '1' });
+
+      // Hover over card
+      fireEvent.mouseEnter(interactiveCard!);
+      expect(captionBar).toHaveStyle({ opacity: '0' });
+
+      // Unhover
+      fireEvent.mouseLeave(interactiveCard!);
+      expect(captionBar).toHaveStyle({ opacity: '1' });
+    });
   });
 });
