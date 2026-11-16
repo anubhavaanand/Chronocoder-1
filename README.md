@@ -21,7 +21,7 @@
 | **Auth** | None | Supabase Auth (Roadmap) | Multi-provider login (Email + OAuth) planned |
 | **Deployment** | Streamlit Cloud | Fly.io + Vercel | Global edge, 99.9% uptime SLA |
 | **Streaming** | Polling | WebSockets/SSE | Real-time token-by-token feedback |
-| **Testing** | Manual | Playwright + Pytest | 85%+ coverage guaranteed |
+| **Testing** | Manual | Vitest + Pytest | Automated CI test suites |
 | **Performance** | ~3.5s TTI | <1.5s TTI | 2.3x faster |
 | **Lighthouse** | ~85 | >95 | Professional grade |
 
@@ -180,20 +180,14 @@ chronocoder-v3/
 ### Run Tests
 
 ```bash
-# Unit tests (Jest/Vitest)
-npm run test:unit
+# Backend contract and unit tests (Pytest)
+python -m pytest backend/tests -v
 
-# Integration tests
-npm run test:integration
+# Frontend unit and component tests (Vitest)
+cd tests && npm test
 
-# E2E tests (Playwright)
-npm run test:e2e
-
-# Full coverage report
-npm run test:coverage
-
-# Watch mode
-npm run test:watch
+# Frontend test watch mode
+cd tests && npm run test:watch
 ```
 
 ### Test Coverage Goals
