@@ -67,6 +67,7 @@ class FakeSession:
 
     def post(self, url, **kwargs):
         self._captured_url["url"] = url
+        self._captured_url["kwargs"] = kwargs
         return self._response
 
     async def __aenter__(self):
@@ -347,3 +348,79 @@ def test_partial_object_handles_empty_and_whitespace():
     assert extract_partial_feedback("{") == {}
     assert extract_partial_feedback('{"reading"') == {}
     assert extract_partial_feedback('{"reading":') == {}
+
+
+def test_build_response_schema_mentor_specific():
+    gateway = make_gateway()
+    turing = gateway.mentors["alan_turing"]
+    turing_schema = gateway._build_response_schema(turing)
+
+    assert turing_schema["type"] == "OBJECT"
+    assert turing_schema["required"] == ["reading", "sections", "challenge", "closing"]
+    sec_id_prop = turing_schema["properties"]["sections"]["items"]["properties"]["id"]
+    assert sec_id_prop["type"] == "STRING"
+    assert sec_id_prop["enum"] == ["termination", "complexity", "beauty", "alternative"]
+
+    linus = gateway.mentors["linus_torvalds"]
+    linus_schema = gateway._build_response_schema(linus)
+    linus_sec_id_prop = linus_schema["properties"]["sections"]["items"]["properties"]["id"]
+    assert linus_sec_id_prop["enum"] == [
+        "does_it_work",
+        "whats_broken",
+        "how_it_should_be",
+        "summary",
+    ]
+
+
+def test_build_response_schema_fallback_when_no_sections():
+    from backend.services.ai_service import MentorConfig
+
+    gateway = make_gateway()
+    dummy_config = MentorConfig(
+        mentor_id="custom_mentor",
+        name="Custom Mentor",
+        era="2026",
+        icon="🚀",
+        accent_color="#000000",
+        system_prompt="Prompt",
+        tone="direct",
+        focus_areas=["speed"],
+        feedback_schema={},
+        few_shot_examples=[],
+        signature_opening="Hello",
+        signature_closing="Bye",
+    )
+    schema = gateway._build_response_schema(dummy_config)
+    sec_id_prop = schema["properties"]["sections"]["items"]["properties"]["id"]
+    assert sec_id_prop["type"] == "STRING"
+    assert "enum" not in sec_id_prop
+
+
+def test_build_prompt_includes_mentor_sections():
+    gateway = make_gateway()
+    turing = gateway.mentors["alan_turing"]
+    prompt = gateway._build_prompt(turing, user_code="x = 1", code_analysis={})
+
+    assert "Required review sections:" in prompt
+    assert "termination" in prompt
+    assert "Termination Conditions" in prompt
+    assert "complexity" in prompt
+    assert "Computational Complexity" in prompt
+
+
+@pytest.mark.asyncio
+async def test_get_feedback_streaming_passes_dynamic_response_schema(monkeypatch):
+    gateway = make_gateway()
+    payload = {"reading": "Ok", "sections": [], "challenge": "", "closing": ""}
+    response = FakeResponse([model_event(json.dumps(payload))])
+    captured = {}
+    patch_session(monkeypatch, response, captured)
+
+    chunks = await collect(gateway, mentor_id="alan_turing")
+    assert any(c["type"] == "feedback_chunk" for c in chunks)
+
+    sent_payload = captured.get("kwargs", {}).get("json", {})
+    gen_config = sent_payload.get("generationConfig", {})
+    response_schema = gen_config.get("responseSchema", {})
+    sec_id_prop = response_schema["properties"]["sections"]["items"]["properties"]["id"]
+    assert sec_id_prop["enum"] == ["termination", "complexity", "beauty", "alternative"]

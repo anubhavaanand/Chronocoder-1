@@ -237,11 +237,56 @@ class AIGateway:
             raise RuntimeError(f"No mentor configs found in {MENTORS_DIR}")
         return mentors
 
+    def _build_response_schema(self, mentor: MentorConfig) -> dict:
+        """Dynamically generate Gemini OpenAPI responseSchema from mentor.feedback_schema."""
+        sections = mentor.feedback_schema.get("sections", []) if isinstance(mentor.feedback_schema, dict) else []
+        section_ids = [s["id"] for s in sections if isinstance(s, dict) and "id" in s]
+
+        id_property: dict = {"type": "STRING"}
+        if section_ids:
+            id_property["enum"] = section_ids
+
+        return {
+            "type": "OBJECT",
+            "properties": {
+                "reading": {"type": "STRING"},
+                "sections": {
+                    "type": "ARRAY",
+                    "items": {
+                        "type": "OBJECT",
+                        "properties": {
+                            "id": id_property,
+                            "label": {"type": "STRING"},
+                            "icon": {"type": "STRING"},
+                            "content": {"type": "STRING"},
+                        },
+                        "required": ["id", "label", "icon", "content"],
+                    },
+                },
+                "challenge": {"type": "STRING"},
+                "closing": {"type": "STRING"},
+            },
+            "required": ["reading", "sections", "challenge", "closing"],
+        }
+
     def _build_prompt(self, mentor: MentorConfig, user_code: str, code_analysis: dict) -> str:
-        """Build prompt with system prompt, few-shot examples, and schema hint."""
+        """Build prompt with system prompt, few-shot examples, mentor sections, and schema hint."""
         examples_text = ""
         for ex in mentor.few_shot_examples:
             examples_text += f"\n\n--- EXAMPLE ---\nUser code:\n```python\n{ex['user_code']}\n```\nResponse:\n{ex['response']}\n"
+
+        sections = mentor.feedback_schema.get("sections", []) if isinstance(mentor.feedback_schema, dict) else []
+        section_ids = [s["id"] for s in sections if isinstance(s, dict) and "id" in s]
+
+        sections_guidance = "\n".join(
+            f"- Section '{s.get('id', '')}' (Label: '{s.get('label', '')}', Icon: '{s.get('icon', '')}'): {s.get('prompt', '')}"
+            for s in sections
+            if isinstance(s, dict)
+        )
+
+        id_schema: dict = {"type": "string"}
+        if section_ids:
+            id_schema["enum"] = section_ids
 
         schema_hint = json.dumps({
             "type": "object",
@@ -252,7 +297,7 @@ class AIGateway:
                     "items": {
                         "type": "object",
                         "properties": {
-                            "id": {"type": "string"},
+                            "id": id_schema,
                             "label": {"type": "string"},
                             "icon": {"type": "string"},
                             "content": {"type": "string"}
@@ -265,6 +310,8 @@ class AIGateway:
             },
             "required": ["reading", "sections", "challenge", "closing"]
         }, indent=2)
+
+        sections_block = f"\n\nRequired review sections:\n{sections_guidance}" if sections_guidance else ""
 
         return f"""{mentor.system_prompt}
 
@@ -279,7 +326,7 @@ User code to review:
 ```
 
 Static analysis:
-{json.dumps(code_analysis, indent=2)}
+{json.dumps(code_analysis, indent=2)}{sections_block}
 
 Return ONLY valid JSON matching this schema:
 {schema_hint}
@@ -310,29 +357,8 @@ Tone: {mentor.tone}
 
         headers = {"Content-Type": "application/json"}
 
-        # Response schema for structured output
-        response_schema = {
-            "type": "OBJECT",
-            "properties": {
-                "reading": {"type": "STRING"},
-                "sections": {
-                    "type": "ARRAY",
-                    "items": {
-                        "type": "OBJECT",
-                        "properties": {
-                            "id": {"type": "STRING"},
-                            "label": {"type": "STRING"},
-                            "icon": {"type": "STRING"},
-                            "content": {"type": "STRING"}
-                        },
-                        "required": ["id", "label", "icon", "content"]
-                    }
-                },
-                "challenge": {"type": "STRING"},
-                "closing": {"type": "STRING"}
-            },
-            "required": ["reading", "sections", "challenge", "closing"]
-        }
+        # Response schema dynamically generated from mentor's feedback_schema
+        response_schema = self._build_response_schema(mentor)
 
         payload = {
             "contents": [{"parts": [{"text": prompt}]}],
