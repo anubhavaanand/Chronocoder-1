@@ -10,7 +10,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, act } from '@testing-library/react';
 
 const pushMock = vi.fn();
 
@@ -96,5 +96,26 @@ describe.sequential('SearchBar', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Clear search' }));
 
     expect(input).toHaveValue('');
+  });
+
+  it('focuses the input when Command+K or Control+K is pressed (#CC-066)', () => {
+    render(<SearchBar />);
+    const input = screen.getByRole('textbox');
+    expect(document.activeElement).not.toBe(input);
+
+    act(() => {
+      fireEvent.keyDown(window, { key: 'k', metaKey: true });
+    });
+    expect(document.activeElement).toBe(input);
+
+    act(() => {
+      input.blur();
+    });
+    expect(document.activeElement).not.toBe(input);
+
+    act(() => {
+      fireEvent.keyDown(window, { key: 'K', ctrlKey: true });
+    });
+    expect(document.activeElement).toBe(input);
   });
 });
