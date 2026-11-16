@@ -62,13 +62,19 @@ class FakeResponse:
 
 class FakeSession:
     def __init__(self, response, captured_url):
-        self._response = response
+        self._responses = list(response) if isinstance(response, list) else [response]
         self._captured_url = captured_url
+        self.call_count = 0
 
     def post(self, url, **kwargs):
+        self.call_count += 1
         self._captured_url["url"] = url
         self._captured_url["kwargs"] = kwargs
-        return self._response
+        self._captured_url["call_count"] = self.call_count
+        item = self._responses.pop(0) if len(self._responses) > 1 else self._responses[0]
+        if isinstance(item, Exception):
+            raise item
+        return item
 
     async def __aenter__(self):
         return self
@@ -448,4 +454,88 @@ async def test_api_key_passed_in_headers_not_url(monkeypatch):
     headers = captured.get("kwargs", {}).get("headers", {})
     assert headers.get("x-goog-api-key") == custom_secret
     assert headers.get("Content-Type") == "application/json"
+
+
+@pytest.mark.asyncio
+async def test_retry_on_429_then_succeeds(monkeypatch):
+    """Verify exponential backoff retry on HTTP 429 recovers when subsequent call succeeds (#CC-005)."""
+    gateway = AIGateway(api_key="test-key", max_retries=3, retry_delay=0.01)
+    payload = {"reading": "Recovered", "sections": [], "challenge": "", "closing": ""}
+    responses = [
+        FakeResponse([], status=429),
+        FakeResponse([model_event(json.dumps(payload))], status=200),
+    ]
+    captured = {}
+    patch_session(monkeypatch, responses, captured)
+
+    chunks = await collect(gateway, mentor_id="ada_lovelace")
+    assert captured.get("call_count") == 2
+    assert any(c["payload"].get("reading") == "Recovered" for c in chunks if c["type"] == "feedback_chunk")
+
+
+@pytest.mark.asyncio
+async def test_retry_on_503_then_succeeds(monkeypatch):
+    """Verify retry on HTTP 503 recovers when subsequent call succeeds (#CC-005)."""
+    gateway = AIGateway(api_key="test-key", max_retries=3, retry_delay=0.01)
+    payload = {"reading": "Back online", "sections": [], "challenge": "", "closing": ""}
+    responses = [
+        FakeResponse([], status=503),
+        FakeResponse([model_event(json.dumps(payload))], status=200),
+    ]
+    captured = {}
+    patch_session(monkeypatch, responses, captured)
+
+    chunks = await collect(gateway, mentor_id="ada_lovelace")
+    assert captured.get("call_count") == 2
+    assert any(c["payload"].get("reading") == "Back online" for c in chunks if c["type"] == "feedback_chunk")
+
+
+@pytest.mark.asyncio
+async def test_retry_on_connection_error_then_succeeds(monkeypatch):
+    """Verify retry on client connection error recovers on subsequent call (#CC-005)."""
+    gateway = AIGateway(api_key="test-key", max_retries=3, retry_delay=0.01)
+    payload = {"reading": "Connected", "sections": [], "challenge": "", "closing": ""}
+    responses = [
+        ai_service.aiohttp.ClientConnectionError("Connection reset"),
+        FakeResponse([model_event(json.dumps(payload))], status=200),
+    ]
+    captured = {}
+    patch_session(monkeypatch, responses, captured)
+
+    chunks = await collect(gateway, mentor_id="ada_lovelace")
+    assert captured.get("call_count") == 2
+    assert any(c["payload"].get("reading") == "Connected" for c in chunks if c["type"] == "feedback_chunk")
+
+
+@pytest.mark.asyncio
+async def test_exhaust_retries_raises_on_persistent_429(monkeypatch):
+    """Verify that persistent 429 raises after max_retries attempts (#CC-005)."""
+    gateway = AIGateway(api_key="test-key", max_retries=2, retry_delay=0.01)
+    responses = [
+        FakeResponse([], status=429),
+        FakeResponse([], status=429),
+        FakeResponse([], status=429),
+    ]
+    captured = {}
+    patch_session(monkeypatch, responses, captured)
+
+    with pytest.raises(Exception, match=r"Gemini API error \(HTTP 429\)"):
+        await collect(gateway, mentor_id="ada_lovelace")
+
+    assert captured.get("call_count") == 3
+
+
+@pytest.mark.asyncio
+async def test_no_retry_on_400_bad_request(monkeypatch):
+    """Non-retryable status (HTTP 400) should immediately raise without wasting retries (#CC-005)."""
+    gateway = AIGateway(api_key="test-key", max_retries=3, retry_delay=0.01)
+    responses = [FakeResponse([], status=400)]
+    captured = {}
+    patch_session(monkeypatch, responses, captured)
+
+    with pytest.raises(Exception, match=r"Gemini API error \(HTTP 400\)"):
+        await collect(gateway, mentor_id="ada_lovelace")
+
+    assert captured.get("call_count") == 1
+
 
