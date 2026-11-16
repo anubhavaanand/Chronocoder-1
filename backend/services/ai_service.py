@@ -6,6 +6,7 @@ Loads mentor personas from JSON registry; enforces structured feedback schema.
 import asyncio
 import json
 import logging
+import os
 from pathlib import Path
 from typing import AsyncGenerator, List, Optional
 import aiohttp
@@ -193,12 +194,44 @@ class MentorConfig(BaseModel):
 class AIGateway:
     """Unified interface to Google Gemini API with streaming + structured output."""
 
-    def __init__(self, api_key: str, max_retries: int = 3, retry_delay: float = 0.5):
+    def __init__(
+        self,
+        api_key: str,
+        max_retries: int = 3,
+        retry_delay: float = 0.5,
+        max_output_tokens: Optional[int] = None,
+    ):
         self.api_key = api_key
         self.max_retries = max_retries
         self.retry_delay = retry_delay
+        self.max_output_tokens = max_output_tokens
         self.base_url = "https://generativelanguage.googleapis.com/v1beta/models"
         self.mentors: dict[str, MentorConfig] = self._load_mentor_registry()
+
+    def _calculate_max_output_tokens(self, code_analysis: Optional[dict] = None) -> int:
+        """Compute optimal generation token cap based on code complexity and configuration (#CC-020)."""
+        if self.max_output_tokens is not None and self.max_output_tokens > 0:
+            return self.max_output_tokens
+
+        env_override = os.getenv("MAX_OUTPUT_TOKENS") or os.getenv("GEMINI_MAX_OUTPUT_TOKENS")
+        if env_override:
+            try:
+                parsed = int(env_override)
+                if parsed > 0:
+                    return parsed
+            except ValueError:
+                pass
+
+        if not code_analysis:
+            return 2048
+
+        complexity = code_analysis.get("complexity_score", 1)
+        if complexity <= 3:
+            return 1536
+        elif complexity <= 7:
+            return 2560
+        else:
+            return 4096
 
     @staticmethod
     def _extract_sse_text(event: str) -> str:
@@ -373,7 +406,7 @@ Tone: {mentor.tone}
             "contents": [{"parts": [{"text": prompt}]}],
             "generationConfig": {
                 "temperature": 0.5,  # lower for structured output consistency
-                "maxOutputTokens": 8192,
+                "maxOutputTokens": self._calculate_max_output_tokens(code_analysis),
                 "topP": 0.95,
                 "responseMimeType": "application/json",
                 "responseSchema": response_schema
