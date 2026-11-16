@@ -43,6 +43,7 @@ class SessionUpdate(BaseModel):
     status: Optional[str] = None
     complexity_score: Optional[int] = None
     completed_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 
 class Session(BaseModel):
@@ -221,8 +222,10 @@ class SessionRepository:
     ) -> Optional[Session]:
         s_id = coerce_uuid(session_id)
         u_id = coerce_uuid(user_id)
-        payload = data.model_dump(exclude_unset=True)
-        payload["updated_at"] = datetime.now(timezone.utc).isoformat()
+        update_data = data.model_copy()
+        if update_data.updated_at is None:
+            update_data.updated_at = datetime.now(timezone.utc)
+        payload = update_data.model_dump(exclude_unset=True)
         query = (
             self.client.table("sessions")
             .update(payload)
@@ -230,7 +233,7 @@ class SessionRepository:
             .eq("user_id", str(u_id))
         )
         result = await self._execute(query)
-        if result.data:
+        if result and hasattr(result, "data") and result.data:
             return Session(**result.data[0])
         return None
 
