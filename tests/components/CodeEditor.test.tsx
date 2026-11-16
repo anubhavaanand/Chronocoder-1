@@ -50,7 +50,12 @@ vi.mock('next/dynamic', () => ({
   },
 }));
 
-import { CodeEditor, getComplexity, MonacoLoadingPlaceholder } from '../../src/components/code/CodeEditor';
+import {
+  CodeEditor,
+  getComplexity,
+  MonacoLoadingPlaceholder,
+  DEFAULT_EDITOR_HEIGHT,
+} from '../../src/components/code/CodeEditor';
 
 describe.sequential('CodeEditor', () => {
   const defaultProps = {
@@ -73,7 +78,7 @@ describe.sequential('CodeEditor', () => {
       const editor = await screen.findByTestId('monaco-editor');
       expect(editor).toHaveAttribute('data-language', 'python');
       expect(editor).toHaveAttribute('data-theme', 'vs-dark');
-      expect(editor).toHaveAttribute('data-height', '600px');
+      expect(editor).toHaveAttribute('data-height', DEFAULT_EDITOR_HEIGHT);
       expect(editor).toHaveValue(defaultProps.value);
     });
 
@@ -289,17 +294,24 @@ describe.sequential('CodeEditor', () => {
   });
 
   describe('MonacoLoadingPlaceholder (#CC-044)', () => {
-    it('renders with default 600px height matching editor to prevent CLS', () => {
+    it('renders with default responsive height matching editor to prevent CLS', () => {
       const { getByTestId } = render(<MonacoLoadingPlaceholder />);
       const placeholder = getByTestId('monaco-loading-placeholder');
       expect(placeholder).toBeInTheDocument();
-      expect(placeholder).toHaveStyle({ height: '600px' });
+      expect(placeholder).toHaveStyle({ height: DEFAULT_EDITOR_HEIGHT });
     });
 
     it('honors a custom height override', () => {
       const { getByTestId } = render(<MonacoLoadingPlaceholder height="400px" />);
       const placeholder = getByTestId('monaco-loading-placeholder');
       expect(placeholder).toHaveStyle({ height: '400px' });
+    });
+  });
+
+  describe('Responsive Mobile Viewport Height (#CC-045)', () => {
+    it('uses a responsive clamp default height so mobile viewports do not overflow', () => {
+      expect(DEFAULT_EDITOR_HEIGHT).toContain('clamp');
+      expect(DEFAULT_EDITOR_HEIGHT).toBe('clamp(360px, 60vh, 600px)');
     });
   });
 });
