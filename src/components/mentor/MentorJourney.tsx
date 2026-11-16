@@ -68,6 +68,11 @@ function JourneySection({ mentor, index }: { mentor: Mentor; index: number }) {
   const bio = MENTOR_BIOS[mentor.id];
   const reversed = index % 2 === 1;
 
+  const knownFor = bio?.knownFor || mentor.expertise;
+  const paragraphs = bio?.paragraphs || (mentor.greeting ? [mentor.greeting] : []);
+  const quote = bio?.quote || mentor.greeting;
+  const quoteContext = bio?.quoteContext || mentor.era;
+
   return (
     <section
       id={mentor.id}
@@ -97,7 +102,7 @@ function JourneySection({ mentor, index }: { mentor: Mentor; index: number }) {
               className="mb-3 font-mono text-[11px] uppercase tracking-[0.2em]"
               style={{ color: mentor.accentColor }}
             >
-              {bio.knownFor}
+              {knownFor}
             </p>
 
             <h3
@@ -117,7 +122,7 @@ function JourneySection({ mentor, index }: { mentor: Mentor; index: number }) {
 
             {/* Article body */}
             <div className="space-y-4" style={{ color: "var(--fg-mid)" }}>
-              {bio.paragraphs.map((paragraph, i) => (
+              {paragraphs.map((paragraph, i) => (
                 <p key={i} className="leading-relaxed">
                   {paragraph}
                 </p>
@@ -130,19 +135,19 @@ function JourneySection({ mentor, index }: { mentor: Mentor; index: number }) {
               style={{ borderColor: `${mentor.accentColor}80` }}
             >
               <p className="italic" style={{ color: "var(--fg)" }}>
-                &ldquo;{bio.quote}&rdquo;
+                &ldquo;{quote}&rdquo;
               </p>
               <cite
                 className="mt-1 block font-mono text-[10px] uppercase not-italic tracking-[0.15em]"
                 style={{ color: "var(--muted)" }}
               >
-                {bio.quoteContext}
+                {quoteContext}
               </cite>
             </blockquote>
 
             {/* Focus areas */}
             <div className="mt-6 flex flex-wrap gap-2">
-              {mentor.focusAreas.map((area) => (
+              {(mentor.focusAreas || []).map((area) => (
                 <span
                   key={area}
                   className="px-3 py-1 font-mono text-[10px] uppercase tracking-[0.15em]"
