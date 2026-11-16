@@ -4,6 +4,7 @@ import {
   useMentorWebSocket,
   resolveWebSocketUrl,
   isTerminalWebSocketCloseCode,
+  generateSecureSessionId,
 } from '@/hooks/useMentorWebSocket';
 import type { CodeAnalysis, FeedbackPayload } from '@/hooks/useMentorWebSocket';
 
@@ -508,6 +509,41 @@ describe.sequential('useMentorWebSocket', () => {
       } finally {
         vi.useRealTimers();
       }
+    });
+  });
+
+  describe('Cryptographically Secure Session ID (#CC-049)', () => {
+    it('generates a session ID containing a valid UUID format', () => {
+      const sessionId = generateSecureSessionId();
+      expect(sessionId).toMatch(/^session_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+    });
+
+    it('generates unique session IDs across consecutive calls', () => {
+      const id1 = generateSecureSessionId();
+      const id2 = generateSecureSessionId();
+      expect(id1).not.toBe(id2);
+    });
+
+    it('uses the secure session ID when no sessionId option is passed to the hook', () => {
+      const { result, unmount } = renderHook(() =>
+        useMentorWebSocket({
+          mentorId: 'ada',
+        })
+      );
+
+      act(() => {
+        result.current.requestFeedback('x = 42');
+      });
+
+      const ws = MockWebSocket.instances[MockWebSocket.instances.length - 1];
+      act(() => {
+        ws.simulateOpen();
+      });
+
+      const sent = JSON.parse(ws.sentMessages[0]);
+      expect(sent.session_id).toMatch(/^session_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+      expect(result.current.getSessionId()).toBe(sent.session_id);
+      unmount();
     });
   });
 });
