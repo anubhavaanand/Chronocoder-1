@@ -1,5 +1,6 @@
-__pycache__/
-*.pyc
+**/__pycache__/
+*.py[cod]
+*$py.class
 logs/
 venv/
 .venv/
