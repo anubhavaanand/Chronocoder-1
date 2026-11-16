@@ -184,5 +184,13 @@ describe('MentorCard', () => {
       fireEvent.mouseLeave(interactiveCard!);
       expect(captionBar).toHaveStyle({ opacity: '1' });
     });
+
+    it('relies on whileInView for scroll-based animation keeping initial state before view trigger (#CC-060)', () => {
+      const { container } = render(<MentorCard {...mockMentor} />);
+      const cardMotionDiv = container.querySelector('.group');
+      expect(cardMotionDiv).toBeInTheDocument();
+      // Verifies initial viewport state is retained (opacity: 0) instead of eagerly animating on mount
+      expect(cardMotionDiv).toHaveStyle({ opacity: '0' });
+    });
   });
 });
