@@ -17,6 +17,28 @@ import { MentorGLTarget } from "./HeroDistortion";
 
 const EASE = [0.2, 0, 0, 1] as const;
 
+/**
+ * Calculates a high-contrast text color (dark vs light) for a given background color
+ * based on standard WCAG relative luminance, ensuring minimum 4.5:1 contrast ratio.
+ */
+export function getContrastingTextColor(backgroundHexOrColor: string): string {
+  if (!backgroundHexOrColor || typeof backgroundHexOrColor !== "string") {
+    return "#ffffff";
+  }
+  const hexMatch = backgroundHexOrColor.trim().match(/^#?([0-9a-fA-F]{6})$/);
+  if (hexMatch) {
+    const hex = hexMatch[1];
+    const r = parseInt(hex.slice(0, 2), 16) / 255;
+    const g = parseInt(hex.slice(2, 4), 16) / 255;
+    const b = parseInt(hex.slice(4, 6), 16) / 255;
+    const toLinear = (c: number) =>
+      c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    const L = 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+    return L < 0.2112 ? "#ffffff" : "oklch(10% 0.01 265)";
+  }
+  return "oklch(10% 0.01 265)";
+}
+
 function PortraitMedallion({ mentor }: { mentor: Mentor }) {
   return (
     <div className="relative mx-auto h-[280px] w-[280px] md:h-[360px] md:w-[360px]">
@@ -168,7 +190,7 @@ function JourneySection({ mentor, index }: { mentor: Mentor; index: number }) {
               className="group/cta mt-8 inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold transition-all duration-200 hover:-translate-y-0.5"
               style={{
                 background: mentor.accentColor,
-                color: "oklch(10% 0.01 265)",
+                color: getContrastingTextColor(mentor.accentColor),
                 borderRadius: "12px",
                 boxShadow: `0 4px 24px ${mentor.accentColor}40`,
               }}
