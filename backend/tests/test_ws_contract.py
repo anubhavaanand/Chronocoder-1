@@ -788,6 +788,34 @@ def test_websocket_streaming_without_artificial_delay(client, monkeypatch):
         assert m_complete["type"] == "feedback_complete"
 
 
+def test_database_schema_mentor_id_primary_key_contract():
+    """Ensure schema.sql defines mentor_id as primary key matching JSON registry (#CC-023)."""
+    from pathlib import Path
+    import json
+
+    schema_path = Path(__file__).resolve().parent.parent / "db" / "schema.sql"
+    assert schema_path.is_file(), f"Missing schema at {schema_path}"
+    schema_sql = schema_path.read_text(encoding="utf-8")
+
+    # 1. mentors table must declare mentor_id as PRIMARY KEY
+    assert "mentor_id TEXT PRIMARY KEY" in schema_sql
+    assert "avatar_url TEXT" in schema_sql
+
+    # 2. sessions table foreign key must reference mentors(mentor_id)
+    assert "REFERENCES mentors(mentor_id)" in schema_sql
+
+    # 3. All JSON personas must provide mentor_id matching the primary key
+    mentors_dir = Path(__file__).resolve().parent.parent / "mentors"
+    json_files = list(mentors_dir.glob("*.json"))
+    assert len(json_files) == 8
+    for f in json_files:
+        data = json.loads(f.read_text(encoding="utf-8"))
+        assert "mentor_id" in data
+        assert isinstance(data["mentor_id"], str)
+        assert data["mentor_id"] == f.stem
+
+
+
 
 
 
