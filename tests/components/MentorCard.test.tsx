@@ -146,6 +146,14 @@ describe('MentorCard', () => {
       expect(within(container).getByText('Select Mentor')).toBeInTheDocument();
     });
 
+    it('does not nest interactive <button> inside the card <a> link (#CC-058)', () => {
+      const { container } = render(<MentorCard {...mockMentor} />);
+      const nestedButtons = container.querySelectorAll('a button');
+      expect(nestedButtons.length).toBe(0);
+      expect(container.querySelector('button')).toBeNull();
+      expect(within(container).getByText('Select Mentor')).toBeInTheDocument();
+    });
+
     it('toggles hover state on mouse enter and leave', () => {
       const { container } = render(<MentorCard {...mockMentor} />);
       const interactiveCard = container.querySelector('.group');
