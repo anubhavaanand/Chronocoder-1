@@ -58,10 +58,11 @@ export default function RootLayout({ children }: RootLayoutProps) {
           Self-hosted via CDN since it's not on Google Fonts.
           Provides the "Linear / GitHub" wordmark aesthetic.
         */}
-        <link rel="preconnect" href="https://fonts.cdnfonts.com" />
+        <link rel="preconnect" href="https://fonts.cdnfonts.com" crossOrigin="anonymous" />
         <link
-          href="https://fonts.cdnfonts.com/css/mona-sans"
           rel="stylesheet"
+          href="https://fonts.cdnfonts.com/css/mona-sans"
+          precedence="default"
         />
       </head>
       <body className="min-h-screen bg-[var(--bg)] text-[var(--fg)] font-sans antialiased">
