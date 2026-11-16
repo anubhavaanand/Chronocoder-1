@@ -234,7 +234,7 @@ class AIGateway:
         """Load all mentor JSON files from backend/mentors/."""
         mentors = {}
         for path in MENTORS_DIR.glob("*.json"):
-            with open(path, "r") as f:
+            with open(path, "r", encoding="utf-8") as f:
                 data = json.load(f)
             mentor_id = data["mentor_id"]
             mentors[mentor_id] = MentorConfig(**data)

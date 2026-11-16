@@ -539,3 +539,22 @@ async def test_no_retry_on_400_bad_request(monkeypatch):
     assert captured.get("call_count") == 1
 
 
+def test_load_mentor_registry_utf8_encoding(monkeypatch):
+    """Verify _load_mentor_registry loads files using utf-8 encoding (#CC-006)."""
+    opened_encodings = []
+    real_open = open
+
+    def tracking_open(path, mode="r", *args, **kwargs):
+        opened_encodings.append(kwargs.get("encoding"))
+        return real_open(path, mode, *args, **kwargs)
+
+    monkeypatch.setattr("builtins.open", tracking_open)
+    gateway = make_gateway()
+    assert len(gateway.mentors) > 0
+    assert all(enc == "utf-8" for enc in opened_encodings)
+    # Check that unicode emojis loaded accurately
+    assert gateway.mentors["ada_lovelace"].icon == "🔮"
+    assert gateway.mentors["alan_turing"].icon == "🧠"
+
+
+
