@@ -22,6 +22,31 @@ export interface FeedbackRendererProps {
  * error state, loading state, streamed sections (markdown), challenge,
  * closing remark, and the initial empty state.
  */
+export type MarkdownCodeProps = React.HTMLAttributes<HTMLElement> & {
+  children?: React.ReactNode;
+  className?: string;
+  node?: unknown;
+};
+
+/**
+ * Custom renderer for markdown `code` elements.
+ * react-markdown v9+ deprecates the `inline` prop; we determine block vs inline
+ * by checking for a `language-*` class or newlines in text content.
+ */
+export function FeedbackCodeComponent({ children, className, ...rest }: MarkdownCodeProps) {
+  const match = className ? /language-(\w+)/.exec(className) : null;
+  const isBlock = Boolean(match) || (typeof children === "string" && children.includes("\n"));
+  return isBlock ? (
+    <pre className="bg-retro-darker p-4 rounded-lg overflow-x-auto my-3 border border-retro-border">
+      <code className={match ? match[1] : undefined}>{children}</code>
+    </pre>
+  ) : (
+    <code className="bg-retro-panel px-1.5 py-0.5 rounded text-accent-cyan font-mono text-sm" {...rest}>
+      {children}
+    </code>
+  );
+}
+
 export function FeedbackRenderer({
   mentorName,
   mentorIcon,
@@ -84,18 +109,7 @@ export function FeedbackRenderer({
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
                   components={{
-                    code: ({ children, className, inline, ...rest }: { children?: React.ReactNode; className?: string; inline?: boolean }) => {
-                      const match = className ? /language-(\w+)/.exec(className) : null;
-                      return !inline && match ? (
-                        <pre className="bg-retro-darker p-4 rounded-lg overflow-x-auto my-3 border border-retro-border">
-                          <code className={match[1]}>{children}</code>
-                        </pre>
-                      ) : (
-                        <code className="bg-retro-panel px-1.5 py-0.5 rounded text-accent-cyan font-mono text-sm" {...rest}>
-                          {children}
-                        </code>
-                      );
-                    },
+                    code: FeedbackCodeComponent,
                   }}
                 >
                   {section.content}
