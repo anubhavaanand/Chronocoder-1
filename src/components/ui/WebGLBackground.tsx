@@ -175,6 +175,7 @@ export default function WebGLBackground() {
     const loader = new THREE.TextureLoader();
     const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
     const store: PlaneEntry[] = [];
+    const prefersReduced = typeof window !== "undefined" && window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : null;
 
     /* ---- Media class: one instance per img[data-gl-src] ---- */
     class Media implements PlaneEntry {
@@ -281,11 +282,12 @@ export default function WebGLBackground() {
         this.over.cx = lerp(this.over.cx, this.over.tx, 0.055);
         this.over.cy = lerp(this.over.cy, this.over.ty, 0.055);
 
+        const isReduced = Boolean(prefersReduced?.matches);
         const u = this.mat.uniforms;
-        u.uScrollVelocity.value = vel;
-        u.uMouseEnter.value = this.enter;
+        u.uScrollVelocity.value = isReduced ? 0 : vel;
+        u.uMouseEnter.value = isReduced ? 0 : this.enter;
         u.uMouseOverPos.value.set(this.over.cx, this.over.cy);
-        u.uTime.value = time;
+        u.uTime.value = isReduced ? 0 : time;
       }
     }
 
@@ -338,11 +340,6 @@ export default function WebGLBackground() {
       });
       if (!total && !isDisposed) cb();
     })(boot);
-
-    // ---- Reduced motion ----
-    const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)");
-    // Note: gallery keeps grain even with reduced motion, only disables transforms
-    // We'll keep grain but could disable if needed
 
     // ---- Cleanup ----
     return () => {

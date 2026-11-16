@@ -9,6 +9,8 @@ const rendererDisposeMock = vi.fn();
 const textureDisposeMock = vi.fn();
 const setSizeMock = vi.fn();
 
+const createdMaterials: any[] = [];
+
 vi.mock('three', () => {
   const renderMock = vi.fn();
   const setPixelRatioMock = vi.fn();
@@ -50,6 +52,7 @@ vi.mock('three', () => {
     uniforms: any;
     constructor(options?: any) {
       this.uniforms = options?.uniforms || {};
+      createdMaterials.push(this);
     }
   }
 
@@ -96,6 +99,7 @@ describe('WebGLBackground component (#CC-051)', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    createdMaterials.length = 0;
     originalRAF = window.requestAnimationFrame;
     originalCAF = window.cancelAnimationFrame;
     rafCallback = null;
@@ -211,5 +215,44 @@ describe('WebGLBackground component (#CC-051)', () => {
     expect(setSizeMock).toHaveBeenCalledTimes(initialCallCount);
 
     unmount();
+  });
+
+  it('suppresses velocity, cursor ripple, and temporal distortion when prefers-reduced-motion is active (#CC-056)', () => {
+    const originalMatchMedia = window.matchMedia;
+    window.matchMedia = vi.fn().mockImplementation((query) => ({
+      matches: query === '(prefers-reduced-motion: reduce)',
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+
+    const img = document.createElement('img');
+    img.setAttribute('data-gl-src', 'true');
+    img.src = 'https://example.com/test-reduced.png';
+    Object.defineProperty(img, 'complete', { value: true });
+    Object.defineProperty(img, 'naturalWidth', { value: 100 });
+    document.body.appendChild(img);
+
+    const { unmount } = render(<WebGLBackground />);
+
+    // Simulate scroll and animation frame
+    window.scrollY = 300;
+    if (rafCallback) {
+      rafCallback(100);
+    }
+
+    expect(createdMaterials.length).toBeGreaterThan(0);
+    const lastMat = createdMaterials[createdMaterials.length - 1];
+    expect(lastMat.uniforms.uScrollVelocity.value).toBe(0);
+    expect(lastMat.uniforms.uMouseEnter.value).toBe(0);
+    expect(lastMat.uniforms.uTime.value).toBe(0);
+
+    unmount();
+    img.remove();
+    window.matchMedia = originalMatchMedia;
   });
 });
