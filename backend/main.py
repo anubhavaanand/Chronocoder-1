@@ -10,6 +10,8 @@ from collections import OrderedDict
 import asyncio
 from datetime import datetime
 from typing import Optional
+from uuid import UUID
+import uuid
 import os
 from jose import jwt, JWTError
 from supabase import create_client, Client
@@ -17,6 +19,7 @@ from supabase import create_client, Client
 # Import services
 from backend.services.ai_service import AIGateway
 from backend.utils.websocket_manager import ConnectionManager
+from backend.db.session_repo import SessionRepository, SessionCreate
 
 app = FastAPI(
     title="ChronoCoder API",
@@ -30,6 +33,7 @@ app = FastAPI(
 manager = ConnectionManager()
 ai_gateway: Optional[AIGateway] = None
 supabase: Optional[Client] = None
+session_repo: Optional[SessionRepository] = None
 
 # Supabase config
 FASTAPI_ENV = os.getenv("FASTAPI_ENV", "development").lower()
@@ -51,6 +55,36 @@ def get_supabase_client() -> Client:
             raise RuntimeError("SUPABASE_URL and SUPABASE_ANON_KEY required")
         supabase = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
     return supabase
+
+
+def get_session_repo() -> Optional[SessionRepository]:
+    """Dependency provider returning SessionRepository if configured, or None in development."""
+    global session_repo
+    if session_repo is not None:
+        return session_repo
+
+    url = os.getenv("SUPABASE_URL", SUPABASE_URL)
+    key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_ANON_KEY", SUPABASE_ANON_KEY)
+    if not url or not key:
+        current_env = os.getenv("FASTAPI_ENV", FASTAPI_ENV).lower()
+        if current_env == "production":
+            raise HTTPException(
+                status_code=500,
+                detail="Database service misconfigured: SUPABASE_URL and key required in production",
+            )
+        return None
+
+    try:
+        session_repo = SessionRepository()
+        return session_repo
+    except Exception as e:
+        current_env = os.getenv("FASTAPI_ENV", FASTAPI_ENV).lower()
+        if current_env == "production":
+            raise HTTPException(
+                status_code=500,
+                detail=f"Database service initialization error: {e}",
+            )
+        return None
 
 
 async def verify_jwt_token(authorization: Optional[str] = Header(None)) -> str:
@@ -237,14 +271,50 @@ async def get_mentor(mentor_id: str, user_id: str = Depends(verify_jwt_token)):
     }
 
 
-# Session persistence endpoint
-@app.post("/api/sessions", tags=["sessions"])
+# Session persistence endpoint (#CC-012)
+@app.post("/api/sessions", status_code=201, tags=["sessions"])
 async def create_session(
     session_data: dict,
-    user_id: str = Depends(verify_jwt_token)
+    user_id: str = Depends(verify_jwt_token),
+    repo: Optional[SessionRepository] = Depends(get_session_repo),
 ):
-    # For now, just acknowledge - full persistence in session_repo
-    return {"status": "received", "session_id": session_data.get("sessionId")}
+    try:
+        user_uuid = UUID(str(user_id))
+    except (ValueError, TypeError):
+        user_uuid = uuid.uuid5(uuid.NAMESPACE_DNS, f"anonymous.{user_id}")
+
+    mentor_id = session_data.get("mentor_id") or session_data.get("mentorId") or "ada_lovelace"
+    user_code = session_data.get("user_code") or session_data.get("userCode") or ""
+    language = session_data.get("language") or "python"
+    complexity = session_data.get("complexity_score")
+    if complexity is None and isinstance(session_data.get("analysis"), dict):
+        complexity = session_data["analysis"].get("complexity_score")
+
+    session_create = SessionCreate(
+        mentor_id=mentor_id,
+        user_code=user_code,
+        language=language,
+        complexity_score=complexity,
+    )
+
+    if repo is not None:
+        created = await repo.create_session(user_uuid, session_create)
+        return {
+            "status": "active",
+            "session_id": str(created.id),
+            "mentor_id": created.mentor_id,
+            "user_id": str(created.user_id),
+            "created_at": created.created_at.isoformat() if hasattr(created.created_at, "isoformat") else str(created.created_at),
+        }
+
+    session_id = session_data.get("session_id") or session_data.get("sessionId") or str(uuid.uuid4())
+    return {
+        "status": "active",
+        "session_id": str(session_id),
+        "mentor_id": mentor_id,
+        "user_id": str(user_uuid),
+        "created_at": datetime.now().isoformat(),
+    }
 
 
 # WebSocket endpoint with auth
