@@ -286,12 +286,16 @@ export default function WebGLBackground() {
 
     /* ---- Boot: build Media instances then run RAF ---- */
     let prevY = window.scrollY, vel = 0;
+    let rafId: number | null = null;
+    let isDisposed = false;
 
     function boot() {
+      if (isDisposed) return;
       Array.from(document.querySelectorAll<HTMLImageElement>("img[data-gl-src]")).forEach((im) => store.push(new Media(im)));
 
       (function frame(t?: number) {
-        requestAnimationFrame(frame);
+        if (isDisposed) return;
+        rafId = requestAnimationFrame(frame);
         resize();
         const time = (t || 0) / 1000;
         const y = window.scrollY;
@@ -308,12 +312,12 @@ export default function WebGLBackground() {
       const imgs = Array.from(document.querySelectorAll<HTMLImageElement>("img[data-gl-src]"));
       let n = 0;
       const total = imgs.length;
-      const done = () => { if (++n >= total) cb(); };
+      const done = () => { if (++n >= total && !isDisposed) cb(); };
       imgs.forEach((im) => {
         if (im.complete && im.naturalWidth) done();
         else { im.onload = done; im.onerror = done; }
       });
-      if (!total) cb();
+      if (!total && !isDisposed) cb();
     })(boot);
 
     // ---- Reduced motion ----
@@ -323,6 +327,10 @@ export default function WebGLBackground() {
 
     // ---- Cleanup ----
     return () => {
+      isDisposed = true;
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+      }
       window.removeEventListener("resize", resize);
       store.forEach(({ mesh, mat }) => {
         scene.remove(mesh);
