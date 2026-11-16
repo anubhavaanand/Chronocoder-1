@@ -143,6 +143,7 @@ interface PlaneEntry {
   w: number;
   h: number;
   mat: THREE.ShaderMaterial;
+  destroy?: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -228,15 +229,33 @@ export default function WebGLBackground() {
         });
 
         /* Pointer events on the invisible DOM image */
-        el.addEventListener("pointerenter", () => { this.tEnter = 1; });
-        el.addEventListener("pointerleave", () => { this.tEnter = 0; this.over.tx = 0.5; this.over.ty = 0.5; });
-        el.addEventListener("pointermove", (e: PointerEvent) => {
-          const b = el.getBoundingClientRect();
-          this.over.tx = (e.clientX - b.left) / b.width;
-          this.over.ty = (e.clientY - b.top) / b.height;
-        });
+        el.addEventListener("pointerenter", this.onPointerEnter);
+        el.addEventListener("pointerleave", this.onPointerLeave);
+        el.addEventListener("pointermove", this.onPointerMove);
 
         this.measure();
+      }
+
+      onPointerEnter = () => {
+        this.tEnter = 1;
+      };
+
+      onPointerLeave = () => {
+        this.tEnter = 0;
+        this.over.tx = 0.5;
+        this.over.ty = 0.5;
+      };
+
+      onPointerMove = (e: PointerEvent) => {
+        const b = this.el.getBoundingClientRect();
+        this.over.tx = (e.clientX - b.left) / b.width;
+        this.over.ty = (e.clientY - b.top) / b.height;
+      };
+
+      destroy() {
+        this.el.removeEventListener("pointerenter", this.onPointerEnter);
+        this.el.removeEventListener("pointerleave", this.onPointerLeave);
+        this.el.removeEventListener("pointermove", this.onPointerMove);
       }
 
       measure() {
@@ -332,10 +351,11 @@ export default function WebGLBackground() {
         cancelAnimationFrame(rafId);
       }
       window.removeEventListener("resize", resize);
-      store.forEach(({ mesh, mat }) => {
-        scene.remove(mesh);
-        mat.uniforms.uTexture.value?.dispose();
-        mat.dispose();
+      store.forEach((entry) => {
+        scene.remove(entry.mesh);
+        entry.mat.uniforms.uTexture.value?.dispose();
+        entry.mat.dispose();
+        entry.destroy?.();
       });
       geometry.dispose();
       renderer.dispose();
