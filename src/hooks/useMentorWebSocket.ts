@@ -70,6 +70,20 @@ export function resolveWebSocketUrl(baseUrl?: string): string {
 }
 
 /**
+ * Detects terminal WebSocket close codes (e.g. auth failures, policy violations)
+ * where reconnecting would be futile and produce unwanted retry loops (#CC-048).
+ */
+export function isTerminalWebSocketCloseCode(code: number): boolean {
+  return (
+    code === 1008 || // Policy Violation
+    code === 4001 || // Unauthorized
+    code === 4003 || // Forbidden
+    code === 4401 || // Unauthorized (custom WS application code)
+    code === 4403    // Forbidden (custom WS application code)
+  );
+}
+
+/**
  * Connects to /ws/feedback lazily — only when requestFeedback() is called —
  * and resends the pending request if the socket drops mid-analysis.
  * Callbacks are read through a ref so changing them never re-opens the socket.
@@ -153,6 +167,17 @@ export function useMentorWebSocket(options: UseMentorWSOptions) {
     ws.onclose = (event) => {
       setIsConnected(false);
       setIsAnalyzing(false);
+
+      // Terminal auth rejection / policy violation — do not loop reconnect (#CC-048)
+      if (isTerminalWebSocketCloseCode(event.code)) {
+        pendingRequest.current = null;
+        reconnectAttempts.current = maxReconnectAttempts;
+        clearReconnectTimer();
+        handlersRef.current.onError?.(
+          event.reason || "Authentication failed: access denied to mentor session"
+        );
+        return;
+      }
 
       // Retry unexpected drops while an analysis is in flight
       if (
