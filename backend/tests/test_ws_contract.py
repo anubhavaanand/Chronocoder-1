@@ -1286,6 +1286,29 @@ async def test_session_repo_timezone_aware_utc_timestamps():
     assert completed_at_val.tzinfo is not None, "completed_at must be timezone-aware"
 
 
+def test_schema_user_profile_sync_trigger_contract():
+    """Ensure schema.sql declares public.handle_new_user and on_auth_user_created trigger (#CC-029)."""
+    from pathlib import Path
+
+    schema_path = Path(__file__).resolve().parent.parent / "db" / "schema.sql"
+    assert schema_path.is_file(), f"Missing schema at {schema_path}"
+    schema_sql = schema_path.read_text(encoding="utf-8")
+
+    # 1. Trigger function declaration and security definer
+    assert "CREATE OR REPLACE FUNCTION public.handle_new_user()" in schema_sql
+    assert "SECURITY DEFINER" in schema_sql
+
+    # 2. Trigger on auth.users table
+    assert "CREATE TRIGGER on_auth_user_created" in schema_sql
+    assert "ON auth.users" in schema_sql
+    assert "EXECUTE FUNCTION public.handle_new_user()" in schema_sql
+
+    # 3. Synchronized columns into public.users
+    assert "INSERT INTO public.users (id, email, display_name, avatar_url)" in schema_sql
+    assert "ON CONFLICT (id) DO UPDATE" in schema_sql
+
+
+
 
 
 

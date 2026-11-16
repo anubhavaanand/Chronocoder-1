@@ -14,6 +14,32 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Trigger to auto-create user profile in public.users on auth.users signup (#CC-029)
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger AS $$
+BEGIN
+    INSERT INTO public.users (id, email, display_name, avatar_url)
+    VALUES (
+        new.id,
+        new.email,
+        coalesce(new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'name', split_part(new.email, '@', 1)),
+        new.raw_user_meta_data->>'avatar_url'
+    )
+    ON CONFLICT (id) DO UPDATE
+    SET
+        email = excluded.email,
+        display_name = coalesce(excluded.display_name, public.users.display_name),
+        avatar_url = coalesce(excluded.avatar_url, public.users.avatar_url),
+        updated_at = NOW();
+    RETURN new;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+    AFTER INSERT OR UPDATE ON auth.users
+    FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
 -- Mentors reference table
 CREATE TABLE IF NOT EXISTS mentors (
     mentor_id TEXT PRIMARY KEY,
