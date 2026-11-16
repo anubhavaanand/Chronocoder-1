@@ -604,5 +604,52 @@ async def test_streaming_request_passes_dynamic_max_output_tokens(monkeypatch):
     assert gen_config.get("maxOutputTokens") == 1536
 
 
+def test_resolve_mentors_dir_priority(tmp_path, monkeypatch):
+    """Ensure resolve_mentors_dir checks custom dir, MENTORS_DIR env, and fallback (#CC-022)."""
+    # 1. Default fallback resolves and exists
+    default_dir = ai_service.resolve_mentors_dir()
+    assert default_dir.is_dir()
+    assert (default_dir / "ada_lovelace.json").exists()
+
+    # 2. MENTORS_DIR env var pointing to valid directory
+    monkeypatch.setenv("MENTORS_DIR", str(tmp_path))
+    assert ai_service.resolve_mentors_dir() == tmp_path.resolve()
+
+    # 3. MENTORS_DIR env var pointing to non-existent directory safely falls back
+    monkeypatch.setenv("MENTORS_DIR", str(tmp_path / "does_not_exist"))
+    assert ai_service.resolve_mentors_dir() == default_dir
+
+    # 4. Explicit custom directory argument takes precedence
+    custom_dir = tmp_path / "custom"
+    custom_dir.mkdir()
+    assert ai_service.resolve_mentors_dir(custom_dir) == custom_dir.resolve()
+
+
+def test_gateway_loads_from_custom_mentors_dir(tmp_path):
+    """Verify AIGateway loads persona configurations from injected mentors_dir (#CC-022)."""
+    custom_mentor = {
+        "mentor_id": "hypatia",
+        "name": "Hypatia of Alexandria",
+        "era": "c. 360 - 415 AD",
+        "icon": "📜",
+        "accent_color": "#d4af37",
+        "avatar_url": "/mentors/hypatia.jpg",
+        "tone": "Philosophical",
+        "focus_areas": ["geometry", "philosophy"],
+        "system_prompt": "You are Hypatia.",
+        "feedback_schema": {"sections": [{"id": "geometry", "label": "Geometry"}]},
+        "few_shot_examples": [],
+        "signature_opening": "Greetings from the Library.",
+        "signature_closing": "Wisdom endure."
+    }
+    (tmp_path / "hypatia.json").write_text(json.dumps(custom_mentor), encoding="utf-8")
+
+    gateway = AIGateway(api_key="test-key", mentors_dir=tmp_path)
+    assert "hypatia" in gateway.mentors
+    assert gateway.mentors["hypatia"].name == "Hypatia of Alexandria"
+    assert gateway.mentors["hypatia"].icon == "📜"
+
+
+
 
 

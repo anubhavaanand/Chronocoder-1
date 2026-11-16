@@ -8,14 +8,39 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import AsyncGenerator, List, Optional
+from typing import AsyncGenerator, List, Optional, Union
 import aiohttp
 from pydantic import BaseModel
 
 
 logger = logging.getLogger(__name__)
 
-MENTORS_DIR = Path(__file__).parent.parent / "mentors"
+
+def resolve_mentors_dir(custom_dir: Optional[Union[Path, str]] = None) -> Path:
+    """Resolve and validate the mentors directory path (#CC-022).
+
+    Checks in priority order:
+    1. Explicit custom_dir passed to function/constructor
+    2. MENTORS_DIR environment variable (if valid directory)
+    3. Default relative directory: Path(__file__).resolve().parent.parent / "mentors"
+    """
+    if custom_dir:
+        p = Path(custom_dir).resolve()
+        if p.is_dir():
+            return p
+        logger.warning("Specified mentors directory '%s' not found, falling back to default", custom_dir)
+
+    env_dir = os.getenv("MENTORS_DIR")
+    if env_dir:
+        p = Path(env_dir).resolve()
+        if p.is_dir():
+            return p
+        logger.warning("MENTORS_DIR env var points to non-existent directory '%s', falling back to default", env_dir)
+
+    return Path(__file__).resolve().parent.parent / "mentors"
+
+
+MENTORS_DIR = resolve_mentors_dir()
 
 
 def _find_string_end(text: str, start: int) -> Optional[int]:
@@ -200,11 +225,13 @@ class AIGateway:
         max_retries: int = 3,
         retry_delay: float = 0.5,
         max_output_tokens: Optional[int] = None,
+        mentors_dir: Optional[Union[Path, str]] = None,
     ):
         self.api_key = api_key
         self.max_retries = max_retries
         self.retry_delay = retry_delay
         self.max_output_tokens = max_output_tokens
+        self.mentors_dir = resolve_mentors_dir(mentors_dir)
         self.base_url = "https://generativelanguage.googleapis.com/v1beta/models"
         self.mentors: dict[str, MentorConfig] = self._load_mentor_registry()
 
@@ -265,15 +292,15 @@ class AIGateway:
         return "".join(parts)
 
     def _load_mentor_registry(self) -> dict[str, MentorConfig]:
-        """Load all mentor JSON files from backend/mentors/."""
+        """Load all mentor JSON files from self.mentors_dir."""
         mentors = {}
-        for path in MENTORS_DIR.glob("*.json"):
+        for path in self.mentors_dir.glob("*.json"):
             with open(path, "r", encoding="utf-8") as f:
                 data = json.load(f)
             mentor_id = data["mentor_id"]
             mentors[mentor_id] = MentorConfig(**data)
         if not mentors:
-            raise RuntimeError(f"No mentor configs found in {MENTORS_DIR}")
+            raise RuntimeError(f"No mentor configs found in {self.mentors_dir}")
         return mentors
 
     def _build_response_schema(self, mentor: MentorConfig) -> dict:
