@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Image from "next/image";
-import { useRouter, useParams, useSearchParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams, notFound } from "next/navigation";
 import { ArrowLeft, Send, Download, Loader2 } from "lucide-react";
 import clsx from "clsx";
 import { SearchBarSection } from "@/components/ui/SearchBarSection";
@@ -21,7 +21,10 @@ export default function WorkspacePage() {
   const { mentorId } = routeParams;
 
   // Get mentor data
-  const mentor = MENTORS[mentorId] || MENTORS.ada_lovelace;
+  const mentor = MENTORS[mentorId];
+  if (!mentor) {
+    notFound();
+  }
 
   // A question carried in from the landing/hero search (?query=...) must not
   // be silently dropped on navigation (#CC-039).
