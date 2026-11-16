@@ -18,12 +18,36 @@ interface MentorGLTargetProps {
   accentColor: string;
 }
 
-function mentorTextureSrc(accentColor: string): string {
-  const hex = accentColor.replace("#", "");
+/**
+ * Normalizes an arbitrary CSS color string into a valid SVG stop-color.
+ * Handles hex (#abc, #aabbcc), raw hex strings without '#', rgb/rgba, hsl/hsla,
+ * named colors, and falls back safely for unsupported/complex color spaces (e.g. oklch).
+ */
+export function normalizeColorForSvg(color: string): string {
+  if (!color || typeof color !== "string") return "#4f46e5";
+  const trimmed = color.trim();
+  // Standard hex with or without leading hash
+  if (/^#?[0-9a-fA-F]{3,8}$/.test(trimmed)) {
+    return trimmed.startsWith("#") ? trimmed : `#${trimmed}`;
+  }
+  // Standard RGB(A) or HSL(A) syntax
+  if (/^(rgb|hsl)a?\(.+?\)$/i.test(trimmed)) {
+    return trimmed;
+  }
+  // Named CSS colors (e.g. 'purple', 'cyan', 'indigo')
+  if (/^[a-zA-Z]+$/.test(trimmed)) {
+    return trimmed;
+  }
+  // Fallback for oklch or complex non-SVG color expressions
+  return "#4f46e5";
+}
+
+export function mentorTextureSrc(accentColor: string): string {
+  const safeColor = normalizeColorForSvg(accentColor);
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="560">
     <defs>
       <radialGradient id="g" cx="50%" cy="30%" r="70%">
-        <stop offset="0%" stop-color="#${hex}" stop-opacity="0.4"/>
+        <stop offset="0%" stop-color="${safeColor}" stop-opacity="0.4"/>
         <stop offset="60%" stop-color="#0a0a14" stop-opacity="0.9"/>
         <stop offset="100%" stop-color="#06060f" stop-opacity="1"/>
       </radialGradient>
