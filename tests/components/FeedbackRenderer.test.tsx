@@ -23,7 +23,7 @@ vi.mock('react-markdown', () => ({
 
 vi.mock('remark-gfm', () => ({ default: {} }));
 
-import { FeedbackRenderer } from '../../src/components/feedback/FeedbackRenderer';
+import { FeedbackRenderer, FeedbackCodeComponent } from '../../src/components/feedback/FeedbackRenderer';
 
 describe.sequential('FeedbackRenderer', () => {
   const baseProps = {
@@ -222,6 +222,45 @@ describe.sequential('FeedbackRenderer', () => {
       );
       expect(screen.getByText('One')).toBeInTheDocument();
       expect(screen.getByText('Two')).toBeInTheDocument();
+    });
+  });
+
+  describe('FeedbackCodeComponent (react-markdown code renderer)', () => {
+    it('renders single-line inline code as a <code> element', () => {
+      const { container } = render(
+        <FeedbackCodeComponent>print(&quot;hello&quot;)</FeedbackCodeComponent>
+      );
+      const code = container.querySelector('code');
+      expect(code).toBeInTheDocument();
+      expect(container.querySelector('pre')).toBeNull();
+      expect(code).toHaveClass('text-accent-cyan');
+      expect(code).toHaveTextContent('print("hello")');
+    });
+
+    it('renders fenced code blocks with language as <pre><code class="python">', () => {
+      const { container } = render(
+        <FeedbackCodeComponent className="language-python">
+          def solve(): pass
+        </FeedbackCodeComponent>
+      );
+      const pre = container.querySelector('pre');
+      const code = container.querySelector('code');
+      expect(pre).toBeInTheDocument();
+      expect(code).toBeInTheDocument();
+      expect(code).toHaveClass('python');
+      expect(code).toHaveTextContent('def solve(): pass');
+    });
+
+    it('renders multi-line code blocks without language class as <pre><code>', () => {
+      const multiLine = 'line 1\nline 2\nline 3';
+      const { container } = render(
+        <FeedbackCodeComponent>{multiLine}</FeedbackCodeComponent>
+      );
+      const pre = container.querySelector('pre');
+      const code = container.querySelector('code');
+      expect(pre).toBeInTheDocument();
+      expect(code).toBeInTheDocument();
+      expect(code?.textContent).toBe(multiLine);
     });
   });
 });
