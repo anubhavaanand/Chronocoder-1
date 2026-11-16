@@ -112,4 +112,18 @@ describe('Home Page', () => {
     expect(githubLink?.getAttribute('target')).toBe('_blank');
     expect(githubLink?.getAttribute('rel')).toContain('noopener');
   });
+
+  it('uses standard anchor elements for hero CTAs to prevent unnecessary router transitions (#CC-070)', () => {
+    const { container } = render(<Home />);
+    const ctaPrimary = container.querySelector('[data-od-id="cta-primary"]');
+    expect(ctaPrimary).not.toBeNull();
+    expect(ctaPrimary?.tagName.toLowerCase()).toBe('a');
+    expect(ctaPrimary?.getAttribute('href')).toBe('#mentors');
+
+    const ctaSecondary = Array.from(container.querySelectorAll('a')).find(
+      (a) => a.textContent?.includes('How It Works')
+    );
+    expect(ctaSecondary).toBeDefined();
+    expect(ctaSecondary?.getAttribute('href')).toBe('#features');
+  });
 });
