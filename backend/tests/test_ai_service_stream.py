@@ -424,3 +424,28 @@ async def test_get_feedback_streaming_passes_dynamic_response_schema(monkeypatch
     response_schema = gen_config.get("responseSchema", {})
     sec_id_prop = response_schema["properties"]["sections"]["items"]["properties"]["id"]
     assert sec_id_prop["enum"] == ["termination", "complexity", "beauty", "alternative"]
+
+
+@pytest.mark.asyncio
+async def test_api_key_passed_in_headers_not_url(monkeypatch):
+    """Ensure Gemini API key is passed via x-goog-api-key header and not leaked in URL (#CC-004)."""
+    custom_secret = "secret-gemini-token-xyz-12345"
+    gateway = AIGateway(api_key=custom_secret)
+    payload = {"reading": "Ok", "sections": [], "challenge": "", "closing": ""}
+    response = FakeResponse([model_event(json.dumps(payload))])
+    captured = {}
+    patch_session(monkeypatch, response, captured)
+
+    await collect(gateway, mentor_id="ada_lovelace")
+
+    # API key must not appear in the URL
+    request_url = captured.get("url", "")
+    assert custom_secret not in request_url
+    assert "key=" not in request_url
+    assert request_url.endswith("/gemini-2.0-flash:streamGenerateContent?alt=sse")
+
+    # API key must be securely supplied in the x-goog-api-key request header
+    headers = captured.get("kwargs", {}).get("headers", {})
+    assert headers.get("x-goog-api-key") == custom_secret
+    assert headers.get("Content-Type") == "application/json"
+

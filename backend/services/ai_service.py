@@ -353,9 +353,12 @@ Tone: {mentor.tone}
         # alt=sse returns one `data: {json}` event per token batch instead of
         # a raw JSON array, so arbitrary TCP chunk boundaries can never split
         # a JSON value (the old raw-chunk decoder silently dropped those).
-        url = f"{self.base_url}/gemini-2.0-flash:streamGenerateContent?alt=sse&key={self.api_key}"
+        url = f"{self.base_url}/gemini-2.0-flash:streamGenerateContent?alt=sse"
 
-        headers = {"Content-Type": "application/json"}
+        headers = {
+            "Content-Type": "application/json",
+            "x-goog-api-key": self.api_key,
+        }
 
         # Response schema dynamically generated from mentor's feedback_schema
         response_schema = self._build_response_schema(mentor)
