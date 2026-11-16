@@ -4,22 +4,30 @@ Manages multiple client connections for real-time streaming
 """
 
 import asyncio
-from typing import Set
+import os
+from typing import Set, Optional
 from fastapi import WebSocket
 
 
 class ConnectionManager:
-    """Handles WebSocket connections for live feedback streaming safely under concurrency (#CC-015)"""
+    """Handles WebSocket connections for live feedback streaming safely under concurrency (#CC-015, #CC-017)"""
 
-    def __init__(self):
+    def __init__(self, max_connections: Optional[int] = None):
         self.active_connections: Set[WebSocket] = set()
+        env_limit = int(os.getenv("MAX_WS_CONNECTIONS", "1000"))
+        self.max_connections = max_connections if max_connections is not None else env_limit
         self._lock = asyncio.Lock()
 
-    async def connect(self, websocket: WebSocket):
-        """Accept new WebSocket connection"""
-        await websocket.accept()
+    async def connect(self, websocket: WebSocket) -> bool:
+        """Accept new WebSocket connection if within capacity, otherwise close with code 1013 (#CC-017)."""
         async with self._lock:
+            if len(self.active_connections) >= self.max_connections:
+                await websocket.close(code=1013, reason="Server busy: max connections reached")
+                return False
+
+            await websocket.accept()
             self.active_connections.add(websocket)
+            return True
 
     def disconnect(self, websocket: WebSocket):
         """Remove closed connection"""

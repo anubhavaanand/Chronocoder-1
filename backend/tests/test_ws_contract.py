@@ -624,6 +624,63 @@ async def test_connection_manager_heartbeat_helpers():
     assert dead_ws not in cm.active_connections
 
 
+@pytest.mark.asyncio
+async def test_connection_manager_caps_active_connections():
+    """Ensure ConnectionManager enforces max_connections and closes excess sockets with 1013 (#CC-017)."""
+    from backend.utils.websocket_manager import ConnectionManager
+
+    cm = ConnectionManager(max_connections=2)
+
+    class MockSocket:
+        def __init__(self):
+            self.accepted = False
+            self.closed_code = None
+            self.closed_reason = None
+
+        async def accept(self):
+            self.accepted = True
+
+        async def close(self, code=1000, reason=""):
+            self.closed_code = code
+            self.closed_reason = reason
+
+    ws1 = MockSocket()
+    ws2 = MockSocket()
+    ws3 = MockSocket()
+
+    assert await cm.connect(ws1) is True
+    assert ws1.accepted is True
+    assert await cm.connect(ws2) is True
+    assert ws2.accepted is True
+    assert cm.client_count == 2
+
+    # ws3 exceeds max_connections limit of 2
+    assert await cm.connect(ws3) is False
+    assert ws3.accepted is False
+    assert ws3.closed_code == 1013
+    assert "Server busy" in ws3.closed_reason
+    assert cm.client_count == 2
+
+
+def test_websocket_endpoint_rejects_at_capacity(client, monkeypatch):
+    """Ensure WebSocket endpoint terminates connection with 1013 when server is at capacity (#CC-017)."""
+    from starlette.websockets import WebSocketDisconnect
+
+    backend_main.manager.active_connections.clear()
+    monkeypatch.setattr(backend_main.manager, "max_connections", 1)
+
+    # First client occupies the only slot
+    with client.websocket_connect("/ws/feedback"):
+        # Second concurrent client should be closed with code 1013
+        with pytest.raises(WebSocketDisconnect) as exc_info:
+            with client.websocket_connect("/ws/feedback"):
+                pass
+        assert exc_info.value.code == 1013
+
+    backend_main.manager.active_connections.clear()
+
+
+
 
 
 

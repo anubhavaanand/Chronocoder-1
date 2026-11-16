@@ -322,7 +322,9 @@ async def create_session(
 # WebSocket endpoint with auth
 @app.websocket("/ws/feedback")
 async def feedback_websocket(websocket: WebSocket):
-    await manager.connect(websocket)
+    connected = await manager.connect(websocket)
+    if not connected:
+        return
     
     try:
         while True:
