@@ -12,7 +12,6 @@ import ast
 import re
 from datetime import datetime, timezone
 from typing import Optional
-from uuid import UUID
 import uuid
 import os
 from jose import jwt, JWTError
@@ -21,7 +20,7 @@ from supabase import create_client, Client
 # Import services
 from backend.services.ai_service import AIGateway
 from backend.utils.websocket_manager import ConnectionManager
-from backend.db.session_repo import SessionRepository, SessionCreate
+from backend.db.session_repo import SessionRepository, SessionCreate, coerce_uuid
 
 app = FastAPI(
     title="ChronoCoder API",
@@ -280,10 +279,7 @@ async def create_session(
     user_id: str = Depends(verify_jwt_token),
     repo: Optional[SessionRepository] = Depends(get_session_repo),
 ):
-    try:
-        user_uuid = UUID(str(user_id))
-    except (ValueError, TypeError):
-        user_uuid = uuid.uuid5(uuid.NAMESPACE_DNS, f"anonymous.{user_id}")
+    user_uuid = coerce_uuid(user_id)
 
     mentor_id = session_data.get("mentor_id") or session_data.get("mentorId") or "ada_lovelace"
     user_code = session_data.get("user_code") or session_data.get("userCode") or ""
