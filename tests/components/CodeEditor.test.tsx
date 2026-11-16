@@ -50,7 +50,7 @@ vi.mock('next/dynamic', () => ({
   },
 }));
 
-import { CodeEditor, getComplexity } from '../../src/components/code/CodeEditor';
+import { CodeEditor, getComplexity, MonacoLoadingPlaceholder } from '../../src/components/code/CodeEditor';
 
 describe.sequential('CodeEditor', () => {
   const defaultProps = {
@@ -285,6 +285,21 @@ describe.sequential('CodeEditor', () => {
       expect(getComplexity(100)?.label).toBe('Medium');
       expect(getComplexity(499)?.label).toBe('Medium');
       expect(getComplexity(500)?.label).toBe('Complex');
+    });
+  });
+
+  describe('MonacoLoadingPlaceholder (#CC-044)', () => {
+    it('renders with default 600px height matching editor to prevent CLS', () => {
+      const { getByTestId } = render(<MonacoLoadingPlaceholder />);
+      const placeholder = getByTestId('monaco-loading-placeholder');
+      expect(placeholder).toBeInTheDocument();
+      expect(placeholder).toHaveStyle({ height: '600px' });
+    });
+
+    it('honors a custom height override', () => {
+      const { getByTestId } = render(<MonacoLoadingPlaceholder height="400px" />);
+      const placeholder = getByTestId('monaco-loading-placeholder');
+      expect(placeholder).toHaveStyle({ height: '400px' });
     });
   });
 });
