@@ -168,7 +168,11 @@ def test_verify_jwt_token_production_requires_secret(client, monkeypatch):
     monkeypatch.setenv("FASTAPI_ENV", "production")
     monkeypatch.setattr(backend_main, "SUPABASE_JWT_SECRET", None)
 
-    res = client.get("/api/mentors", headers={"Authorization": "Bearer any-token"})
+    res = client.post(
+        "/api/sessions",
+        json={"mentor_id": "ada_lovelace", "user_code": "x = 1"},
+        headers={"Authorization": "Bearer any-token"},
+    )
     assert res.status_code == 500
     assert "SUPABASE_JWT_SECRET required in production" in res.json()["detail"]
 
@@ -180,18 +184,55 @@ def test_verify_jwt_token_production_validates_token(client, monkeypatch):
     secret = "test-secret-key-for-jwt-verification-12345"
     monkeypatch.setenv("FASTAPI_ENV", "production")
     monkeypatch.setattr(backend_main, "SUPABASE_JWT_SECRET", secret)
+    backend_main.app.dependency_overrides[backend_main.get_session_repo] = lambda: None
 
-    valid_token = jwt.encode({"sub": "user_123", "aud": "authenticated"}, secret, algorithm="HS256")
-    invalid_token = jwt.encode({"sub": "user_123", "aud": "wrong_audience"}, "wrong_secret", algorithm="HS256")
+    try:
+        valid_token = jwt.encode({"sub": "user_123", "aud": "authenticated"}, secret, algorithm="HS256")
+        invalid_token = jwt.encode({"sub": "user_123", "aud": "wrong_audience"}, "wrong_secret", algorithm="HS256")
 
-    # Valid token succeeds
-    res_valid = client.get("/api/mentors", headers={"Authorization": f"Bearer {valid_token}"})
-    assert res_valid.status_code == 200
+        # Valid token succeeds
+        res_valid = client.post(
+            "/api/sessions",
+            json={"mentor_id": "ada_lovelace", "user_code": "x = 1"},
+            headers={"Authorization": f"Bearer {valid_token}"},
+        )
+        assert res_valid.status_code == 201
 
-    # Invalid token fails with 401
-    res_invalid = client.get("/api/mentors", headers={"Authorization": f"Bearer {invalid_token}"})
-    assert res_invalid.status_code == 401
-    assert "Invalid token" in res_invalid.json()["detail"]
+        # Invalid token fails with 401
+        res_invalid = client.post(
+            "/api/sessions",
+            json={"mentor_id": "ada_lovelace", "user_code": "x = 1"},
+            headers={"Authorization": f"Bearer {invalid_token}"},
+        )
+        assert res_invalid.status_code == 401
+        assert "Invalid token" in res_invalid.json()["detail"]
+    finally:
+        backend_main.app.dependency_overrides.pop(backend_main.get_session_repo, None)
+
+
+def test_mentor_catalog_endpoints_are_public_without_auth(client):
+    """Ensure GET /api/mentors and GET /api/mentors/{mentor_id} are publicly accessible without authentication (#CC-018)."""
+    from backend.services.ai_service import AIGateway
+    gateway = AIGateway(api_key="test-key-not-used")
+    old_gateway = backend_main.ai_gateway
+    backend_main.ai_gateway = gateway
+    try:
+        # 1. GET /api/mentors without any Authorization header
+        res = client.get("/api/mentors")
+        assert res.status_code == 200
+        data = res.json()
+        assert "mentors" in data
+        assert any(m["mentor_id"] == "ada_lovelace" for m in data["mentors"])
+
+        # 2. GET /api/mentors/{mentor_id} without any Authorization header
+        single_res = client.get("/api/mentors/ada_lovelace")
+        assert single_res.status_code == 200
+        mentor_data = single_res.json()
+        assert mentor_data["id"] == "ada_lovelace"
+        assert mentor_data["name"] == "Ada Lovelace"
+        assert mentor_data["avatar_url"] == "/mentors/ada_lovelace.jpg"
+    finally:
+        backend_main.ai_gateway = old_gateway
 
 
 def test_cors_allowed_origin_returns_credentials_and_origin(client):
