@@ -7,10 +7,10 @@ const geometryConstructMock = vi.fn();
 const geometryDisposeMock = vi.fn();
 const rendererDisposeMock = vi.fn();
 const textureDisposeMock = vi.fn();
+const setSizeMock = vi.fn();
 
 vi.mock('three', () => {
   const renderMock = vi.fn();
-  const setSizeMock = vi.fn();
   const setPixelRatioMock = vi.fn();
 
   class MockWebGLRenderer {
@@ -192,5 +192,24 @@ describe('WebGLBackground component (#CC-051)', () => {
     expect(removeEventListenerSpy).toHaveBeenCalledWith('pointermove', expect.any(Function));
 
     img.remove();
+  });
+
+  it('does not re-invoke resize() or setSize() on animation frame ticks (#CC-055)', () => {
+    const { unmount } = render(<WebGLBackground />);
+
+    // Initial resize called once at mount / boot
+    const initialCallCount = setSizeMock.mock.calls.length;
+
+    // Simulate multiple animation frame ticks
+    if (rafCallback) {
+      rafCallback(16);
+      rafCallback(32);
+      rafCallback(48);
+    }
+
+    // Number of setSize calls should NOT increase on RAF frames without a window resize event
+    expect(setSizeMock).toHaveBeenCalledTimes(initialCallCount);
+
+    unmount();
   });
 });
