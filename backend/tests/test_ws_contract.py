@@ -815,6 +815,95 @@ def test_database_schema_mentor_id_primary_key_contract():
         assert data["mentor_id"] == f.stem
 
 
+def test_prepare_mentor_record_mapping_and_validation():
+    """Ensure prepare_mentor_record validates required fields and filters unknown keys (#CC-024)."""
+    import pytest
+    from backend.db.seed_mentors import prepare_mentor_record
+
+    raw_data = {
+        "mentor_id": "test_mentor",
+        "name": "Test Mentor",
+        "era": "Present",
+        "unknown_extra_field": "ignore_me",
+        "nested_unsupported": {"secret": 123},
+        "focus_areas": ["python", "testing"],
+    }
+
+    record = prepare_mentor_record(raw_data)
+    assert record["mentor_id"] == "test_mentor"
+    assert record["name"] == "Test Mentor"
+    assert record["era"] == "Present"
+    assert record["focus_areas"] == ["python", "testing"]
+    assert "unknown_extra_field" not in record
+    assert "nested_unsupported" not in record
+
+    # Legacy mapping from 'id'
+    legacy_data = {"id": "legacy_mentor", "name": "Legacy"}
+    legacy_record = prepare_mentor_record(legacy_data)
+    assert legacy_record["mentor_id"] == "legacy_mentor"
+
+    # Missing mentor_id
+    with pytest.raises(ValueError, match="missing required 'mentor_id'"):
+        prepare_mentor_record({"name": "No ID"})
+
+    # Missing name
+    with pytest.raises(ValueError, match="missing required 'name'"):
+        prepare_mentor_record({"mentor_id": "no_name"})
+
+
+def test_seed_mentors_with_mock_supabase(tmp_path):
+    """Ensure seed_mentors iterates JSON files and executes upsert with clean records (#CC-024)."""
+    import json
+    from backend.db.seed_mentors import seed_mentors
+
+    # Create dummy mentor files
+    mentor_data_1 = {
+        "mentor_id": "mentor_alpha",
+        "name": "Mentor Alpha",
+        "era": "1950",
+        "focus_areas": ["logic"],
+        "unexpected_key": "drop_this",
+    }
+    mentor_data_2 = {
+        "id": "mentor_beta",
+        "name": "Mentor Beta",
+        "era": "1980",
+    }
+    (tmp_path / "mentor_alpha.json").write_text(json.dumps(mentor_data_1), encoding="utf-8")
+    (tmp_path / "mentor_beta.json").write_text(json.dumps(mentor_data_2), encoding="utf-8")
+
+    upserted_records = []
+
+    class MockQueryBuilder:
+        def __init__(self, record):
+            self.record = record
+
+        def execute(self):
+            upserted_records.append(self.record)
+            return {"data": [self.record]}
+
+    class MockTable:
+        def upsert(self, record):
+            return MockQueryBuilder(record)
+
+    class MockSupabase:
+        def table(self, table_name):
+            assert table_name == "mentors"
+            return MockTable()
+
+    mock_client = MockSupabase()
+    results = seed_mentors(supabase=mock_client, mentors_dir=tmp_path)
+
+    assert len(results) == 2
+    assert len(upserted_records) == 2
+
+    # Check that unexpected_key was dropped
+    assert "unexpected_key" not in upserted_records[0]
+    assert upserted_records[0]["mentor_id"] == "mentor_alpha"
+    assert upserted_records[1]["mentor_id"] == "mentor_beta"
+
+
+
 
 
 
