@@ -3,6 +3,7 @@ Session & Message models + repository layer for Supabase.
 """
 import asyncio
 from datetime import datetime, timezone
+import logging
 import os
 from typing import Any, List, Optional, Union
 import uuid
@@ -10,6 +11,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, field_validator
 from supabase import create_client, Client
+
+logger = logging.getLogger(__name__)
 
 ANONYMOUS_NAMESPACE = uuid.NAMESPACE_DNS
 
@@ -97,15 +100,62 @@ class Message(BaseModel):
 
 
 class SessionRepository:
-    def __init__(self, client: Optional[Client] = None):
+    def __init__(
+        self,
+        client: Optional[Client] = None,
+        *,
+        use_service_role: bool = True,
+        jwt_token: Optional[str] = None,
+    ):
+        self.jwt_token: Optional[str] = jwt_token
+        self.is_service_role: bool = use_service_role
+
         if client is not None:
             self.client = client
+            if jwt_token:
+                self.set_auth(jwt_token)
             return
+
         url = os.getenv("SUPABASE_URL")
-        key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_ANON_KEY")
-        if not url or not key:
-            raise RuntimeError("SUPABASE_URL and SUPABASE key required")
+        if not url:
+            raise RuntimeError("SUPABASE_URL required")
+
+        if use_service_role:
+            key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+            if not key:
+                anon_key = os.getenv("SUPABASE_ANON_KEY")
+                if not anon_key:
+                    raise RuntimeError("SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY required")
+                logger.warning(
+                    "SUPABASE_SERVICE_ROLE_KEY not configured; falling back to SUPABASE_ANON_KEY. "
+                    "Unauthenticated writes may fail RLS policies without user context (#CC-031)."
+                )
+                key = anon_key
+                self.is_service_role = False
+        else:
+            key = os.getenv("SUPABASE_ANON_KEY") or os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+            if not key:
+                raise RuntimeError("SUPABASE_ANON_KEY or SUPABASE_SERVICE_ROLE_KEY required")
+
         self.client: Client = create_client(url, key)
+        if jwt_token:
+            self.set_auth(jwt_token)
+
+    def set_auth(self, jwt_token: str) -> None:
+        """Attach an authenticated user's JWT to postgrest headers to satisfy RLS (#CC-031)."""
+        self.jwt_token = jwt_token
+        if hasattr(self.client, "postgrest") and hasattr(self.client.postgrest, "auth"):
+            self.client.postgrest.auth(jwt_token)
+
+    @classmethod
+    def create_admin(cls) -> "SessionRepository":
+        """Instantiate an admin SessionRepository using SUPABASE_SERVICE_ROLE_KEY (#CC-031)."""
+        return cls(use_service_role=True)
+
+    @classmethod
+    def create_for_user(cls, jwt_token: str) -> "SessionRepository":
+        """Instantiate a client SessionRepository scoped to the authenticated user's JWT (#CC-031)."""
+        return cls(use_service_role=False, jwt_token=jwt_token)
 
     @staticmethod
     async def _execute(query: Any) -> Any:
@@ -235,8 +285,10 @@ class SessionRepository:
 _session_repo: Optional[SessionRepository] = None
 
 
-def get_session_repo() -> SessionRepository:
+def get_session_repo(jwt_token: Optional[str] = None) -> SessionRepository:
     global _session_repo
+    if jwt_token:
+        return SessionRepository.create_for_user(jwt_token)
     if _session_repo is None:
-        _session_repo = SessionRepository()
+        _session_repo = SessionRepository.create_admin()
     return _session_repo
