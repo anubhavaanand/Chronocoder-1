@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useMentorWebSocket } from '@/hooks/useMentorWebSocket';
+import { useMentorWebSocket, resolveWebSocketUrl } from '@/hooks/useMentorWebSocket';
 import type { CodeAnalysis, FeedbackPayload } from '@/hooks/useMentorWebSocket';
 
 // Mock WebSocket implementation
@@ -403,5 +403,52 @@ describe.sequential('useMentorWebSocket', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  describe('resolveWebSocketUrl (#CC-047)', () => {
+    const originalLocation = window.location;
+
+    afterEach(() => {
+      Object.defineProperty(window, 'location', {
+        value: originalLocation,
+        writable: true,
+      });
+    });
+
+    it('resolves default ws endpoint on non-https protocol', () => {
+      Object.defineProperty(window, 'location', {
+        value: { protocol: 'http:' },
+        writable: true,
+      });
+      const url = resolveWebSocketUrl('ws://localhost:8000');
+      expect(url).toBe('ws://localhost:8000/ws/feedback');
+    });
+
+    it('automatically upgrades ws:// to wss:// when loaded over https:', () => {
+      Object.defineProperty(window, 'location', {
+        value: { protocol: 'https:' },
+        writable: true,
+      });
+      const url = resolveWebSocketUrl('ws://api.chronocoder.dev');
+      expect(url).toBe('wss://api.chronocoder.dev/ws/feedback');
+    });
+
+    it('upgrades http:// to wss:// when loaded over https:', () => {
+      Object.defineProperty(window, 'location', {
+        value: { protocol: 'https:' },
+        writable: true,
+      });
+      const url = resolveWebSocketUrl('http://api.chronocoder.dev');
+      expect(url).toBe('wss://api.chronocoder.dev/ws/feedback');
+    });
+
+    it('preserves existing wss:// URLs intact', () => {
+      Object.defineProperty(window, 'location', {
+        value: { protocol: 'https:' },
+        writable: true,
+      });
+      const url = resolveWebSocketUrl('wss://secure.chronocoder.dev');
+      expect(url).toBe('wss://secure.chronocoder.dev/ws/feedback');
+    });
   });
 });

@@ -48,6 +48,28 @@ interface UseMentorWSOptions {
 type ConnectFn = (onOpen?: (ws: WebSocket) => void) => void;
 
 /**
+ * Resolves the WebSocket URL with automatic HTTPS -> WSS upgrade to prevent
+ * browser Mixed Content blocking in production deployments (#CC-047).
+ */
+export function resolveWebSocketUrl(baseUrl?: string): string {
+  const base = baseUrl || process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000";
+  let url = base.replace(/\/+$/, "");
+
+  // Upgrade ws:// or http:// to wss:// if page is served over HTTPS
+  if (typeof window !== "undefined" && window.location?.protocol === "https:") {
+    if (url.startsWith("ws://")) {
+      url = "wss://" + url.slice(5);
+    } else if (url.startsWith("http://")) {
+      url = "wss://" + url.slice(7);
+    } else if (url.startsWith("https://")) {
+      url = "wss://" + url.slice(8);
+    }
+  }
+
+  return `${url}/ws/feedback`;
+}
+
+/**
  * Connects to /ws/feedback lazily — only when requestFeedback() is called —
  * and resends the pending request if the socket drops mid-analysis.
  * Callbacks are read through a ref so changing them never re-opens the socket.
@@ -85,7 +107,7 @@ export function useMentorWebSocket(options: UseMentorWSOptions) {
       return;
     }
 
-    const wsUrl = `${process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000"}/ws/feedback`;
+    const wsUrl = resolveWebSocketUrl();
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
     intentionalClose.current = false;
