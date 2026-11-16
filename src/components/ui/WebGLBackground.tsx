@@ -311,11 +311,11 @@ export default function WebGLBackground() {
     function boot() {
       if (isDisposed) return;
       Array.from(document.querySelectorAll<HTMLImageElement>("img[data-gl-src]")).forEach((im) => store.push(new Media(im)));
+      resize();
 
       (function frame(t?: number) {
         if (isDisposed) return;
         rafId = requestAnimationFrame(frame);
-        resize();
         const time = (t || 0) / 1000;
         const y = window.scrollY;
         const raw = y - prevY;
