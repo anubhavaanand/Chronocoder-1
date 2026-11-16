@@ -85,4 +85,13 @@ describe.sequential('WorkspacePage ?query= capture', () => {
       screen.getByRole('heading', { level: 1, name: 'Alan Turing' })
     ).toBeInTheDocument();
   });
+
+  it('renders the mentor portrait avatar using next/image with explicit dimensions (#CC-043)', () => {
+    render(<WorkspacePage />);
+
+    const avatar = screen.getByAltText('Portrait of Alan Turing');
+    expect(avatar).toBeInTheDocument();
+    expect(avatar).toHaveAttribute('width', '44');
+    expect(avatar).toHaveAttribute('height', '44');
+  });
 });

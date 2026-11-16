@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Image from "next/image";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { ArrowLeft, Send, Download, Loader2 } from "lucide-react";
 import clsx from "clsx";
@@ -152,9 +153,11 @@ ${userCode}
           </button>
           
           <div className="flex items-center space-x-4">
-            <img
+            <Image
               src={mentor.avatarUrl}
               alt={`Portrait of ${mentor.name}`}
+              width={44}
+              height={44}
               className="hidden sm:block w-11 h-11 rounded-full object-cover"
               style={{
                 objectPosition: mentor.portraitPosition || "center",
