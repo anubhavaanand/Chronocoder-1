@@ -206,7 +206,6 @@ export default function Home() {
         >
           <span>Works</span>
           <span style={{ flex: 1, height: "1px", background: "var(--border)" }} />
-          <span style={{ flex: 1, height: "1px", background: "var(--border)" }} />
         </div>
 
         {/* ── Mentors Gallery Journey ─────────────────────────────── */}
@@ -292,7 +291,6 @@ export default function Home() {
           }}
         >
           <span>Features</span>
-          <span style={{ flex: 1, height: "1px", background: "var(--border)" }} />
           <span style={{ flex: 1, height: "1px", background: "var(--border)" }} />
         </div>
 

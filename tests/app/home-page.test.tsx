@@ -126,4 +126,22 @@ describe('Home Page', () => {
     expect(ctaSecondary).toBeDefined();
     expect(ctaSecondary?.getAttribute('href')).toBe('#features');
   });
+
+  it('contains clean single-line section dividers without duplicate adjacent flex spans (#CC-071)', () => {
+    const { container } = render(<Home />);
+    const dividers = Array.from(container.querySelectorAll('.flex.items-center.gap-4'));
+    
+    // Check the "Works" and "Features" section headers
+    const worksDivider = dividers.find((d) => d.textContent?.trim().startsWith('Works'));
+    expect(worksDivider).toBeDefined();
+    const worksSpans = worksDivider!.querySelectorAll('span');
+    // Expected: 1 label span + 1 line span = 2 spans (previously 3 due to duplicate span)
+    expect(worksSpans.length).toBe(2);
+
+    const featuresDivider = dividers.find((d) => d.textContent?.trim().startsWith('Features'));
+    expect(featuresDivider).toBeDefined();
+    const featuresSpans = featuresDivider!.querySelectorAll('span');
+    // Expected: 1 label span + 1 line span = 2 spans (previously 3 due to duplicate span)
+    expect(featuresSpans.length).toBe(2);
+  });
 });
