@@ -458,6 +458,25 @@ def analyze_code_locally(code: str) -> dict:
     }
 
 
+def get_uvicorn_config() -> dict:
+    """Return runtime configuration for uvicorn server (#CC-019)."""
+    reload_env = os.getenv("FASTAPI_RELOAD") or os.getenv("UVICORN_RELOAD")
+    if reload_env is not None:
+        should_reload = reload_env.strip().lower() in ("true", "1", "yes")
+    else:
+        should_reload = os.getenv("FASTAPI_ENV", FASTAPI_ENV).strip().lower() != "production"
+
+    port = int(os.getenv("PORT", "8000"))
+    host = os.getenv("HOST", "0.0.0.0")
+    return {
+        "app": "main:app",
+        "host": host,
+        "port": port,
+        "reload": should_reload,
+    }
+
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=False)
+    cfg = get_uvicorn_config()
+    uvicorn.run(cfg["app"], host=cfg["host"], port=cfg["port"], reload=cfg["reload"])
