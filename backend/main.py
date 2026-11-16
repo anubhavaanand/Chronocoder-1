@@ -165,6 +165,7 @@ async def get_mentor(mentor_id: str, user_id: str = Depends(verify_jwt_token)):
         "era": config.era,
         "icon": config.icon,
         "accent_color": config.accent_color,
+        "avatar_url": config.avatar_url,
         "signature_opening": config.signature_opening,
     }
 

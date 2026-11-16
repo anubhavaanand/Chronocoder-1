@@ -112,3 +112,40 @@ def test_mentor_registry_loads_all_personas():
         "linus_torvalds",
     ):
         assert mentor_id in gateway.mentors, f"missing persona: {mentor_id}"
+        config = gateway.mentors[mentor_id]
+        assert config.avatar_url is not None
+        assert config.avatar_url.startswith("/mentors/")
+
+
+def test_mentor_config_and_api_includes_avatar_url():
+    """Verify avatar_url is present in MentorConfig, list_mentors, and /api/mentors endpoints (#CC-007)."""
+    from backend.services.ai_service import AIGateway
+
+    gateway = AIGateway(api_key="test-key-not-used")
+    mentors_list = gateway.list_mentors()
+    assert len(mentors_list) == 8
+    for m in mentors_list:
+        assert "avatar_url" in m
+        assert m["avatar_url"].startswith("/mentors/")
+
+    # Test via FastAPI endpoints
+    import backend.main as backend_main
+    monkeypatch_gateway = gateway
+    old_gateway = backend_main.ai_gateway
+    backend_main.ai_gateway = monkeypatch_gateway
+    try:
+        with TestClient(backend_main.app) as test_client:
+            auth_headers = {"Authorization": "Bearer dev-test-token"}
+            res = test_client.get("/api/mentors", headers=auth_headers)
+            assert res.status_code == 200
+            for mentor in res.json()["mentors"]:
+                assert "avatar_url" in mentor
+                assert mentor["avatar_url"].startswith("/mentors/")
+
+            single_res = test_client.get("/api/mentors/ada_lovelace", headers=auth_headers)
+            assert single_res.status_code == 200
+            data = single_res.json()
+            assert data["avatar_url"] == "/mentors/ada_lovelace.jpg"
+    finally:
+        backend_main.ai_gateway = old_gateway
+
