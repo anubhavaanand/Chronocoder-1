@@ -319,6 +319,15 @@ async def create_session(
     }
 
 
+def get_stream_pace_delay() -> float:
+    """Return stream chunk delay in seconds from WS_STREAM_PACE_MS (#CC-021)."""
+    try:
+        pace_ms = float(os.getenv("WS_STREAM_PACE_MS", "0"))
+        return max(0.0, pace_ms / 1000.0)
+    except (ValueError, TypeError):
+        return 0.0
+
+
 # WebSocket endpoint with auth
 @app.websocket("/ws/feedback")
 async def feedback_websocket(websocket: WebSocket):
@@ -391,7 +400,9 @@ async def feedback_websocket(websocket: WebSocket):
                     ):
                         # chunk is already a dict with type/payload from new AIGateway
                         await websocket.send_json(chunk)
-                        await asyncio.sleep(0.01)
+                        pace_delay = get_stream_pace_delay()
+                        if pace_delay > 0:
+                            await asyncio.sleep(pace_delay)
 
                     await websocket.send_json({
                         "type": "feedback_complete",

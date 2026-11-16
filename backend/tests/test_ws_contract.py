@@ -754,6 +754,41 @@ def test_uvicorn_config_reload_and_environment(monkeypatch):
     assert cfg_dev_disabled["reload"] is False
 
 
+def test_stream_pace_delay_configuration(monkeypatch):
+    """Ensure get_stream_pace_delay returns 0 by default and parses WS_STREAM_PACE_MS safely (#CC-021)."""
+    # 1. Unset returns 0.0
+    monkeypatch.delenv("WS_STREAM_PACE_MS", raising=False)
+    assert backend_main.get_stream_pace_delay() == 0.0
+
+    # 2. Configured positive milliseconds
+    monkeypatch.setenv("WS_STREAM_PACE_MS", "50")
+    assert backend_main.get_stream_pace_delay() == 0.05
+
+    # 3. Invalid or negative values clamp to 0.0
+    monkeypatch.setenv("WS_STREAM_PACE_MS", "-10")
+    assert backend_main.get_stream_pace_delay() == 0.0
+    monkeypatch.setenv("WS_STREAM_PACE_MS", "invalid_number")
+    assert backend_main.get_stream_pace_delay() == 0.0
+
+
+def test_websocket_streaming_without_artificial_delay(client, monkeypatch):
+    """Ensure feedback streaming works without forced sleep and reaches feedback_complete (#CC-021)."""
+    monkeypatch.delenv("WS_STREAM_PACE_MS", raising=False)
+    backend_main.request_counts.clear()
+
+    with client.websocket_connect("/ws/feedback") as ws:
+        ws.send_json({"mentor_id": "ada_lovelace", "user_code": VALID_CODE})
+        m_analysis = ws.receive_json()
+        assert m_analysis["type"] == "analysis_complete"
+
+        m_chunk = ws.receive_json()
+        assert m_chunk["type"] == "feedback_chunk"
+
+        m_complete = ws.receive_json()
+        assert m_complete["type"] == "feedback_complete"
+
+
+
 
 
 
