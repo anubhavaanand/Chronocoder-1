@@ -281,6 +281,22 @@ MIT License - see [LICENSE](LICENSE) file for details
 
 ---
 
+## 📚 Citation
+
+If you use ChronoCoder in your research or project, please cite it using the metadata in [CITATION.cff](CITATION.cff):
+
+```bibtex
+@software{Anand_ChronoCoder_2026,
+  author = {Anand, Anubhav},
+  title = {{ChronoCoder: AI-Powered Historical Code Review Platform}},
+  year = {2026},
+  url = {https://github.com/anubhavaanand/Chronocoder-1},
+  license = {MIT}
+}
+```
+
+---
+
 ## 🙏 Acknowledgments
 
 This project builds upon the original ChronoCoder concept and transforms it into a production-grade SaaS platform suitable for millions of users. All historical mentor personas are based on real computing legends whose contributions shaped modern software engineering.
