@@ -903,6 +903,49 @@ def test_seed_mentors_with_mock_supabase(tmp_path):
     assert upserted_records[1]["mentor_id"] == "mentor_beta"
 
 
+def test_seed_mentors_utf8_encoding_multilingual(tmp_path):
+    """Ensure seed_mentors opens JSON files with UTF-8 encoding handling unicode/emojis (#CC-033)."""
+    import inspect
+    import json
+    from backend.db.seed_mentors import seed_mentors
+
+    # Verify source contract explicitly specifies encoding="utf-8"
+    source = inspect.getsource(seed_mentors)
+    assert 'encoding="utf-8"' in source
+
+    # Test reading non-ASCII multilingual content with emojis and accented characters
+    unicode_mentor = {
+        "mentor_id": "mentor_unicode",
+        "name": "Alan Turing — Théorème & Cryptographie 🚀",
+        "era": "1940s 🇬🇧",
+        "signature_opening": "Bonjour, let’s explore computability!",
+        "signature_closing": "« Q.E.D. » 🌟",
+    }
+    file_path = tmp_path / "unicode_mentor.json"
+    file_path.write_text(json.dumps(unicode_mentor, ensure_ascii=False), encoding="utf-8")
+
+    upserted_records = []
+
+    class MockTable:
+        def upsert(self, record):
+            class MockBuilder:
+                def execute(self):
+                    upserted_records.append(record)
+                    return {"data": [record]}
+
+            return MockBuilder()
+
+    class MockSupabase:
+        def table(self, table_name):
+            return MockTable()
+
+    records = seed_mentors(supabase=MockSupabase(), mentors_dir=tmp_path)
+    assert len(records) == 1
+    assert records[0]["name"] == "Alan Turing — Théorème & Cryptographie 🚀"
+    assert records[0]["signature_closing"] == "« Q.E.D. » 🌟"
+
+
+
 @pytest.mark.asyncio
 async def test_session_repo_async_threadpool_execution():
     """Ensure SessionRepository operations offload blocking execution to threadpool (#CC-025)."""
