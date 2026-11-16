@@ -173,4 +173,24 @@ describe('WebGLBackground component (#CC-051)', () => {
 
     img.remove();
   });
+
+  it('removes pointer event listeners from image elements on unmount (#CC-054)', () => {
+    const img = document.createElement('img');
+    img.setAttribute('data-gl-src', 'true');
+    img.src = 'https://example.com/test-events.png';
+    Object.defineProperty(img, 'complete', { value: true });
+    Object.defineProperty(img, 'naturalWidth', { value: 100 });
+    document.body.appendChild(img);
+
+    const removeEventListenerSpy = vi.spyOn(img, 'removeEventListener');
+
+    const { unmount } = render(<WebGLBackground />);
+    unmount();
+
+    expect(removeEventListenerSpy).toHaveBeenCalledWith('pointerenter', expect.any(Function));
+    expect(removeEventListenerSpy).toHaveBeenCalledWith('pointerleave', expect.any(Function));
+    expect(removeEventListenerSpy).toHaveBeenCalledWith('pointermove', expect.any(Function));
+
+    img.remove();
+  });
 });
