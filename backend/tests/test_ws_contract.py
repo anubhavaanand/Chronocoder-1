@@ -1004,6 +1004,128 @@ async def test_session_repo_async_threadpool_execution():
         assert t != main_thread, "Query execute() was called synchronously on the event loop thread"
 
 
+def test_coerce_uuid_and_session_model_anonymous_safety():
+    """Ensure coerce_uuid and Session model handle anonymous strings and non-UUID inputs safely (#CC-026)."""
+    import uuid
+    from datetime import datetime, timezone
+    from backend.db.session_repo import coerce_uuid, Session, ANONYMOUS_NAMESPACE
+
+    anon_uuid = uuid.uuid5(ANONYMOUS_NAMESPACE, "anonymous")
+
+    # 1. Anonymous string identifiers map to deterministic anon_uuid
+    assert coerce_uuid("anonymous") == anon_uuid
+    assert coerce_uuid("anon") == anon_uuid
+    assert coerce_uuid("") == anon_uuid
+    assert coerce_uuid(None) == anon_uuid
+
+    # 2. Valid UUID passthrough
+    random_uuid = uuid.uuid4()
+    assert coerce_uuid(random_uuid) == random_uuid
+    assert coerce_uuid(str(random_uuid)) == random_uuid
+
+    # 3. Arbitrary non-UUID strings map deterministically without error
+    custom_uuid = coerce_uuid("github_oauth_user_98765")
+    assert isinstance(custom_uuid, uuid.UUID)
+    assert custom_uuid == uuid.uuid5(ANONYMOUS_NAMESPACE, "anonymous.github_oauth_user_98765")
+
+    # 4. Session model validates and coerces string user_id and id without crash
+    now = datetime.now(timezone.utc)
+    session = Session(
+        id="session-string-id",
+        user_id="anonymous",
+        mentor_id="ada_lovelace",
+        user_code="print('hi')",
+        language="python",
+        created_at=now,
+        updated_at=now,
+    )
+    assert isinstance(session.user_id, uuid.UUID)
+    assert session.user_id == anon_uuid
+    assert isinstance(session.id, uuid.UUID)
+
+
+@pytest.mark.asyncio
+async def test_session_repo_handles_anonymous_string_user_id():
+    """Ensure SessionRepository methods accept string 'anonymous' user_id without ValueError (#CC-026)."""
+    from datetime import datetime, timezone
+    from backend.db.session_repo import SessionRepository, SessionCreate
+
+    passed_queries = []
+
+    class MockQuery:
+        def __init__(self, data):
+            self.data = data
+
+        def execute(self):
+            return self
+
+    class MockTable:
+        def __init__(self, table_name):
+            self.table_name = table_name
+
+        def insert(self, payload):
+            passed_queries.append(("insert", payload))
+            now = datetime.now(timezone.utc)
+            item = dict(payload)
+            item["id"] = "generated-uuid"
+            item["created_at"] = now.isoformat()
+            item["updated_at"] = now.isoformat()
+            return MockQuery([item])
+
+        def select(self, *args, **kwargs):
+            return self
+
+        def eq(self, col, val):
+            passed_queries.append(("eq", col, val))
+            return self
+
+        def order(self, *args, **kwargs):
+            return self
+
+        def range(self, *args, **kwargs):
+            now = datetime.now(timezone.utc)
+            item = {
+                "id": "item-id",
+                "user_id": "anonymous",
+                "mentor_id": "ada_lovelace",
+                "user_code": "x = 1",
+                "language": "python",
+                "created_at": now.isoformat(),
+                "updated_at": now.isoformat(),
+            }
+            return MockQuery([item])
+
+        def single(self):
+            now = datetime.now(timezone.utc)
+            item = {
+                "id": "item-id",
+                "user_id": "anonymous",
+                "mentor_id": "ada_lovelace",
+                "user_code": "x = 1",
+                "language": "python",
+                "created_at": now.isoformat(),
+                "updated_at": now.isoformat(),
+            }
+            return MockQuery(item)
+
+    class MockClient:
+        def table(self, table_name):
+            return MockTable(table_name)
+
+    repo = SessionRepository(client=MockClient())
+
+    # Passing "anonymous" string directly to create_session and list_sessions
+    session = await repo.create_session("anonymous", SessionCreate(mentor_id="ada_lovelace", user_code="print('ok')"))
+    assert session.mentor_id == "ada_lovelace"
+
+    sessions = await repo.list_sessions("anonymous")
+    assert len(sessions) == 1
+
+    found = await repo.get_session("custom-session-id", "anonymous")
+    assert found is not None
+
+
+
 
 
 
