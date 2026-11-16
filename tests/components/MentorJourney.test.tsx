@@ -9,7 +9,7 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { MentorJourney } from '@/components/mentor/MentorJourney';
+import { MentorJourney, getContrastingTextColor } from '@/components/mentor/MentorJourney';
 import { MENTORS } from '@/data/mentors';
 
 // Mock framer-motion components
@@ -93,5 +93,37 @@ describe('MentorJourney', () => {
       // Clean up
       MENTORS.pop();
     }
+  });
+
+  describe('getContrastingTextColor (#CC-065)', () => {
+    it('returns white text for dark background colors', () => {
+      // Very dark backgrounds
+      expect(getContrastingTextColor('#000000')).toBe('#ffffff');
+      expect(getContrastingTextColor('#1a1a2e')).toBe('#ffffff');
+      expect(getContrastingTextColor('#2b1055')).toBe('#ffffff');
+    });
+
+    it('returns dark text for light or vibrant background colors', () => {
+      // Light backgrounds
+      expect(getContrastingTextColor('#ffffff')).toBe('oklch(10% 0.01 265)');
+      expect(getContrastingTextColor('#d9b64e')).toBe('oklch(10% 0.01 265)');
+      expect(getContrastingTextColor('#e0a458')).toBe('oklch(10% 0.01 265)');
+    });
+
+    it('handles empty or invalid inputs safely', () => {
+      expect(getContrastingTextColor('')).toBe('#ffffff');
+      expect(getContrastingTextColor(null as unknown as string)).toBe('#ffffff');
+    });
+
+    it('applies high-contrast colors to mentor review CTA buttons', () => {
+      const { container } = render(<MentorJourney />);
+      const ctaLinks = container.querySelectorAll('a[data-testid="journey-link"]');
+      expect(ctaLinks.length).toBe(MENTORS.length);
+
+      ctaLinks.forEach((link) => {
+        // Style must not be empty or unassigned
+        expect((link as HTMLElement).style.color).toBeTruthy();
+      });
+    });
   });
 });
