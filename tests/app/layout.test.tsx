@@ -19,11 +19,14 @@ import RootLayout from '@/app/layout';
 
 describe('RootLayout', () => {
   it('renders non-blocking font links with preconnect crossOrigin and stylesheet precedence (#CC-073)', () => {
+    // Suppress expected JSDOM warning for rendering <html> inside DOM container
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     render(
       <RootLayout>
         <div data-testid="child-content">Hello</div>
       </RootLayout>
     );
+    consoleSpy.mockRestore();
 
     const preconnect = document.head.querySelector('link[rel="preconnect"][href="https://fonts.cdnfonts.com"]');
     expect(preconnect).not.toBeNull();
