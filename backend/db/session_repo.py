@@ -2,7 +2,7 @@
 Session & Message models + repository layer for Supabase.
 """
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 import os
 from typing import Any, List, Optional, Union
 import uuid
@@ -172,7 +172,7 @@ class SessionRepository:
         s_id = coerce_uuid(session_id)
         u_id = coerce_uuid(user_id)
         payload = data.model_dump(exclude_unset=True)
-        payload["updated_at"] = datetime.utcnow().isoformat()
+        payload["updated_at"] = datetime.now(timezone.utc).isoformat()
         query = (
             self.client.table("sessions")
             .update(payload)
@@ -188,7 +188,7 @@ class SessionRepository:
         self, session_id: Union[UUID, str], user_id: Union[UUID, str]
     ) -> Optional[Session]:
         return await self.update_session(
-            session_id, user_id, SessionUpdate(status="completed", completed_at=datetime.utcnow())
+            session_id, user_id, SessionUpdate(status="completed", completed_at=datetime.now(timezone.utc))
         )
 
     # --- Messages ---
