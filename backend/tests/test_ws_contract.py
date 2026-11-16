@@ -1396,6 +1396,18 @@ def test_session_repo_auth_keys_and_roles_contract(monkeypatch, caplog):
     assert scoped.jwt_token == "user-jwt"
 
 
+def test_schema_sessions_user_created_index_contract():
+    """Ensure schema.sql defines composite index idx_sessions_user_created on sessions(user_id, created_at DESC) (#CC-032)."""
+    from pathlib import Path
+
+    schema_path = Path(__file__).resolve().parent.parent / "db" / "schema.sql"
+    assert schema_path.is_file(), f"Missing schema at {schema_path}"
+    schema_sql = schema_path.read_text(encoding="utf-8")
+
+    assert "CREATE INDEX IF NOT EXISTS idx_sessions_user_created ON sessions(user_id, created_at DESC);" in schema_sql
+
+
+
 
 
 
