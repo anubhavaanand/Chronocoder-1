@@ -8,6 +8,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from collections import OrderedDict
 import asyncio
+import ast
+import re
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
@@ -404,20 +406,45 @@ async def feedback_websocket(websocket: WebSocket):
 
 
 def analyze_code_locally(code: str) -> dict:
+    """Analyze code locally using Python AST parser with regex fallback for incomplete syntax (#CC-013)."""
     lines = code.split("\n")
-    functions = len([line for line in lines if 'def ' in line])
-    classes = len([line for line in lines if 'class ' in line])
-    imports = len([line for line in lines if line.strip().startswith('import ') or line.strip().startswith('from ')])
-    
+    functions = 0
+    classes = 0
+    imports = 0
+
+    try:
+        tree = ast.parse(code)
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                functions += 1
+            elif isinstance(node, ast.ClassDef):
+                classes += 1
+            elif isinstance(node, (ast.Import, ast.ImportFrom)):
+                imports += 1
+    except SyntaxError:
+        # Fallback regex parsing when code contains syntax errors (e.g. typing in progress)
+        func_re = re.compile(r"^\s*(?:async\s+)?def\s+[a-zA-Z_]\w*\s*(\(|:)")
+        class_re = re.compile(r"^\s*class\s+[a-zA-Z_]\w*\s*(\(|:)")
+        for line in lines:
+            stripped = line.strip()
+            if stripped.startswith("#"):
+                continue
+            if func_re.match(line):
+                functions += 1
+            elif class_re.match(line):
+                classes += 1
+            elif stripped.startswith("import ") or stripped.startswith("from "):
+                imports += 1
+
     complexity_score = min((functions * 2 + classes + imports), 10)
-    
+
     return {
         "line_count": len(lines),
         "functions": functions,
         "classes": classes,
         "imports": imports,
         "complexity_score": complexity_score,
-        "estimated_tokens": max(1, len(code) // 4)
+        "estimated_tokens": max(0 if not code else 1, len(code) // 4),
     }
 
 

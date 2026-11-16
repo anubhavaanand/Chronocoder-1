@@ -440,6 +440,54 @@ def test_get_session_repo_production_requires_supabase(monkeypatch):
     assert "Database service misconfigured" in exc_info.value.detail
 
 
+def test_analyze_code_locally_ignores_comments_and_strings():
+    """Ensure analyze_code_locally does not falsely count comments or string literals as functions/classes (#CC-013)."""
+    code = (
+        "# def commented_func(): pass\n"
+        "# class CommentedClass: pass\n"
+        "s = 'def string_func(): pass'\n"
+        "class_name = 'btn class something'\n"
+        "msg = 'import fake_module'\n"
+    )
+    result = backend_main.analyze_code_locally(code)
+    assert result["functions"] == 0
+    assert result["classes"] == 0
+    assert result["imports"] == 0
+
+
+def test_analyze_code_locally_counts_ast_constructs():
+    """Ensure analyze_code_locally accurately counts functions, classes, and imports (#CC-013)."""
+    code = (
+        "import math\n"
+        "from typing import List, Optional\n"
+        "\n"
+        "async def async_fetch():\n"
+        "    pass\n"
+        "\n"
+        "class DataModel:\n"
+        "    def sync_method(self):\n"
+        "        pass\n"
+    )
+    result = backend_main.analyze_code_locally(code)
+    assert result["functions"] == 2  # async_fetch + sync_method
+    assert result["classes"] == 1    # DataModel
+    assert result["imports"] == 2    # import math + from typing
+    assert result["complexity_score"] == min(2 * 2 + 1 + 2, 10)  # 7
+
+
+def test_analyze_code_locally_fallback_on_syntax_error():
+    """Ensure analyze_code_locally handles incomplete Python code during live typing (#CC-013)."""
+    code = (
+        "# def commented_out(): pass\n"
+        "def unfinished_func(\n"
+    )
+    result = backend_main.analyze_code_locally(code)
+    assert result["functions"] == 1
+    assert result["classes"] == 0
+    assert result["imports"] == 0
+
+
+
 
 
 
