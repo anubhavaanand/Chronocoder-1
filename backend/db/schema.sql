@@ -16,11 +16,12 @@ CREATE TABLE IF NOT EXISTS users (
 
 -- Mentors reference table
 CREATE TABLE IF NOT EXISTS mentors (
-    id TEXT PRIMARY KEY,
+    mentor_id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     era TEXT,
     icon TEXT,
     accent_color TEXT,
+    avatar_url TEXT,
     system_prompt TEXT,
     tone TEXT,
     focus_areas JSONB,
@@ -35,7 +36,7 @@ CREATE TABLE IF NOT EXISTS mentors (
 CREATE TABLE IF NOT EXISTS sessions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    mentor_id TEXT NOT NULL REFERENCES mentors(id),
+    mentor_id TEXT NOT NULL REFERENCES mentors(mentor_id),
     user_code TEXT NOT NULL,
     language TEXT DEFAULT 'python',
     complexity_score INT,
