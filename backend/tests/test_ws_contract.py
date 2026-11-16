@@ -494,6 +494,85 @@ def test_analyze_code_locally_fallback_on_syntax_error():
     assert result["imports"] == 0
 
 
+@pytest.mark.asyncio
+async def test_connection_manager_concurrency_and_safe_broadcast():
+    """Ensure ConnectionManager broadcast handles concurrent mutations without Set size error (#CC-015)."""
+    from backend.utils.websocket_manager import ConnectionManager
+
+    cm = ConnectionManager()
+
+    class MockWS:
+        def __init__(self, name, on_send=None):
+            self.name = name
+            self.on_send = on_send
+            self.sent = []
+
+        async def accept(self):
+            pass
+
+        async def send_json(self, msg):
+            self.sent.append(msg)
+            if self.on_send:
+                await self.on_send()
+
+    async def mutate_during_broadcast():
+        # Concurrently add and remove connections while broadcast is awaiting send_json
+        ws_new = MockWS("mutant")
+        await cm.connect(ws_new)
+        cm.disconnect(ws1)
+
+    ws1 = MockWS("ws1", on_send=mutate_during_broadcast)
+    ws2 = MockWS("ws2")
+
+    await cm.connect(ws1)
+    await cm.connect(ws2)
+    assert cm.client_count == 2
+
+    # Broadcast to all connections; must NOT raise RuntimeError
+    await cm.broadcast({"type": "ping"})
+
+    assert len(ws1.sent) == 1
+    assert len(ws2.sent) == 1
+
+
+@pytest.mark.asyncio
+async def test_connection_manager_purges_disconnected():
+    """Ensure ConnectionManager removes failing connections during broadcast (#CC-015)."""
+    from backend.utils.websocket_manager import ConnectionManager
+
+    cm = ConnectionManager()
+
+    class FailingWS:
+        async def accept(self):
+            pass
+
+        async def send_json(self, msg):
+            raise ConnectionResetError("Client dropped connection")
+
+    class HealthyWS:
+        def __init__(self):
+            self.sent = []
+
+        async def accept(self):
+            pass
+
+        async def send_json(self, msg):
+            self.sent.append(msg)
+
+    failing = FailingWS()
+    healthy = HealthyWS()
+
+    await cm.connect(failing)
+    await cm.connect(healthy)
+    assert cm.client_count == 2
+
+    await cm.broadcast({"test": "data"})
+    assert cm.client_count == 1
+    assert failing not in cm.active_connections
+    assert healthy in cm.active_connections
+
+
+
 
 
 
