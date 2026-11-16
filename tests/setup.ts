@@ -18,6 +18,26 @@ afterEach(() => {
 });
 
 // ============================================================================
+// MOCK NEXT.JS IMAGE
+// ============================================================================
+
+vi.mock('next/image', () => ({
+  __esModule: true,
+  default: ({ src, alt, width, height, className, style, ...rest }: any) => {
+    const React = require('react');
+    return React.createElement('img', {
+      src: typeof src === 'object' ? src?.src || '' : src,
+      alt,
+      width,
+      height,
+      className,
+      style,
+      ...rest,
+    });
+  },
+}));
+
+// ============================================================================
 // MOCK ENVIRONMENT VARIABLES
 // ============================================================================
 
