@@ -903,6 +903,108 @@ def test_seed_mentors_with_mock_supabase(tmp_path):
     assert upserted_records[1]["mentor_id"] == "mentor_beta"
 
 
+@pytest.mark.asyncio
+async def test_session_repo_async_threadpool_execution():
+    """Ensure SessionRepository operations offload blocking execution to threadpool (#CC-025)."""
+    import threading
+    from uuid import uuid4
+    from datetime import datetime, timezone
+    from backend.db.session_repo import SessionRepository, SessionCreate
+
+    execution_threads = set()
+    main_thread = threading.current_thread()
+
+    class ThreadTrackingQuery:
+        def __init__(self, data):
+            self.data = data
+
+        def execute(self):
+            execution_threads.add(threading.current_thread())
+            return self
+
+    class MockTable:
+        def __init__(self, table_name):
+            self.table_name = table_name
+
+        def insert(self, payload):
+            now = datetime.now(timezone.utc)
+            item = dict(payload)
+            item["id"] = str(uuid4())
+            item["created_at"] = now.isoformat()
+            item["updated_at"] = now.isoformat()
+            return ThreadTrackingQuery([item])
+
+        def select(self, *args, **kwargs):
+            return self
+
+        def eq(self, *args, **kwargs):
+            return self
+
+        def order(self, *args, **kwargs):
+            return self
+
+        def range(self, *args, **kwargs):
+            now = datetime.now(timezone.utc)
+            item = {
+                "id": str(uuid4()),
+                "user_id": str(uuid4()),
+                "mentor_id": "ada_lovelace",
+                "user_code": "def foo(): pass",
+                "language": "python",
+                "complexity_score": 1,
+                "status": "active",
+                "created_at": now.isoformat(),
+                "updated_at": now.isoformat(),
+            }
+            return ThreadTrackingQuery([item])
+
+        def single(self):
+            now = datetime.now(timezone.utc)
+            item = {
+                "id": str(uuid4()),
+                "user_id": str(uuid4()),
+                "mentor_id": "ada_lovelace",
+                "user_code": "def foo(): pass",
+                "language": "python",
+                "complexity_score": 1,
+                "status": "active",
+                "created_at": now.isoformat(),
+                "updated_at": now.isoformat(),
+            }
+            return ThreadTrackingQuery(item)
+
+        def update(self, payload):
+            return self
+
+    class MockClient:
+        def table(self, table_name):
+            return MockTable(table_name)
+
+    repo = SessionRepository(client=MockClient())
+    user_id = uuid4()
+
+    # 1. create_session offloads to worker thread
+    session = await repo.create_session(
+        user_id=user_id,
+        data=SessionCreate(mentor_id="ada_lovelace", user_code="print('hello')")
+    )
+    assert session.mentor_id == "ada_lovelace"
+
+    # 2. get_session offloads to worker thread
+    found_session = await repo.get_session(session_id=session.id, user_id=user_id)
+    assert found_session is not None
+
+    # 3. list_sessions offloads to worker thread
+    sessions = await repo.list_sessions(user_id=user_id)
+    assert len(sessions) == 1
+
+    # Verify that query execution occurred in separate worker thread(s), not in main asyncio thread
+    assert len(execution_threads) > 0
+    for t in execution_threads:
+        assert t != main_thread, "Query execute() was called synchronously on the event loop thread"
+
+
+
 
 
 
