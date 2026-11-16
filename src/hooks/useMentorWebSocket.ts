@@ -70,6 +70,23 @@ export function resolveWebSocketUrl(baseUrl?: string): string {
 }
 
 /**
+ * Generates a cryptographically strong session ID using crypto.randomUUID()
+ * to prevent predictable session enumeration attacks (#CC-049).
+ */
+export function generateSecureSessionId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return `session_${crypto.randomUUID()}`;
+  }
+  if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+    return `session_${hex}`;
+  }
+  return `session_${Date.now()}`;
+}
+
+/**
  * Detects terminal WebSocket close codes (e.g. auth failures, policy violations)
  * where reconnecting would be futile and produce unwanted retry loops (#CC-048).
  */
@@ -224,9 +241,7 @@ export function useMentorWebSocket(options: UseMentorWSOptions) {
       if (!userCode.trim()) return;
 
       if (!sessionRef.current) {
-        sessionRef.current =
-          options.sessionId ||
-          `session_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+        sessionRef.current = options.sessionId || generateSecureSessionId();
       }
 
       const request: FeedbackRequest = {
