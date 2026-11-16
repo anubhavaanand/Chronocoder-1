@@ -43,12 +43,6 @@ export function SearchBar({
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && query.trim()) {
-      handleSubmit(e);
-    }
-  };
-
   return (
     <form onSubmit={handleSubmit} className="w-full">
       <div
@@ -76,7 +70,6 @@ export function SearchBar({
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
-          onKeyDown={handleKeyDown}
           placeholder={`Ask any mentor anything... Try "How do I optimize this recursive function?"`}
           className={`w-full px-14 py-4 pl-12 text-base ${large ? "py-5 text-lg" : ""}`}
           style={{
