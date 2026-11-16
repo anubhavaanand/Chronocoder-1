@@ -10,12 +10,18 @@ const textureDisposeMock = vi.fn();
 const setSizeMock = vi.fn();
 
 const createdMaterials: any[] = [];
+let rendererShouldThrow = false;
 
 vi.mock('three', () => {
   const renderMock = vi.fn();
   const setPixelRatioMock = vi.fn();
 
   class MockWebGLRenderer {
+    constructor() {
+      if (rendererShouldThrow) {
+        throw new Error('Error creating WebGL context.');
+      }
+    }
     dispose = rendererDisposeMock;
     render = renderMock;
     setSize = setSizeMock;
@@ -100,6 +106,7 @@ describe('WebGLBackground component (#CC-051)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     createdMaterials.length = 0;
+    rendererShouldThrow = false;
     originalRAF = window.requestAnimationFrame;
     originalCAF = window.cancelAnimationFrame;
     rafCallback = null;
@@ -254,5 +261,34 @@ describe('WebGLBackground component (#CC-051)', () => {
     unmount();
     img.remove();
     window.matchMedia = originalMatchMedia;
+  });
+
+  it('handles WebGL context creation failure gracefully without crashing the app (#CC-057)', () => {
+    rendererShouldThrow = true;
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    expect(() => {
+      const { unmount } = render(<WebGLBackground />);
+      unmount();
+    }).not.toThrow();
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('WebGL initialization failed'),
+      expect.any(Error)
+    );
+
+    warnSpy.mockRestore();
+    rendererShouldThrow = false;
+  });
+
+  it('attaches and removes webglcontextlost listener on the canvas (#CC-057)', () => {
+    const { container, unmount } = render(<WebGLBackground />);
+    const canvas = container.querySelector('canvas');
+    expect(canvas).toBeInTheDocument();
+
+    const removeEventListenerSpy = vi.spyOn(canvas!, 'removeEventListener');
+    unmount();
+
+    expect(removeEventListenerSpy).toHaveBeenCalledWith('webglcontextlost', expect.any(Function));
   });
 });

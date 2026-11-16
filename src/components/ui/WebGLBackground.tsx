@@ -157,9 +157,21 @@ export default function WebGLBackground() {
     if (!canvas) return;
 
     // ---- Renderer ----
-    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    } catch (err) {
+      console.warn("WebGL initialization failed; falling back gracefully without background distortion.", err);
+      return;
+    }
+
+    const handleContextLost = (e: Event) => {
+      e.preventDefault();
+      console.warn("WebGL context lost.");
+    };
+    canvas.addEventListener("webglcontextlost", handleContextLost, { passive: false });
 
     // ---- Scene / Camera ----
     const scene = new THREE.Scene();
@@ -347,6 +359,7 @@ export default function WebGLBackground() {
       if (rafId !== null) {
         cancelAnimationFrame(rafId);
       }
+      canvas.removeEventListener("webglcontextlost", handleContextLost);
       window.removeEventListener("resize", resize);
       store.forEach((entry) => {
         scene.remove(entry.mesh);
