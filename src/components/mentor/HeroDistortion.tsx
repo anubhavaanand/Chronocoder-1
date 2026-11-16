@@ -63,6 +63,8 @@ export function mentorTextureSrc(accentColor: string): string {
 export function MentorGLTarget({ mentorId, accentColor }: MentorGLTargetProps) {
   const src = mentorTextureSrc(accentColor);
   return (
+    // Headless off-screen WebGL texture anchor; no Next.js optimization required
+    // eslint-disable-next-line @next/next/no-img-element
     <img
       data-gl-src={src}
       data-gl-mentor={mentorId}
@@ -112,6 +114,8 @@ export function HeroGLTarget() {
   const src = `data:image/svg+xml;base64,${btoa(svg)}`;
 
   return (
+    // Headless off-screen WebGL texture anchor; no Next.js optimization required
+    // eslint-disable-next-line @next/next/no-img-element
     <img
       data-gl-src={src}
       data-gl-target="hero"
