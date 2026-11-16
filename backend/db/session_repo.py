@@ -264,10 +264,12 @@ class SessionRepository:
             self.client.table("messages")
             .select("*")
             .eq("session_id", str(s_id))
-            .order("sequence")
+            .order("sequence", desc=False)
         )
         result = await self._execute(query)
-        return [Message(**row) for row in result.data]
+        if result and hasattr(result, "data") and result.data:
+            return [Message(**row) for row in result.data if isinstance(row, dict)]
+        return []
 
     async def get_last_sequence(self, session_id: Union[UUID, str]) -> int:
         s_id = coerce_uuid(session_id)
@@ -279,8 +281,10 @@ class SessionRepository:
             .limit(1)
         )
         result = await self._execute(query)
-        if result.data:
-            return result.data[0]["sequence"]
+        if result and hasattr(result, "data") and result.data:
+            first = result.data[0]
+            if isinstance(first, dict) and "sequence" in first:
+                return int(first["sequence"])
         return 0
 
 
