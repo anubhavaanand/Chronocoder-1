@@ -148,6 +148,29 @@ describe.sequential('API & Route Integration', () => {
       expect(responseBody.status).toBe('backend_unreachable');
       expect(responseBody.detail).toContain('Could not reach the ChronoCoder backend');
     });
+
+    it('attaches an AbortSignal timeout to prevent hanging connections (#CC-075)', async () => {
+      const mockFetch = vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ session_id: 'timeout-test' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      );
+      globalThis.fetch = mockFetch;
+
+      const request = new Request('http://localhost:3000/api/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mentor_id: 'hopper' }),
+      });
+
+      await sessionsPost(request);
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      const [, calledInit] = mockFetch.mock.calls[0];
+      expect(calledInit.signal).toBeDefined();
+      expect(calledInit.signal).toBeInstanceOf(AbortSignal);
+    });
   });
 
   describe('WebSocket & Feedback Protocol Contracts', () => {
