@@ -1329,6 +1329,74 @@ def test_schema_composite_index_and_delete_policies_contract():
     assert "sessions.user_id = auth.uid()" in schema_sql
 
 
+def test_session_repo_auth_keys_and_roles_contract(monkeypatch, caplog):
+    """Ensure SessionRepository distinguishes admin role, anon fallback, and user scoped tokens (#CC-031)."""
+    import logging
+    from backend.db.session_repo import SessionRepository, get_session_repo
+
+    class MockPostgrest:
+        def __init__(self):
+            self.authed_token = None
+
+        def auth(self, token: str):
+            self.authed_token = token
+            return self
+
+    class MockSupabaseClient:
+        def __init__(self):
+            self.postgrest = MockPostgrest()
+
+    mock_client = MockSupabaseClient()
+
+    # 1. Direct injection with jwt_token calls set_auth
+    repo = SessionRepository(client=mock_client, jwt_token="custom-jwt-token")
+    assert repo.jwt_token == "custom-jwt-token"
+    assert mock_client.postgrest.authed_token == "custom-jwt-token"
+
+    # 2. Test create_admin factory vs create_for_user factory
+    admin_repo = SessionRepository(client=mock_client, use_service_role=True)
+    assert admin_repo.is_service_role is True
+
+    user_repo = SessionRepository(client=mock_client, use_service_role=False, jwt_token="token-abc")
+    assert user_repo.is_service_role is False
+    assert user_repo.jwt_token == "token-abc"
+
+    # 3. Test env key resolution: service role key configured
+    captured_creates = []
+
+    def mock_create_client(url, key):
+        captured_creates.append((url, key))
+        return MockSupabaseClient()
+
+    monkeypatch.setattr("backend.db.session_repo.create_client", mock_create_client)
+    monkeypatch.setenv("SUPABASE_URL", "https://test.supabase.co")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "service-key-123")
+    monkeypatch.setenv("SUPABASE_ANON_KEY", "anon-key-456")
+
+    admin = SessionRepository.create_admin()
+    assert admin.is_service_role is True
+    assert captured_creates[-1] == ("https://test.supabase.co", "service-key-123")
+
+    # 4. Service role missing, falls back to anon key with warning
+    monkeypatch.delenv("SUPABASE_SERVICE_ROLE_KEY", raising=False)
+    with caplog.at_level(logging.WARNING):
+        fallback_admin = SessionRepository.create_admin()
+        assert fallback_admin.is_service_role is False
+        assert captured_creates[-1] == ("https://test.supabase.co", "anon-key-456")
+        assert any("SUPABASE_SERVICE_ROLE_KEY not configured" in record.message for record in caplog.records)
+
+    # 5. create_for_user uses anon key and sets auth token
+    user_inst = SessionRepository.create_for_user("jwt-xyz")
+    assert user_inst.is_service_role is False
+    assert user_inst.jwt_token == "jwt-xyz"
+    assert user_inst.client.postgrest.authed_token == "jwt-xyz"
+
+    # 6. get_session_repo with jwt returns scoped repo
+    scoped = get_session_repo(jwt_token="user-jwt")
+    assert scoped.jwt_token == "user-jwt"
+
+
+
 
 
 
