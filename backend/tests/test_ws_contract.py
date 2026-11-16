@@ -572,6 +572,59 @@ async def test_connection_manager_purges_disconnected():
     assert healthy in cm.active_connections
 
 
+def test_websocket_ping_pong_keepalive(client):
+    """Ensure WebSocket endpoint responds to heartbeat ping messages with pong (#CC-016)."""
+    with client.websocket_connect("/ws/feedback") as ws:
+        # Send heartbeat ping
+        ws.send_json({"type": "ping"})
+        pong = ws.receive_json()
+        assert pong["type"] == "pong"
+        assert "timestamp" in pong
+
+        # Connection remains functional for subsequent requests
+        ws.send_json({"mentor_id": "ada_lovelace", "user_code": VALID_CODE, "session_id": "test_pong"})
+        m = ws.receive_json()
+        assert m["type"] == "analysis_complete"
+
+
+@pytest.mark.asyncio
+async def test_connection_manager_heartbeat_helpers():
+    """Ensure ConnectionManager send_heartbeat and broadcast_heartbeat send pings and prune dead sockets (#CC-016)."""
+    from backend.utils.websocket_manager import ConnectionManager
+
+    cm = ConnectionManager()
+
+    class MockWS:
+        def __init__(self, succeeds=True):
+            self.succeeds = succeeds
+            self.sent = []
+
+        async def accept(self):
+            pass
+
+        async def send_json(self, msg):
+            if not self.succeeds:
+                raise ConnectionError("Dropped socket")
+            self.sent.append(msg)
+
+    alive_ws = MockWS(succeeds=True)
+    dead_ws = MockWS(succeeds=False)
+
+    await cm.connect(alive_ws)
+    await cm.connect(dead_ws)
+    assert cm.client_count == 2
+
+    # send_heartbeat to healthy socket
+    assert await cm.send_heartbeat(alive_ws) is True
+    assert alive_ws.sent[-1] == {"type": "ping"}
+
+    # broadcast_heartbeat should prune dead_ws
+    remaining = await cm.broadcast_heartbeat()
+    assert remaining == 1
+    assert dead_ws not in cm.active_connections
+
+
+
 
 
 

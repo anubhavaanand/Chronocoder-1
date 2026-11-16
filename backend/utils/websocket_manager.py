@@ -50,6 +50,20 @@ class ConnectionManager:
             print(f"Error sending to client: {e}")
             self.disconnect(websocket)
 
+    async def send_heartbeat(self, websocket: WebSocket) -> bool:
+        """Send a heartbeat ping frame to a specific client, returning False if disconnected (#CC-016)."""
+        try:
+            await websocket.send_json({"type": "ping"})
+            return True
+        except Exception:
+            self.disconnect(websocket)
+            return False
+
+    async def broadcast_heartbeat(self) -> int:
+        """Broadcast a heartbeat ping to all active clients, pruning dead connections. Returns active count (#CC-016)."""
+        await self.broadcast({"type": "ping"})
+        return self.client_count
+
     @property
     def client_count(self) -> int:
         """Get number of active connections"""
