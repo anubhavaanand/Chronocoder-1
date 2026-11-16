@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useMentorWebSocket, resolveWebSocketUrl } from '@/hooks/useMentorWebSocket';
+import {
+  useMentorWebSocket,
+  resolveWebSocketUrl,
+  isTerminalWebSocketCloseCode,
+} from '@/hooks/useMentorWebSocket';
 import type { CodeAnalysis, FeedbackPayload } from '@/hooks/useMentorWebSocket';
 
 // Mock WebSocket implementation
@@ -449,6 +453,61 @@ describe.sequential('useMentorWebSocket', () => {
       });
       const url = resolveWebSocketUrl('wss://secure.chronocoder.dev');
       expect(url).toBe('wss://secure.chronocoder.dev/ws/feedback');
+    });
+  });
+
+  describe('Terminal Auth Rejection & Reconnection (#CC-048)', () => {
+    it('identifies terminal WebSocket close codes', () => {
+      expect(isTerminalWebSocketCloseCode(1008)).toBe(true);
+      expect(isTerminalWebSocketCloseCode(4001)).toBe(true);
+      expect(isTerminalWebSocketCloseCode(4003)).toBe(true);
+      expect(isTerminalWebSocketCloseCode(4401)).toBe(true);
+      expect(isTerminalWebSocketCloseCode(4403)).toBe(true);
+      expect(isTerminalWebSocketCloseCode(1000)).toBe(false);
+      expect(isTerminalWebSocketCloseCode(1006)).toBe(false);
+    });
+
+    it('aborts reconnection immediately upon terminal auth close code and reports error', () => {
+      vi.useFakeTimers();
+      try {
+        const onError = vi.fn();
+        const { result, unmount } = renderHook(() =>
+          useMentorWebSocket({
+            mentorId: 'ada',
+            onError,
+          })
+        );
+
+        act(() => {
+          result.current.requestFeedback('print("testing auth failure")');
+        });
+
+        expect(MockWebSocket.instances.length).toBe(1);
+        const ws = MockWebSocket.instances[0];
+
+        act(() => {
+          ws.simulateOpen();
+        });
+
+        // Simulate terminal auth rejection (code 4401 Unauthorized)
+        act(() => {
+          ws.close(4401, 'Invalid Supabase JWT token');
+        });
+
+        expect(onError).toHaveBeenCalledWith('Invalid Supabase JWT token');
+        expect(result.current.isConnected).toBe(false);
+        expect(result.current.isAnalyzing).toBe(false);
+
+        // Advance timers by backoff window — should NOT attempt reconnect
+        act(() => {
+          vi.advanceTimersByTime(15000);
+        });
+
+        expect(MockWebSocket.instances.length).toBe(1); // No new connection attempt
+        unmount();
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 });
