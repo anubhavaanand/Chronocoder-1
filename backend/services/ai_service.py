@@ -180,6 +180,7 @@ class MentorConfig(BaseModel):
     era: str
     icon: str
     accent_color: str
+    avatar_url: Optional[str] = None
     system_prompt: str
     tone: str
     focus_areas: List[str]
@@ -463,6 +464,7 @@ Tone: {mentor.tone}
                 "era": m.era,
                 "icon": m.icon,
                 "accent_color": m.accent_color,
+                "avatar_url": m.avatar_url,
                 "signature_opening": m.signature_opening,
             }
             for m in self.mentors.values()
