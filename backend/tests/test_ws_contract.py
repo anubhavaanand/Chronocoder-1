@@ -1308,6 +1308,28 @@ def test_schema_user_profile_sync_trigger_contract():
     assert "ON CONFLICT (id) DO UPDATE" in schema_sql
 
 
+def test_schema_composite_index_and_delete_policies_contract():
+    """Ensure schema.sql defines composite index idx_sessions_id_user and delete RLS policies (#CC-030)."""
+    from pathlib import Path
+
+    schema_path = Path(__file__).resolve().parent.parent / "db" / "schema.sql"
+    assert schema_path.is_file(), f"Missing schema at {schema_path}"
+    schema_sql = schema_path.read_text(encoding="utf-8")
+
+    # 1. Composite index to optimize messages RLS subqueries
+    assert "CREATE INDEX IF NOT EXISTS idx_sessions_id_user ON sessions(id, user_id);" in schema_sql
+
+    # 2. DELETE policies for sessions and messages
+    assert 'CREATE POLICY "Users can delete own sessions" ON sessions' in schema_sql
+    assert "FOR DELETE USING (auth.uid() = user_id);" in schema_sql
+
+    assert 'CREATE POLICY "Users can delete messages in own sessions" ON messages' in schema_sql
+    assert "FOR DELETE USING (" in schema_sql
+    assert "sessions.id = messages.session_id" in schema_sql
+    assert "sessions.user_id = auth.uid()" in schema_sql
+
+
+
 
 
 
