@@ -3,13 +3,16 @@ AI Service - Gemini API Integration with Streaming Support
 Loads mentor personas from JSON registry; enforces structured feedback schema.
 """
 
-import aiohttp
+import asyncio
 import json
+import logging
 from pathlib import Path
-from typing import AsyncGenerator, Optional
+from typing import AsyncGenerator, List, Optional
+import aiohttp
 from pydantic import BaseModel
-from typing import List
 
+
+logger = logging.getLogger(__name__)
 
 MENTORS_DIR = Path(__file__).parent.parent / "mentors"
 
@@ -189,8 +192,10 @@ class MentorConfig(BaseModel):
 class AIGateway:
     """Unified interface to Google Gemini API with streaming + structured output."""
 
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str, max_retries: int = 3, retry_delay: float = 0.5):
         self.api_key = api_key
+        self.max_retries = max_retries
+        self.retry_delay = retry_delay
         self.base_url = "https://generativelanguage.googleapis.com/v1beta/models"
         self.mentors: dict[str, MentorConfig] = self._load_mentor_registry()
 
@@ -375,46 +380,77 @@ Tone: {mentor.tone}
         }
 
         async with aiohttp.ClientSession() as session:
-            async with session.post(url, json=payload, headers=headers) as response:
-                if response.status != 200:
-                    error_text = await response.text()
-                    raise Exception(f"Gemini API error (HTTP {response.status}): {error_text}")
+            for attempt in range(self.max_retries + 1):
+                try:
+                    async with session.post(url, json=payload, headers=headers) as response:
+                        if response.status in (429, 502, 503, 504) and attempt < self.max_retries:
+                            error_text = await response.text()
+                            delay = self.retry_delay * (2 ** attempt)
+                            logger.warning(
+                                "Gemini API transient error (HTTP %d, attempt %d/%d): %s. Retrying in %.2fs...",
+                                response.status,
+                                attempt + 1,
+                                self.max_retries,
+                                error_text,
+                                delay,
+                            )
+                            await asyncio.sleep(delay)
+                            continue
 
-                # Buffer raw network bytes and split complete SSE events on
-                # the blank-line delimiter — a JSON value is never parsed
-                # from a partial TCP chunk.
-                sse_buffer = ""
-                text_buffer = ""
-                last_partial: dict | None = None
+                        if response.status != 200:
+                            error_text = await response.text()
+                            raise Exception(f"Gemini API error (HTTP {response.status}): {error_text}")
 
-                def emit_partial() -> dict | None:
-                    """Best-effort partial feedback object, but only when it
-                    changed — the client replaces fields wholesale, so
-                    identical repeats are wasted bandwidth."""
-                    nonlocal last_partial
-                    partial = extract_partial_feedback(text_buffer)
-                    if partial and partial != last_partial:
-                        last_partial = partial
-                        return partial
-                    return None
+                        # Buffer raw network bytes and split complete SSE events on
+                        # the blank-line delimiter — a JSON value is never parsed
+                        # from a partial TCP chunk.
+                        sse_buffer = ""
+                        text_buffer = ""
+                        last_partial: dict | None = None
 
-                async for chunk in response.content:
-                    if not chunk:
-                        continue
-                    sse_buffer += chunk.decode("utf-8")
-                    while "\n\n" in sse_buffer:
-                        event, sse_buffer = sse_buffer.split("\n\n", 1)
-                        text_buffer += self._extract_sse_text(event)
+                        def emit_partial() -> dict | None:
+                            """Best-effort partial feedback object, but only when it
+                            changed — the client replaces fields wholesale, so
+                            identical repeats are wasted bandwidth."""
+                            nonlocal last_partial
+                            partial = extract_partial_feedback(text_buffer)
+                            if partial and partial != last_partial:
+                                last_partial = partial
+                                return partial
+                            return None
+
+                        async for chunk in response.content:
+                            if not chunk:
+                                continue
+                            sse_buffer += chunk.decode("utf-8")
+                            while "\n\n" in sse_buffer:
+                                event, sse_buffer = sse_buffer.split("\n\n", 1)
+                                text_buffer += self._extract_sse_text(event)
+                                partial = emit_partial()
+                                if partial is not None:
+                                    yield {"type": "feedback_chunk", "payload": partial}
+
+                        # Flush a trailing event that arrived without its blank line.
+                        if sse_buffer.strip():
+                            text_buffer += self._extract_sse_text(sse_buffer)
                         partial = emit_partial()
                         if partial is not None:
                             yield {"type": "feedback_chunk", "payload": partial}
 
-                # Flush a trailing event that arrived without its blank line.
-                if sse_buffer.strip():
-                    text_buffer += self._extract_sse_text(sse_buffer)
-                partial = emit_partial()
-                if partial is not None:
-                    yield {"type": "feedback_chunk", "payload": partial}
+                        return
+                except aiohttp.ClientError as err:
+                    if attempt < self.max_retries:
+                        delay = self.retry_delay * (2 ** attempt)
+                        logger.warning(
+                            "Gemini API connection error (attempt %d/%d): %s. Retrying in %.2fs...",
+                            attempt + 1,
+                            self.max_retries,
+                            err,
+                            delay,
+                        )
+                        await asyncio.sleep(delay)
+                        continue
+                    raise Exception(f"Gemini connection error: {err}") from err
 
     def get_mentor_config(self, mentor_id: str) -> Optional[MentorConfig]:
         return self.mentors.get(mentor_id)
