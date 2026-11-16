@@ -1312,13 +1312,17 @@ async def test_session_repo_timezone_aware_utc_timestamps():
 
     repo = SessionRepository(client=MockClient())
 
-    # 1. Test update_session sets updated_at with timezone-aware ISO string
+    # 1. Test update_session sets updated_at with timezone-aware ISO string or datetime
     updated = await repo.update_session("11111111-1111-1111-1111-111111111111", "22222222-2222-2222-2222-222222222222", SessionUpdate(status="active"))
     assert updated is not None
     assert len(captured_payloads) == 1
-    updated_at_str = captured_payloads[0]["updated_at"]
-    parsed_updated_at = datetime.fromisoformat(updated_at_str)
-    assert parsed_updated_at.tzinfo is not None, "updated_at must be timezone-aware"
+    updated_at_val = captured_payloads[0]["updated_at"]
+    if isinstance(updated_at_val, str):
+        parsed_updated_at = datetime.fromisoformat(updated_at_val)
+        assert parsed_updated_at.tzinfo is not None, "updated_at must be timezone-aware"
+    else:
+        assert isinstance(updated_at_val, datetime)
+        assert updated_at_val.tzinfo is not None, "updated_at must be timezone-aware"
 
     # 2. Test complete_session sets completed_at with timezone-aware datetime
     completed = await repo.complete_session("11111111-1111-1111-1111-111111111111", "22222222-2222-2222-2222-222222222222")
@@ -1327,6 +1331,53 @@ async def test_session_repo_timezone_aware_utc_timestamps():
     completed_at_val = captured_payloads[1]["completed_at"]
     assert isinstance(completed_at_val, datetime)
     assert completed_at_val.tzinfo is not None, "completed_at must be timezone-aware"
+
+
+@pytest.mark.asyncio
+async def test_session_repo_update_session_consistent_datetime_model():
+    """Ensure SessionUpdate models updated_at as datetime matching Session model schema (#CC-034)."""
+    from datetime import datetime, timezone
+    from backend.db.session_repo import SessionRepository, SessionUpdate
+
+    captured = []
+
+    class MockTable:
+        def update(self, payload):
+            captured.append(payload)
+            return self
+
+        def eq(self, *args):
+            return self
+
+        def execute(self):
+            now = datetime.now(timezone.utc)
+            item = {
+                "id": "11111111-1111-1111-1111-111111111111",
+                "user_id": "22222222-2222-2222-2222-222222222222",
+                "mentor_id": "grace_hopper",
+                "user_code": "code",
+                "language": "python",
+                "created_at": now.isoformat(),
+                "updated_at": now.isoformat(),
+            }
+
+            class Result:
+                data = [item]
+
+            return Result()
+
+    class MockClient:
+        def table(self, _):
+            return MockTable()
+
+    repo = SessionRepository(client=MockClient())
+    custom_dt = datetime(2026, 11, 16, 12, 0, tzinfo=timezone.utc)
+    update = SessionUpdate(status="active", updated_at=custom_dt)
+    assert update.updated_at == custom_dt
+
+    await repo.update_session("11111111-1111-1111-1111-111111111111", "22222222-2222-2222-2222-222222222222", update)
+    assert len(captured) == 1
+    assert captured[0]["updated_at"] == custom_dt
 
 
 def test_schema_user_profile_sync_trigger_contract():
