@@ -41,7 +41,7 @@ vi.mock('next/image', () => ({
 // MOCK ENVIRONMENT VARIABLES
 // ============================================================================
 
-process.env.NODE_ENV = 'test';
+(process.env as Record<string, string | undefined>).NODE_ENV = 'test';
 process.env.NEXT_PUBLIC_GEMINI_API_KEY = 'test-api-key-for-mock-responses-only';
 process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co';
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test';
@@ -253,7 +253,7 @@ export const mockGeminiApiClient = {
   }),
 
   streamingGenerateContent: vi.fn(async function* (prompt: string) {
-    const response = await this.generateContent(prompt);
+    const response = await mockGeminiApiClient.generateContent(prompt);
     
     const tokens = response.feedback.split(' ');
     for (let i = 0; i < tokens.length; i++) {
@@ -456,7 +456,7 @@ export const waitForElement = (
 export const fireEventCustom = (
   element: Element,
   type: string,
-  options?: EventInit
+  options?: any
 ) => {
   const event = new CustomEvent(type, {
     bubbles: true,
@@ -473,7 +473,7 @@ export const getAccessibilityState = (element: Element) => ({
   ariaExpanded: element.getAttribute('aria-expanded'),
   ariaDisabled: element.getAttribute('aria-disabled'),
   ariaPressed: element.getAttribute('aria-pressed'),
-  tabIndex: element.tabIndex,
+  tabIndex: (element as HTMLElement).tabIndex,
 });
 
 export const simulateKeyPress = (
