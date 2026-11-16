@@ -80,6 +80,19 @@ async def verify_jwt_token(authorization: Optional[str] = Header(None)) -> str:
         raise HTTPException(status_code=401, detail=f"Invalid token: {str(e)}")
 
 
+def get_client_ip(websocket: WebSocket) -> str:
+    """Extract client IP address from WebSocket connection, honoring forwarded headers."""
+    forwarded = websocket.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    cf_ip = websocket.headers.get("cf-connecting-ip")
+    if cf_ip:
+        return cf_ip.strip()
+    if websocket.client and websocket.client.host:
+        return websocket.client.host
+    return "127.0.0.1"
+
+
 def prune_expired_rate_limit_keys(cutoff_seconds: int = 60) -> int:
     """Prune entries from request_counts whose timestamps have expired. Returns count of keys removed."""
     now_ts = datetime.now().timestamp()
@@ -99,8 +112,9 @@ def prune_expired_rate_limit_keys(cutoff_seconds: int = 60) -> int:
     return len(keys_to_remove)
 
 
-def check_rate_limit(user_id: str, limit: int = RATE_LIMIT, window_seconds: int = 60) -> bool:
+def check_rate_limit(user_id: str, limit: Optional[int] = None, window_seconds: int = 60) -> bool:
     """Check if user is within rate limit using sliding window and bounded LRU storage."""
+    effective_limit = limit if limit is not None else RATE_LIMIT
     now = datetime.now()
     window_start = now.timestamp() - window_seconds
 
@@ -122,7 +136,7 @@ def check_rate_limit(user_id: str, limit: int = RATE_LIMIT, window_seconds: int 
         request_counts[user_id] = []
 
     # Check limit
-    if len(request_counts[user_id]) >= limit:
+    if len(request_counts[user_id]) >= effective_limit:
         request_counts.move_to_end(user_id)
         return False
 
@@ -260,15 +274,21 @@ async def feedback_websocket(websocket: WebSocket):
                 })
                 continue
             
-            # Rate limit by session_id (could be enhanced with user_id from token)
-            if not check_rate_limit(session_id or "anonymous"):
+            # Rate limit by session_id or client IP when unauthenticated (#CC-011)
+            client_ip = get_client_ip(websocket)
+            rate_limit_key = (
+                session_id.strip()
+                if (session_id and isinstance(session_id, str) and session_id.strip() and session_id.strip() != "anonymous")
+                else f"ip:{client_ip}"
+            )
+            if not check_rate_limit(rate_limit_key):
                 await websocket.send_json({
                     "type": "error",
                     "payload": {
                         "code": "RATE_LIMIT_EXCEEDED",
                         "message": "Too many requests. Please wait.",
-                        "retry_after": 60
-                    }
+                        "retry_after": 60,
+                    },
                 })
                 continue
             

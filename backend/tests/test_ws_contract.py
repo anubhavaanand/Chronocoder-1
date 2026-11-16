@@ -280,6 +280,74 @@ def test_rate_limit_lru_capacity_eviction(monkeypatch):
     backend_main.request_counts.clear()
 
 
+def test_get_client_ip_extraction():
+    """Ensure get_client_ip correctly resolves client IP and forwarded headers (#CC-011)."""
+    from starlette.datastructures import Headers
+
+    class DummyClient:
+        host = "192.168.1.50"
+
+    class DummyWS:
+        def __init__(self, headers=None, client=None):
+            self.headers = Headers(headers or {})
+            self.client = client
+
+    # Normal client
+    ws1 = DummyWS(client=DummyClient())
+    assert backend_main.get_client_ip(ws1) == "192.168.1.50"
+
+    # Forwarded header
+    ws2 = DummyWS(headers={"x-forwarded-for": "203.0.113.195, 70.41.3.18"}, client=DummyClient())
+    assert backend_main.get_client_ip(ws2) == "203.0.113.195"
+
+    # Cloudflare header
+    ws3 = DummyWS(headers={"cf-connecting-ip": "198.51.100.8"}, client=DummyClient())
+    assert backend_main.get_client_ip(ws3) == "198.51.100.8"
+
+    # Missing client
+    ws4 = DummyWS()
+    assert backend_main.get_client_ip(ws4) == "127.0.0.1"
+
+
+def test_websocket_anonymous_rate_limiting_isolated_per_ip(client, monkeypatch):
+    """Ensure anonymous WebSocket users are rate-limited per IP rather than a shared bucket (#CC-011)."""
+    backend_main.request_counts.clear()
+    monkeypatch.setattr(backend_main, "RATE_LIMIT", 2)
+
+    # Client A from IP 198.51.100.1 sends 2 requests without session_id (rate limit = 2)
+    with client.websocket_connect("/ws/feedback", headers={"x-forwarded-for": "198.51.100.1"}) as ws_a:
+        ws_a.send_json({"mentor_id": "ada_lovelace", "user_code": VALID_CODE})
+        m1 = ws_a.receive_json()
+        assert m1["type"] == "analysis_complete"
+
+        # Drain rest of feedback messages
+        ws_a.receive_json()  # feedback_chunk
+        ws_a.receive_json()  # feedback_complete
+
+        # 2nd request
+        ws_a.send_json({"mentor_id": "ada_lovelace", "user_code": VALID_CODE})
+        m2 = ws_a.receive_json()
+        assert m2["type"] == "analysis_complete"
+        ws_a.receive_json()
+        ws_a.receive_json()
+
+        # 3rd request from Client A exceeds limit
+        ws_a.send_json({"mentor_id": "ada_lovelace", "user_code": VALID_CODE})
+        err = ws_a.receive_json()
+        assert err["type"] == "error"
+        assert err["payload"]["code"] == "RATE_LIMIT_EXCEEDED"
+
+    # Client B from IP 203.0.113.2 connects without session_id
+    # Client B must NOT be blocked by Client A's exhaustion of their quota
+    with client.websocket_connect("/ws/feedback", headers={"x-forwarded-for": "203.0.113.2"}) as ws_b:
+        ws_b.send_json({"mentor_id": "ada_lovelace", "user_code": VALID_CODE})
+        m_b = ws_b.receive_json()
+        assert m_b["type"] == "analysis_complete"
+
+    backend_main.request_counts.clear()
+
+
+
 
 
 
