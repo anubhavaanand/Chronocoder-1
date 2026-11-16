@@ -187,4 +187,40 @@ def test_verify_jwt_token_production_validates_token(client, monkeypatch):
     assert "Invalid token" in res_invalid.json()["detail"]
 
 
+def test_cors_allowed_origin_returns_credentials_and_origin(client):
+    """Ensure allowed origin receives exact origin and credentials headers (#CC-009)."""
+    response = client.options(
+        "/api/health",
+        headers={
+            "Origin": "http://localhost:3000",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+    assert response.status_code == 200
+    assert response.headers.get("access-control-allow-origin") == "http://localhost:3000"
+    assert response.headers.get("access-control-allow-credentials") == "true"
+    # Origin must not be wildcard '*' when credentials=True
+    assert response.headers.get("access-control-allow-origin") != "*"
+
+
+def test_cors_disallowed_origin_rejected(client):
+    """Ensure unknown/malicious origin does not receive access-control-allow-origin (#CC-009)."""
+    response = client.options(
+        "/api/health",
+        headers={
+            "Origin": "https://malicious-domain.evil.com",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+    assert "access-control-allow-origin" not in response.headers
+
+
+def test_get_allowed_origins_env_override(monkeypatch):
+    """Ensure ALLOWED_ORIGINS env var configures custom comma-separated origins (#CC-009)."""
+    monkeypatch.setenv("ALLOWED_ORIGINS", "https://app.chronocoder.io, https://staging.chronocoder.io")
+    origins = backend_main.get_allowed_origins()
+    assert origins == ["https://app.chronocoder.io", "https://staging.chronocoder.io"]
+
+
+
 
