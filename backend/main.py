@@ -327,7 +327,15 @@ async def feedback_websocket(websocket: WebSocket):
     try:
         while True:
             data = await websocket.receive_json()
-            
+
+            # Heartbeat ping/pong keepalive (#CC-016)
+            if data.get("type") == "ping" or data.get("action") == "ping":
+                await websocket.send_json({
+                    "type": "pong",
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                })
+                continue
+
             mentor_id = data.get("mentor_id")
             user_code = data.get("user_code", "")
             session_id = data.get("session_id")
