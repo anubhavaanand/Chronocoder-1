@@ -4,7 +4,9 @@ import { useEffect } from "react";
 import dynamic from "next/dynamic";
 import clsx from "clsx";
 
-export function MonacoLoadingPlaceholder({ height = "600px" }: { height?: string }) {
+export const DEFAULT_EDITOR_HEIGHT = "clamp(360px, 60vh, 600px)";
+
+export function MonacoLoadingPlaceholder({ height = DEFAULT_EDITOR_HEIGHT }: { height?: string }) {
   return (
     <div
       data-testid="monaco-loading-placeholder"
@@ -19,7 +21,7 @@ const MonacoEditor = dynamic(
   () => import("@monaco-editor/react"),
   {
     ssr: false,
-    loading: () => <MonacoLoadingPlaceholder height="600px" />
+    loading: () => <MonacoLoadingPlaceholder height={DEFAULT_EDITOR_HEIGHT} />
   }
 );
 
@@ -57,7 +59,7 @@ export function CodeEditor({
   onChange,
   onSubmit,
   language = "python",
-  height = "600px",
+  height = DEFAULT_EDITOR_HEIGHT,
   theme = "vs-dark",
   readOnly = false,
   characterLimit,
@@ -125,6 +127,9 @@ export function CodeEditor({
             smoothScrolling: true,
             suggest: { showKeywords: true },
             readOnly,
+            scrollbar: {
+              alwaysConsumeMouseWheel: false,
+            },
           }}
           onMount={() => {}}
         />
