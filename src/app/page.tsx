@@ -116,7 +116,7 @@ export default function Home() {
                 How it works
               </a>
               <a
-                href="https://github.com/anubhavanand/chronocoder-1"
+                href="https://github.com/anubhavaanand/Chronocoder-1"
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{ color: "var(--fg-mid)" }}
