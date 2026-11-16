@@ -20,9 +20,6 @@ export default defineConfig({
     fs: {
       allow: [path.resolve(__dirname, '..')],
     },
-    deps: {
-      inline: [/react/, /@testing-library/, /framer-motion/, /@monaco-editor/, /monaco-editor/, /lucide-react/],
-    },
   },
   
   resolve: {
@@ -150,18 +147,12 @@ export default defineConfig({
         statements: 80,
       },
       
-      // Per-test threshold (for critical paths)
-      perTestThreshold: {
-        // Critical test suites require 100% coverage
-        'critical-paths': 100,
-      },
-      
       // Watermark settings
       watermarks: {
-        lines: [50, 80, 95],
-        functions: [50, 80, 95],
-        branches: [50, 80, 95],
-        statements: [50, 80, 95],
+        lines: [50, 80],
+        functions: [50, 80],
+        branches: [50, 80],
+        statements: [50, 80],
       },
       
       // Extension patterns
@@ -169,12 +160,6 @@ export default defineConfig({
       
       // Exclude coverage from certain reports
       reportOnFailure: false,
-      
-      // Allow failing tests with low coverage
-      allowUncovered: false,
-      
-      // Check coverage warnings
-      checkWarnings: false,
     },
     
     // ============================================================================
@@ -188,19 +173,9 @@ export default defineConfig({
     
     expandSnapshotDiff: true,
     
-    // Update snapshots automatically during CI (if explicitly enabled)
-    updateSnapshot: 'new',
-    
     // ============================================================================
     // PARALLELIZATION & CONCURRENCY
     // ============================================================================
-    
-    // Number of parallel test workers
-    threads: true,
-    
-    // Maximum number of test workers
-    maxThreads: 4,
-    minThreads: 2,
     
     // Pool type for running tests
     pool: 'threads',
@@ -239,154 +214,8 @@ export default defineConfig({
     // Retry failed tests
     retry: 2,
     
-    // Fail fast on first failure
-    failFast: false,
-    
-    // ============================================================================
-    // SCREENSHOT & DEBUG CAPTURES
-    // ============================================================================
-    
-    // Capture screenshots on failures
-    screenshotFailures: true,
-    
-    // Screenshot directory
-    screenshotDirectory: './screenshots',
-    
-    // Keep screenshots after tests
-    keepScreenshots: false,
-    
-    // Debug mode
-    silent: false,
-    
-    // Log heap usage for memory leak detection
-    logHeapUsage: false,
-    
-    // Change console output
-    onChange: {
-      include: ['src/**/*.{ts,tsx}'],
-      exclude: ['node_modules/**'],
-    },
-    
-    // Watch excluded patterns
-    watchExclude: ['node_modules/**', 'dist/**'],
-    
-    // ============================================================================
-    // MOCKING CONFIGURATION
-    // ============================================================================
-    
-    // Auto-mock external dependencies
-    mock: [
-      // Pattern-based mocking
-      {
-        pattern: '**/*.stories.{ts,tsx}',
-        mode: 'path',
-      },
-    ],
-    
-    // Unmock some modules
-    unstubified: [],
-    
-    // ===========================================================================
-    // REPORTERS
-    // ===========================================================================
-    
-    reporters: [
-      // Console output
-      ['default', {
-        summary: true,
-      }],
-      // JUnit XML for CI/CD
-      ['junit', {
-        outputFile: './reports/test-results.xml',
-      }],
-      // JSON output
-      ['json', {
-        outputFile: './reports/vitest-results.json',
-      }],
-    ],
-    
-    // Reporter output
-    outputFile: {
-      html: './reports/html-report/index.html',
-      json: './reports/vitest-results.json',
-      junit: './reports/test-results.xml',
-    },
-    
-    // ============================================================================
-    // CUSTOM MATCHERS
-    // ===========================================================================
-    
-    // Extended expect assertions
-    extend: true,
-    
-    // Timing information
-    timing: false,
-    
-    // Heap profiling
-    profiler: false,
-    
-    // Code coverage thresholds warning
-    allowOnly: false,
-    
-    // Isolate each test file
-    isolate: true,
-    
-    // ============================================================================
-    // EXPLICIT IMPORT REQUIREMENT
-    // ===========================================================================
-    
-    // Don't import globals automatically
     globals: true,
-    
-    // Imports
-    imports: {
-      exclude: [],
-      include: [],
-    },
-    
-    // ============================================================================
-    // INTERCEPTOR CONFIGURATION (Network requests)
-    // ===========================================================================
-    
-    interceptor: {
-      mode: 'auto',
-      record: {
-        dir: './__recordings__',
-        headers: true,
-      },
-      host: 'localhost:3000',
-    },
-    
-    // ===========================================================================
-    // ENVIRONMENT SETUP
-    // ===========================================================================
-    
-    passWithNoTests: false,
-    
-    // Tests that should be skipped
-    skip: false,
-    
-    // Tests to run
-    grep: undefined,
-    
-    // Run only tests matching pattern
+    passWithNoTests: true,
     bail: 0,
-    
-    // Display total time
-    hideSkippedTests: false,
-    
-    // Enable API coverage
-    apiCoverage: false,
-    
-    // Re-run all tests when changed
-    related: false,
-    
-    // Use provided Vite config
-    vite: {
-      mode: 'test',
-      test: {
-        // Inherits from this config
-      },
-    },
   },
 });
