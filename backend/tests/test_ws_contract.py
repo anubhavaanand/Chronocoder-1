@@ -721,6 +721,40 @@ def test_websocket_endpoint_rejects_at_capacity(client, monkeypatch):
     backend_main.manager.active_connections.clear()
 
 
+def test_uvicorn_config_reload_and_environment(monkeypatch):
+    """Ensure get_uvicorn_config respects FASTAPI_RELOAD, UVICORN_RELOAD, FASTAPI_ENV, PORT, and HOST (#CC-019)."""
+    # 1. Default development environment enables reload
+    monkeypatch.delenv("FASTAPI_RELOAD", raising=False)
+    monkeypatch.delenv("UVICORN_RELOAD", raising=False)
+    monkeypatch.setenv("FASTAPI_ENV", "development")
+    monkeypatch.setenv("PORT", "9000")
+    monkeypatch.setenv("HOST", "127.0.0.1")
+
+    cfg = backend_main.get_uvicorn_config()
+    assert cfg["app"] == "main:app"
+    assert cfg["host"] == "127.0.0.1"
+    assert cfg["port"] == 9000
+    assert cfg["reload"] is True
+
+    # 2. Production disables reload by default
+    monkeypatch.setenv("FASTAPI_ENV", "production")
+    cfg_prod = backend_main.get_uvicorn_config()
+    assert cfg_prod["reload"] is False
+
+    # 3. Explicit FASTAPI_RELOAD="true" overrides production mode
+    monkeypatch.setenv("FASTAPI_RELOAD", "true")
+    cfg_override = backend_main.get_uvicorn_config()
+    assert cfg_override["reload"] is True
+
+    # 4. Explicit UVICORN_RELOAD="false" disables reload even in development
+    monkeypatch.delenv("FASTAPI_RELOAD", raising=False)
+    monkeypatch.setenv("UVICORN_RELOAD", "false")
+    monkeypatch.setenv("FASTAPI_ENV", "development")
+    cfg_dev_disabled = backend_main.get_uvicorn_config()
+    assert cfg_dev_disabled["reload"] is False
+
+
+
 
 
 
