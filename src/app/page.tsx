@@ -5,7 +5,6 @@ import WebGLBackgroundWrapper from "@/components/ui/WebGLBackgroundWrapper";
 import { HeroSearch } from "@/components/ui/HeroSearch";
 import { ScrollProgressTracker } from "@/components/ui/ScrollProgressTracker";
 import { MENTORS } from "@/data/mentors";
-import Link from "next/link";
 
 export default function Home() {
   return (
@@ -165,14 +164,14 @@ export default function Home() {
 
             {/* CTAs — one primary, one secondary */}
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link
+              <a
                 data-od-id="cta-primary"
                 href="#mentors"
                 className="px-8 py-4 rounded-xl bg-gradient-primary text-white font-semibold text-sm tracking-wide hover:shadow-neon transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0"
               >
                 Meet Your Mentors
-              </Link>
-              <Link
+              </a>
+              <a
                 href="#features"
                 className="px-8 py-4 rounded-xl text-sm font-semibold transition-all duration-200"
                 style={{
@@ -183,7 +182,7 @@ export default function Home() {
                 }}
               >
                 How It Works
-              </Link>
+              </a>
             </div>
 
             {/* Glowing search bar */}
