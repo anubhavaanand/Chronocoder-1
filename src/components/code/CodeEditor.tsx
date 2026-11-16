@@ -4,14 +4,22 @@ import { useEffect } from "react";
 import dynamic from "next/dynamic";
 import clsx from "clsx";
 
+export function MonacoLoadingPlaceholder({ height = "600px" }: { height?: string }) {
+  return (
+    <div
+      data-testid="monaco-loading-placeholder"
+      className="animate-pulse bg-retro-darker rounded-lg border border-retro-border"
+      style={{ height }}
+    />
+  );
+}
+
 // Dynamically import Monaco Editor (client-side only)
 const MonacoEditor = dynamic(
   () => import("@monaco-editor/react"),
   {
     ssr: false,
-    loading: () => (
-      <div className="animate-pulse h-96 bg-retro-darker rounded-lg border border-retro-border" />
-    )
+    loading: () => <MonacoLoadingPlaceholder height="600px" />
   }
 );
 
