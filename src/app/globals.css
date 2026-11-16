@@ -38,10 +38,10 @@
   --accent-blue: oklch(62% 0.16 245);          /* electric blue */
   --accent-green:oklch(72% 0.22 145);          /* green pulse */
 
-  /* Legacy hex-compatible aliases (for components not yet migrated) */
-  --accent-cyan:    #00f3ff;     /* keep for backward compat */
-  --accent-magenta: #ff00ff;
-  --accent-amber:   #ffb000;
+  /* Accent color aliases (pure modern OKLCH tokens) */
+  --accent-cyan:    oklch(91% 0.16 195);
+  --accent-magenta: oklch(70% 0.32 328);
+  --accent-amber:   oklch(79% 0.18 75);
 
   /* Background layers (legacy aliases) */
   --retro-dark:    oklch(12% 0.010 265);
@@ -95,9 +95,9 @@
 
   /* Accent tokens */
   --color-accent:         oklch(72% 0.18 165);
-  --color-accent-cyan:    var(--accent-cyan);
-  --color-accent-magenta: var(--accent-magenta);
-  --color-accent-amber:   var(--accent-amber);
+  --color-accent-cyan:    oklch(91% 0.16 195);
+  --color-accent-magenta: oklch(70% 0.32 328);
+  --color-accent-amber:   oklch(79% 0.18 75);
   --color-accent-green:   oklch(72% 0.22 145);
   --color-accent-rose:    oklch(62% 0.18 10);
   --color-accent-blue:    oklch(62% 0.16 245);
