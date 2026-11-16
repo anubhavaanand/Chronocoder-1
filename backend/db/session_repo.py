@@ -1,12 +1,14 @@
 """
 Session & Message models + repository layer for Supabase.
 """
+import asyncio
 from datetime import datetime
-from typing import Optional, List
+import os
+from typing import Any, List, Optional
 from uuid import UUID
+
 from pydantic import BaseModel
 from supabase import create_client, Client
-import os
 
 
 class SessionCreate(BaseModel):
@@ -62,39 +64,71 @@ class SessionRepository:
             raise RuntimeError("SUPABASE_URL and SUPABASE key required")
         self.client: Client = create_client(url, key)
 
+    @staticmethod
+    async def _execute(query: Any) -> Any:
+        """
+        Execute a blocking Supabase/PostgREST query in a worker threadpool
+        via asyncio.to_thread so that the main asyncio event loop is not blocked (#CC-025).
+        """
+        return await asyncio.to_thread(query.execute)
+
     # --- Sessions ---
     async def create_session(self, user_id: UUID, data: SessionCreate) -> Session:
         payload = data.model_dump()
         payload["user_id"] = str(user_id)
-        result = self.client.table("sessions").insert(payload).execute()
+        query = self.client.table("sessions").insert(payload)
+        result = await self._execute(query)
         return Session(**result.data[0])
 
     async def get_session(self, session_id: UUID, user_id: UUID) -> Optional[Session]:
-        result = self.client.table("sessions").select("*").eq("id", str(session_id)).eq("user_id", str(user_id)).single().execute()
+        query = (
+            self.client.table("sessions")
+            .select("*")
+            .eq("id", str(session_id))
+            .eq("user_id", str(user_id))
+            .single()
+        )
+        result = await self._execute(query)
         if result.data:
             return Session(**result.data)
         return None
 
     async def list_sessions(self, user_id: UUID, limit: int = 20, offset: int = 0) -> List[Session]:
-        result = self.client.table("sessions").select("*").eq("user_id", str(user_id)).order("created_at", desc=True).range(offset, offset + limit - 1).execute()
+        query = (
+            self.client.table("sessions")
+            .select("*")
+            .eq("user_id", str(user_id))
+            .order("created_at", desc=True)
+            .range(offset, offset + limit - 1)
+        )
+        result = await self._execute(query)
         return [Session(**row) for row in result.data]
 
     async def update_session(self, session_id: UUID, user_id: UUID, data: SessionUpdate) -> Optional[Session]:
         payload = data.model_dump(exclude_unset=True)
         payload["updated_at"] = datetime.utcnow().isoformat()
-        result = self.client.table("sessions").update(payload).eq("id", str(session_id)).eq("user_id", str(user_id)).execute()
+        query = (
+            self.client.table("sessions")
+            .update(payload)
+            .eq("id", str(session_id))
+            .eq("user_id", str(user_id))
+        )
+        result = await self._execute(query)
         if result.data:
             return Session(**result.data[0])
         return None
 
     async def complete_session(self, session_id: UUID, user_id: UUID) -> Optional[Session]:
-        return await self.update_session(session_id, user_id, SessionUpdate(status="completed", completed_at=datetime.utcnow()))
+        return await self.update_session(
+            session_id, user_id, SessionUpdate(status="completed", completed_at=datetime.utcnow())
+        )
 
     # --- Messages ---
     async def add_message(self, data: MessageCreate) -> Message:
         payload = data.model_dump()
         payload["session_id"] = str(data.session_id)
-        result = self.client.table("messages").insert(payload).execute()
+        query = self.client.table("messages").insert(payload)
+        result = await self._execute(query)
         return Message(**result.data[0])
 
     async def get_messages(self, session_id: UUID, user_id: UUID) -> List[Message]:
@@ -102,11 +136,24 @@ class SessionRepository:
         session = await self.get_session(session_id, user_id)
         if not session:
             return []
-        result = self.client.table("messages").select("*").eq("session_id", str(session_id)).order("sequence").execute()
+        query = (
+            self.client.table("messages")
+            .select("*")
+            .eq("session_id", str(session_id))
+            .order("sequence")
+        )
+        result = await self._execute(query)
         return [Message(**row) for row in result.data]
 
     async def get_last_sequence(self, session_id: UUID) -> int:
-        result = self.client.table("messages").select("sequence").eq("session_id", str(session_id)).order("sequence", desc=True).limit(1).execute()
+        query = (
+            self.client.table("messages")
+            .select("sequence")
+            .eq("session_id", str(session_id))
+            .order("sequence", desc=True)
+            .limit(1)
+        )
+        result = await self._execute(query)
         if result.data:
             return result.data[0]["sequence"]
         return 0
