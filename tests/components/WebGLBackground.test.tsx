@@ -3,14 +3,17 @@ import React from 'react';
 import { render, cleanup } from '@testing-library/react';
 
 // Mock Three.js to run safely in jsdom without WebGL hardware requirements
+const geometryConstructMock = vi.fn();
+const geometryDisposeMock = vi.fn();
+const rendererDisposeMock = vi.fn();
+
 vi.mock('three', () => {
-  const disposeMock = vi.fn();
   const renderMock = vi.fn();
   const setSizeMock = vi.fn();
   const setPixelRatioMock = vi.fn();
 
   class MockWebGLRenderer {
-    dispose = disposeMock;
+    dispose = rendererDisposeMock;
     render = renderMock;
     setSize = setSizeMock;
     setPixelRatio = setPixelRatioMock;
@@ -28,7 +31,10 @@ vi.mock('three', () => {
   }
 
   class MockPlaneGeometry {
-    dispose = vi.fn();
+    constructor() {
+      geometryConstructMock();
+    }
+    dispose = geometryDisposeMock;
   }
 
   class MockTextureLoader {
@@ -93,10 +99,11 @@ describe('WebGLBackground component (#CC-051)', () => {
   });
 
   it('renders a canvas with aria-hidden="true"', () => {
-    const { container } = render(<WebGLBackground />);
+    const { container, unmount } = render(<WebGLBackground />);
     const canvas = container.querySelector('canvas');
     expect(canvas).toBeInTheDocument();
     expect(canvas).toHaveAttribute('aria-hidden', 'true');
+    unmount();
   });
 
   it('initiates animation frame loop and cancels it on unmount without leaking (#CC-051)', () => {
@@ -108,5 +115,26 @@ describe('WebGLBackground component (#CC-051)', () => {
     unmount();
 
     expect(cancelAnimationFrameSpy).toHaveBeenCalledWith(lastIssuedRafId);
+  });
+
+  it('disposes the shared geometry once per effect lifecycle rather than per-mesh (#CC-052)', () => {
+    const img1 = document.createElement('img');
+    img1.setAttribute('data-gl-src', 'true');
+    img1.src = 'https://example.com/test1.png';
+    const img2 = document.createElement('img');
+    img2.setAttribute('data-gl-src', 'true');
+    img2.src = 'https://example.com/test2.png';
+    document.body.appendChild(img1);
+    document.body.appendChild(img2);
+
+    const { unmount } = render(<WebGLBackground />);
+    unmount();
+
+    expect(geometryConstructMock).toHaveBeenCalled();
+    // Exactly 1 dispose call per created geometry instance, not multiplied by the 2 DOM image meshes
+    expect(geometryDisposeMock).toHaveBeenCalledTimes(geometryConstructMock.mock.calls.length);
+
+    img1.remove();
+    img2.remove();
   });
 });
