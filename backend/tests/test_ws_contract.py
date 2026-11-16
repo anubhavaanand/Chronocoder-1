@@ -347,6 +347,100 @@ def test_websocket_anonymous_rate_limiting_isolated_per_ip(client, monkeypatch):
     backend_main.request_counts.clear()
 
 
+def test_create_session_endpoint_wires_to_repository(client):
+    """Ensure POST /api/sessions persists session via SessionRepository (#CC-012)."""
+    import uuid
+    from datetime import datetime
+    from backend.db.session_repo import Session
+
+    created_id = uuid.uuid4()
+    user_uuid = uuid.uuid4()
+    mock_session = Session(
+        id=created_id,
+        user_id=user_uuid,
+        mentor_id="ada_lovelace",
+        user_code="print('persisted')",
+        language="python",
+        complexity_score=2,
+        status="active",
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+
+    class MockSessionRepo:
+        def __init__(self):
+            self.calls = []
+
+        async def create_session(self, u_id, data):
+            self.calls.append((u_id, data))
+            return mock_session
+
+    mock_repo = MockSessionRepo()
+    backend_main.app.dependency_overrides[backend_main.get_session_repo] = lambda: mock_repo
+
+    try:
+        response = client.post(
+            "/api/sessions",
+            json={
+                "mentor_id": "ada_lovelace",
+                "user_code": "print('persisted')",
+                "complexity_score": 2,
+            },
+            headers={"Authorization": "Bearer test-dev-token"},
+        )
+        assert response.status_code == 201
+        data = response.json()
+        assert data["status"] == "active"
+        assert data["session_id"] == str(created_id)
+        assert data["mentor_id"] == "ada_lovelace"
+
+        # Verify repo was called
+        assert len(mock_repo.calls) == 1
+        call_user_id, call_data = mock_repo.calls[0]
+        assert call_data.mentor_id == "ada_lovelace"
+        assert call_data.user_code == "print('persisted')"
+    finally:
+        backend_main.app.dependency_overrides.pop(backend_main.get_session_repo, None)
+
+
+def test_create_session_dev_fallback_without_repo(client):
+    """Ensure POST /api/sessions gracefully falls back when repo is unavailable in dev (#CC-012)."""
+    backend_main.app.dependency_overrides[backend_main.get_session_repo] = lambda: None
+
+    try:
+        response = client.post(
+            "/api/sessions",
+            json={
+                "mentorId": "alan_turing",
+                "userCode": "x = 42",
+                "sessionId": "custom-sess-777",
+            },
+            headers={"Authorization": "Bearer test-dev-token"},
+        )
+        assert response.status_code == 201
+        data = response.json()
+        assert data["status"] == "active"
+        assert data["session_id"] == "custom-sess-777"
+        assert data["mentor_id"] == "alan_turing"
+    finally:
+        backend_main.app.dependency_overrides.pop(backend_main.get_session_repo, None)
+
+
+def test_get_session_repo_production_requires_supabase(monkeypatch):
+    """Ensure get_session_repo raises HTTP 500 when Supabase is missing in production (#CC-012)."""
+    monkeypatch.setenv("FASTAPI_ENV", "production")
+    monkeypatch.setenv("SUPABASE_URL", "")
+    monkeypatch.setenv("SUPABASE_ANON_KEY", "")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "")
+    monkeypatch.setattr(backend_main, "session_repo", None)
+
+    with pytest.raises(backend_main.HTTPException) as exc_info:
+        backend_main.get_session_repo()
+    assert exc_info.value.status_code == 500
+    assert "Database service misconfigured" in exc_info.value.detail
+
+
+
 
 
 

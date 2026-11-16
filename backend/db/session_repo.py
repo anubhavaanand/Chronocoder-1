@@ -52,7 +52,10 @@ class Message(BaseModel):
 
 
 class SessionRepository:
-    def __init__(self):
+    def __init__(self, client: Optional[Client] = None):
+        if client is not None:
+            self.client = client
+            return
         url = os.getenv("SUPABASE_URL")
         key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_ANON_KEY")
         if not url or not key:
