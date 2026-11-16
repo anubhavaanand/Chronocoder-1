@@ -31,6 +31,7 @@ ai_gateway: Optional[AIGateway] = None
 supabase: Optional[Client] = None
 
 # Supabase config
+FASTAPI_ENV = os.getenv("FASTAPI_ENV", "development").lower()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
 SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET")
@@ -58,6 +59,12 @@ async def verify_jwt_token(authorization: Optional[str] = Header(None)) -> str:
     token = authorization.split(" ")[1]
     
     if not SUPABASE_JWT_SECRET:
+        current_env = os.getenv("FASTAPI_ENV", FASTAPI_ENV).lower()
+        if current_env == "production":
+            raise HTTPException(
+                status_code=500,
+                detail="Authentication service misconfigured: SUPABASE_JWT_SECRET required in production",
+            )
         # Dev mode: allow anonymous
         return "anonymous"
     

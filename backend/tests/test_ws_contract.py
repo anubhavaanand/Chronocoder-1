@@ -25,6 +25,12 @@ class StubAIGateway:
 
     mentors = {"ada_lovelace": object()}
 
+    def list_mentors(self):
+        return [{"mentor_id": "ada_lovelace", "avatar_url": "/mentors/ada_lovelace.jpg"}]
+
+    def get_mentor_config(self, mentor_id):
+        return None
+
     async def get_feedback_streaming(self, mentor_id, user_code, code_analysis):
         yield {
             "type": "feedback_chunk",
@@ -148,4 +154,37 @@ def test_mentor_config_and_api_includes_avatar_url():
             assert data["avatar_url"] == "/mentors/ada_lovelace.jpg"
     finally:
         backend_main.ai_gateway = old_gateway
+
+
+def test_verify_jwt_token_production_requires_secret(client, monkeypatch):
+    """Ensure unauthenticated bypass is rejected with HTTP 500 in production if secret missing (#CC-008)."""
+    monkeypatch.setenv("FASTAPI_ENV", "production")
+    monkeypatch.setattr(backend_main, "SUPABASE_JWT_SECRET", None)
+
+    res = client.get("/api/mentors", headers={"Authorization": "Bearer any-token"})
+    assert res.status_code == 500
+    assert "SUPABASE_JWT_SECRET required in production" in res.json()["detail"]
+
+
+def test_verify_jwt_token_production_validates_token(client, monkeypatch):
+    """Ensure valid tokens are decoded and invalid tokens rejected with HTTP 401 in production (#CC-008)."""
+    from jose import jwt
+
+    secret = "test-secret-key-for-jwt-verification-12345"
+    monkeypatch.setenv("FASTAPI_ENV", "production")
+    monkeypatch.setattr(backend_main, "SUPABASE_JWT_SECRET", secret)
+
+    valid_token = jwt.encode({"sub": "user_123", "aud": "authenticated"}, secret, algorithm="HS256")
+    invalid_token = jwt.encode({"sub": "user_123", "aud": "wrong_audience"}, "wrong_secret", algorithm="HS256")
+
+    # Valid token succeeds
+    res_valid = client.get("/api/mentors", headers={"Authorization": f"Bearer {valid_token}"})
+    assert res_valid.status_code == 200
+
+    # Invalid token fails with 401
+    res_invalid = client.get("/api/mentors", headers={"Authorization": f"Bearer {invalid_token}"})
+    assert res_invalid.status_code == 401
+    assert "Invalid token" in res_invalid.json()["detail"]
+
+
 
