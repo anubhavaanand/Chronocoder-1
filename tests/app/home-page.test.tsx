@@ -144,4 +144,18 @@ describe('Home Page', () => {
     // Expected: 1 label span + 1 line span = 2 spans (previously 3 due to duplicate span)
     expect(featuresSpans.length).toBe(2);
   });
+
+  it('standardizes all GitHub repository URLs to the correct canonical repository (#CC-072)', () => {
+    const { container } = render(<Home />);
+    const githubLinks = Array.from(container.querySelectorAll('a')).filter(
+      (a) => a.textContent?.trim() === 'GitHub'
+    );
+    expect(githubLinks.length).toBeGreaterThanOrEqual(2); // Header & Footer
+
+    for (const link of githubLinks) {
+      expect(link.getAttribute('href')).toBe('https://github.com/anubhavaanand/Chronocoder-1');
+      expect(link.getAttribute('target')).toBe('_blank');
+      expect(link.getAttribute('rel')).toContain('noopener');
+    }
+  });
 });
