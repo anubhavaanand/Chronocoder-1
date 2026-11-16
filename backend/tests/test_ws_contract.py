@@ -958,6 +958,9 @@ async def test_session_repo_async_threadpool_execution():
             }
             return ThreadTrackingQuery([item])
 
+        def limit(self, *args, **kwargs):
+            return self.range(0, 0)
+
         def single(self):
             now = datetime.now(timezone.utc)
             item = {
@@ -1095,6 +1098,9 @@ async def test_session_repo_handles_anonymous_string_user_id():
             }
             return MockQuery([item])
 
+        def limit(self, *args, **kwargs):
+            return self.range(0, 0)
+
         def single(self):
             now = datetime.now(timezone.utc)
             item = {
@@ -1123,6 +1129,86 @@ async def test_session_repo_handles_anonymous_string_user_id():
 
     found = await repo.get_session("custom-session-id", "anonymous")
     assert found is not None
+
+
+@pytest.mark.asyncio
+async def test_session_repo_get_session_returns_none_on_404_and_pgrst116():
+    """Ensure get_session returns None instead of raising on empty rows or PGRST116 (#CC-027)."""
+    import pytest
+    from backend.db.session_repo import SessionRepository
+
+    # Case 1: Empty rows list [] returned from query
+    class MockEmptyQuery:
+        def __init__(self):
+            self.data = []
+
+        def execute(self):
+            return self
+
+    class MockEmptyTable:
+        def select(self, *args, **kwargs):
+            return self
+
+        def eq(self, *args, **kwargs):
+            return self
+
+        def limit(self, *args, **kwargs):
+            return MockEmptyQuery()
+
+    class MockEmptyClient:
+        def table(self, table_name):
+            return MockEmptyTable()
+
+    empty_repo = SessionRepository(client=MockEmptyClient())
+    empty_result = await empty_repo.get_session("session-123", "user-456")
+    assert empty_result is None
+
+    # Case 2: PostgREST APIError / PGRST116 ("The result contains 0 rows") raised
+    class MockPGRST116Query:
+        def execute(self):
+            raise RuntimeError("APIError: {'code': 'PGRST116', 'details': 'The result contains 0 rows', 'message': 'JSON object requested'}")
+
+    class MockPGRST116Table:
+        def select(self, *args, **kwargs):
+            return self
+
+        def eq(self, *args, **kwargs):
+            return self
+
+        def limit(self, *args, **kwargs):
+            return MockPGRST116Query()
+
+    class MockPGRST116Client:
+        def table(self, table_name):
+            return MockPGRST116Table()
+
+    pgrst_repo = SessionRepository(client=MockPGRST116Client())
+    pgrst_result = await pgrst_repo.get_session("session-123", "user-456")
+    assert pgrst_result is None
+
+    # Case 3: Unexpected error (e.g. connection refused) is properly re-raised
+    class MockFailingQuery:
+        def execute(self):
+            raise ConnectionError("Database cluster unreachable")
+
+    class MockFailingTable:
+        def select(self, *args, **kwargs):
+            return self
+
+        def eq(self, *args, **kwargs):
+            return self
+
+        def limit(self, *args, **kwargs):
+            return MockFailingQuery()
+
+    class MockFailingClient:
+        def table(self, table_name):
+            return MockFailingTable()
+
+    failing_repo = SessionRepository(client=MockFailingClient())
+    with pytest.raises(ConnectionError, match="Database cluster unreachable"):
+        await failing_repo.get_session("session-123", "user-456")
+
 
 
 

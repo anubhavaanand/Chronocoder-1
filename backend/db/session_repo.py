@@ -127,17 +127,30 @@ class SessionRepository:
     async def get_session(self, session_id: Union[UUID, str], user_id: Union[UUID, str]) -> Optional[Session]:
         s_id = coerce_uuid(session_id)
         u_id = coerce_uuid(user_id)
-        query = (
-            self.client.table("sessions")
-            .select("*")
-            .eq("id", str(s_id))
-            .eq("user_id", str(u_id))
-            .single()
-        )
-        result = await self._execute(query)
-        if result.data:
-            return Session(**result.data)
-        return None
+        try:
+            query = (
+                self.client.table("sessions")
+                .select("*")
+                .eq("id", str(s_id))
+                .eq("user_id", str(u_id))
+            )
+            if hasattr(query, "limit"):
+                query = query.limit(1)
+            elif hasattr(query, "single"):
+                query = query.single()
+
+            result = await self._execute(query)
+            if result and hasattr(result, "data") and result.data:
+                data = result.data
+                row = data[0] if isinstance(data, list) and len(data) > 0 else data
+                if isinstance(row, dict):
+                    return Session(**row)
+            return None
+        except Exception as e:
+            err_str = str(e)
+            if "PGRST116" in err_str or "0 rows" in err_str or "406" in err_str:
+                return None
+            raise
 
     async def list_sessions(
         self, user_id: Union[UUID, str], limit: int = 20, offset: int = 0
