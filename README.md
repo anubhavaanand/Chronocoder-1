@@ -18,7 +18,7 @@
 | **Frontend** | Streamlit | Next.js 16 + React 19 | Server Components, Streaming SSR |
 | **Backend** | Single-file monolith | FastAPI microservices | Async-first, WebSocket support |
 | **Database** | JSON files | PostgreSQL (Supabase) | Persistent, scalable, ACID-compliant |
-| **Auth** | None | Supabase Auth | Email + OAuth providers |
+| **Auth** | None | Supabase Auth (Roadmap) | Multi-provider login (Email + OAuth) planned |
 | **Deployment** | Streamlit Cloud | Fly.io + Vercel | Global edge, 99.9% uptime SLA |
 | **Streaming** | Polling | WebSockets/SSE | Real-time token-by-token feedback |
 | **Testing** | Manual | Playwright + Pytest | 85%+ coverage guaranteed |
