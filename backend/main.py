@@ -10,7 +10,7 @@ from collections import OrderedDict
 import asyncio
 import ast
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
 import uuid
@@ -242,7 +242,7 @@ async def root():
 async def health_check():
     return {
         "status": "ok",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "service": "chronocoder-backend"
     }
 
@@ -315,7 +315,7 @@ async def create_session(
         "session_id": str(session_id),
         "mentor_id": mentor_id,
         "user_id": str(user_uuid),
-        "created_at": datetime.now().isoformat(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
     }
 
 

@@ -55,7 +55,14 @@ def client(monkeypatch):
 def test_health_endpoint(client):
     response = client.get("/api/health")
     assert response.status_code == 200
-    assert response.json()["status"] == "ok"
+    data = response.json()
+    assert data["status"] == "ok"
+    assert data["service"] == "chronocoder-backend"
+    # Ensure timezone-aware ISO string is returned without deprecation warnings (#CC-014)
+    assert "timestamp" in data
+    from datetime import datetime
+    ts = datetime.fromisoformat(data["timestamp"])
+    assert ts.tzinfo is not None
 
 
 def test_feedback_message_sequence(client):
