@@ -40,7 +40,6 @@ export function MentorCard({
       <motion.div
         ref={cardRef}
         initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: staggerDelay }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
