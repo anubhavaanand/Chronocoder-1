@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { MentorGLTarget } from "./HeroDistortion";
 
 interface MentorCardProps {
@@ -27,7 +27,6 @@ export function MentorCard({
   index = 0,
 }: MentorCardProps) {
   const [isHovered, setIsHovered] = useState(false);
-  const cardRef = useRef<HTMLDivElement>(null);
 
   // Stagger animation delay based on index
   const staggerDelay = index * 0.1;
@@ -38,7 +37,6 @@ export function MentorCard({
   return (
     <Link href={`/workspace/${id}`} data-testid="mentor-card" data-mentor-id={id}>
       <motion.div
-        ref={cardRef}
         initial={{ opacity: 0, y: 20 }}
         transition={{ duration: 0.5, delay: staggerDelay }}
         whileInView={{ opacity: 1, y: 0 }}

@@ -192,5 +192,13 @@ describe('MentorCard', () => {
       // Verifies initial viewport state is retained (opacity: 0) instead of eagerly animating on mount
       expect(cardMotionDiv).toHaveStyle({ opacity: '0' });
     });
+
+    it('renders cleanly without dead cardRef allocation (#CC-061)', () => {
+      const { container } = render(<MentorCard {...mockMentor} />);
+      const cardMotionDiv = container.querySelector('.group');
+      expect(cardMotionDiv).toBeInTheDocument();
+      const link = container.querySelector('[data-testid="mentor-card-link"]');
+      expect(link).toHaveAttribute('href', '/workspace/ada_lovelace');
+    });
   });
 });
