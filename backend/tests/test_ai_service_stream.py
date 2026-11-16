@@ -83,8 +83,8 @@ class FakeSession:
         return False
 
 
-def make_gateway() -> AIGateway:
-    return AIGateway(api_key="test-key-not-used")
+def make_gateway(**kwargs) -> AIGateway:
+    return AIGateway(api_key="test-key-not-used", **kwargs)
 
 
 def patch_session(monkeypatch, response, captured_url):
@@ -94,10 +94,12 @@ def patch_session(monkeypatch, response, captured_url):
     monkeypatch.setattr(ai_service.aiohttp, "ClientSession", factory)
 
 
-async def collect(gateway, mentor_id="ada_lovelace"):
+async def collect(gateway, mentor_id="ada_lovelace", code_analysis=None):
+    if code_analysis is None:
+        code_analysis = {}
     chunks = []
     async for chunk in gateway.get_feedback_streaming(
-        mentor_id=mentor_id, user_code="print('hi')", code_analysis={}
+        mentor_id=mentor_id, user_code="print('hi')", code_analysis=code_analysis
     ):
         chunks.append(chunk)
     return chunks
@@ -555,6 +557,52 @@ def test_load_mentor_registry_utf8_encoding(monkeypatch):
     # Check that unicode emojis loaded accurately
     assert gateway.mentors["ada_lovelace"].icon == "🔮"
     assert gateway.mentors["alan_turing"].icon == "🧠"
+
+
+def test_calculate_max_output_tokens_tiered_by_complexity(monkeypatch):
+    """Verify _calculate_max_output_tokens tiers tokens based on code complexity and env (#CC-020)."""
+    gateway = make_gateway()
+
+    # 1. Default without analysis
+    assert gateway._calculate_max_output_tokens(None) == 2048
+    assert gateway._calculate_max_output_tokens({}) == 2048
+
+    # 2. Low complexity (<= 3)
+    assert gateway._calculate_max_output_tokens({"complexity_score": 1}) == 1536
+    assert gateway._calculate_max_output_tokens({"complexity_score": 3}) == 1536
+
+    # 3. Medium complexity (4-7)
+    assert gateway._calculate_max_output_tokens({"complexity_score": 4}) == 2560
+    assert gateway._calculate_max_output_tokens({"complexity_score": 7}) == 2560
+
+    # 4. High complexity (>= 8)
+    assert gateway._calculate_max_output_tokens({"complexity_score": 8}) == 4096
+    assert gateway._calculate_max_output_tokens({"complexity_score": 10}) == 4096
+
+    # 5. Environment variable override
+    monkeypatch.setenv("MAX_OUTPUT_TOKENS", "3000")
+    assert gateway._calculate_max_output_tokens({"complexity_score": 1}) == 3000
+
+    # 6. Instance parameter override
+    gateway_custom = make_gateway(max_output_tokens=1024)
+    assert gateway_custom._calculate_max_output_tokens({"complexity_score": 10}) == 1024
+
+
+@pytest.mark.asyncio
+async def test_streaming_request_passes_dynamic_max_output_tokens(monkeypatch):
+    """Ensure generationConfig in streaming request sends tuned maxOutputTokens (#CC-020)."""
+    gateway = make_gateway()
+    payload = {"reading": "Tuned", "sections": [], "challenge": "", "closing": ""}
+    response = FakeResponse([model_event(json.dumps(payload))])
+    captured = {}
+    patch_session(monkeypatch, response, captured)
+
+    await collect(gateway, mentor_id="ada_lovelace", code_analysis={"complexity_score": 2})
+
+    sent_payload = captured.get("kwargs", {}).get("json", {})
+    gen_config = sent_payload.get("generationConfig", {})
+    assert gen_config.get("maxOutputTokens") == 1536
+
 
 
 
