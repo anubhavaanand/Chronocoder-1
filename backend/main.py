@@ -247,16 +247,16 @@ async def health_check():
     }
 
 
-# Auth-protected endpoints
+# Public mentor catalog endpoints (#CC-018)
 @app.get("/api/mentors", tags=["mentors"])
-async def get_mentors(user_id: str = Depends(verify_jwt_token)):
+async def get_mentors():
     if not ai_gateway:
         raise HTTPException(status_code=503, detail="AI service unavailable")
     return {"mentors": ai_gateway.list_mentors()}
 
 
 @app.get("/api/mentors/{mentor_id}", tags=["mentors"])
-async def get_mentor(mentor_id: str, user_id: str = Depends(verify_jwt_token)):
+async def get_mentor(mentor_id: str):
     if not ai_gateway:
         raise HTTPException(status_code=503, detail="AI service unavailable")
     config = ai_gateway.get_mentor_config(mentor_id)
