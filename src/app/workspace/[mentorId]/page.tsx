@@ -10,6 +10,7 @@ import { CodeEditor } from "@/components/code/CodeEditor";
 import { FeedbackRenderer } from "@/components/feedback/FeedbackRenderer";
 import { useMentorWebSocket, type FeedbackSectionView, type CodeAnalysis } from "@/hooks/useMentorWebSocket";
 import { MENTORS_BY_ID } from "@/data/mentors";
+import { getAuthHeaders } from "@/lib/auth";
 
 const MENTORS: Record<string, (typeof MENTORS_BY_ID)[string]> = MENTORS_BY_ID;
 
@@ -89,7 +90,10 @@ print(fibonacci(10))`);
     try {
       await fetch("/api/sessions", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
         body: JSON.stringify({
           sessionId: getSessionId(),
           mentorId,
