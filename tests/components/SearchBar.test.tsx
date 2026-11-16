@@ -124,4 +124,12 @@ describe('SearchBar', () => {
     });
     expect(document.activeElement).toBe(input);
   });
+
+  it('provides adequate padding to prevent input text clipping under action buttons (#CC-068)', () => {
+    const { container } = render(<SearchBar />);
+    const input = container.querySelector('input')!;
+    expect(input.className).toContain('pl-12');
+    expect(input.className).toContain('pr-36');
+    expect(input.className).toContain('sm:pr-40');
+  });
 });

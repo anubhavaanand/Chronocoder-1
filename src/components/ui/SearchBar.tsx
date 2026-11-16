@@ -71,7 +71,7 @@ export function SearchBar({
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           placeholder={`Ask any mentor anything... Try "How do I optimize this recursive function?"`}
-          className={`w-full px-14 py-4 pl-12 text-base ${large ? "py-5 text-lg" : ""}`}
+          className={`w-full pl-12 pr-36 sm:pr-40 py-4 text-base ${large ? "py-5 text-lg" : ""}`}
           style={{
             background: "transparent",
             border: "none",
