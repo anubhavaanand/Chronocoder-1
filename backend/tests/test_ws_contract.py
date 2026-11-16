@@ -1501,6 +1501,120 @@ def test_schema_sessions_user_created_index_contract():
     assert "CREATE INDEX IF NOT EXISTS idx_sessions_user_created ON sessions(user_id, created_at DESC);" in schema_sql
 
 
+@pytest.mark.asyncio
+async def test_session_repo_get_messages_sequential_order_contract():
+    """Ensure get_messages applies order('sequence', desc=False) and checks ownership (#CC-035)."""
+    from datetime import datetime, timezone
+    from backend.db.session_repo import SessionRepository
+
+    calls = []
+
+    class MockMessagesQuery:
+        def __init__(self, table_name):
+            self.table_name = table_name
+
+        def select(self, *args):
+            calls.append(("select", args))
+            return self
+
+        def eq(self, col, val):
+            calls.append(("eq", col, val))
+            return self
+
+        def order(self, col, desc=False):
+            calls.append(("order", col, desc))
+            return self
+
+        def limit(self, val):
+            calls.append(("limit", val))
+            return self
+
+        def execute(self):
+            now = datetime.now(timezone.utc).isoformat()
+            if calls and calls[-1] == ("limit", 1):
+                return type("Result", (), {"data": [{"sequence": 42}]})()
+            return type(
+                "Result",
+                (),
+                {
+                    "data": [
+                        {
+                            "id": "33333333-3333-3333-3333-333333333333",
+                            "session_id": "11111111-1111-1111-1111-111111111111",
+                            "role": "user",
+                            "content": {"text": "hello"},
+                            "sequence": 1,
+                            "created_at": now,
+                        },
+                        {
+                            "id": "44444444-4444-4444-4444-444444444444",
+                            "session_id": "11111111-1111-1111-1111-111111111111",
+                            "role": "assistant",
+                            "content": {"text": "welcome"},
+                            "sequence": 2,
+                            "created_at": now,
+                        },
+                    ]
+                },
+            )()
+
+    class MockSessionsQuery:
+        def select(self, *args):
+            return self
+
+        def eq(self, *args):
+            return self
+
+        def limit(self, *args):
+            return self
+
+        def execute(self):
+            now = datetime.now(timezone.utc).isoformat()
+            return type(
+                "Result",
+                (),
+                {
+                    "data": [
+                        {
+                            "id": "11111111-1111-1111-1111-111111111111",
+                            "user_id": "22222222-2222-2222-2222-222222222222",
+                            "mentor_id": "ada_lovelace",
+                            "user_code": "x = 1",
+                            "language": "python",
+                            "status": "active",
+                            "created_at": now,
+                            "updated_at": now,
+                        }
+                    ]
+                },
+            )()
+
+    class MockClient:
+        def table(self, table_name):
+            if table_name == "messages":
+                return MockMessagesQuery("messages")
+            return MockSessionsQuery()
+
+    repo = SessionRepository(client=MockClient())
+
+    # 1. Test get_messages returns ordered messages
+    msgs = await repo.get_messages(
+        "11111111-1111-1111-1111-111111111111",
+        "22222222-2222-2222-2222-222222222222",
+    )
+    assert len(msgs) == 2
+    assert msgs[0].sequence == 1
+    assert msgs[1].sequence == 2
+    assert ("order", "sequence", False) in calls
+
+    # 2. Test get_last_sequence
+    last_seq = await repo.get_last_sequence("11111111-1111-1111-1111-111111111111")
+    assert last_seq == 42
+    assert ("order", "sequence", True) in calls
+    assert ("limit", 1) in calls
+
+
+
 
 
 
