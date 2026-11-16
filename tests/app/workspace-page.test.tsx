@@ -11,13 +11,19 @@ import React from 'react';
 import { render, screen, cleanup } from '@testing-library/react';
 
 let currentQuery: string | null = null;
+let currentMentorId: string = 'alan_turing';
 
 const pushMock = vi.fn();
+const notFoundMock = vi.fn();
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: pushMock }),
-  useParams: () => ({ mentorId: 'alan_turing' }),
+  useParams: () => ({ mentorId: currentMentorId }),
   useSearchParams: () => new URLSearchParams(currentQuery ?? ''),
+  notFound: () => {
+    notFoundMock();
+    throw new Error('NEXT_NOT_FOUND');
+  },
 }));
 
 vi.mock('../../src/hooks/useMentorWebSocket', () => ({
@@ -49,6 +55,7 @@ describe.sequential('WorkspacePage ?query= capture', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     currentQuery = null;
+    currentMentorId = 'alan_turing';
   });
 
   afterEach(() => {
@@ -93,5 +100,11 @@ describe.sequential('WorkspacePage ?query= capture', () => {
     expect(avatar).toBeInTheDocument();
     expect(avatar).toHaveAttribute('width', '44');
     expect(avatar).toHaveAttribute('height', '44');
+  });
+
+  it('triggers notFound() when mentorId does not exist (#CC-050)', () => {
+    currentMentorId = 'non_existent_mentor';
+    expect(() => render(<WorkspacePage />)).toThrow('NEXT_NOT_FOUND');
+    expect(notFoundMock).toHaveBeenCalled();
   });
 });
