@@ -19,6 +19,7 @@ export async function POST(request: Request) {
         ...(auth ? { Authorization: auth } : {}),
       },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(5000),
     });
 
     const data = await res.json().catch(() => ({}));
