@@ -403,16 +403,29 @@ export default function Home() {
               Built by Anubhav · Next.js 16 + FastAPI + Google Gemini
             </p>
             <div className="flex items-center justify-center gap-6 text-sm">
-              {["Documentation", "GitHub", "Privacy Policy"].map((link) => (
-                <Link
-                  key={link}
-                  href="#"
-                  className="transition-colors duration-150 hover:text-[oklch(72%_0.18_165)]"
-                  style={{ color: "var(--muted)" }}
-                >
-                  {link}
-                </Link>
-              ))}
+              <a
+                href="#features"
+                className="transition-colors duration-150 hover:text-[oklch(72%_0.18_165)]"
+                style={{ color: "var(--muted)" }}
+              >
+                Documentation
+              </a>
+              <a
+                href="https://github.com/anubhavaanand/Chronocoder-1"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="transition-colors duration-150 hover:text-[oklch(72%_0.18_165)]"
+                style={{ color: "var(--muted)" }}
+              >
+                GitHub
+              </a>
+              <a
+                href="#features"
+                className="transition-colors duration-150 hover:text-[oklch(72%_0.18_165)]"
+                style={{ color: "var(--muted)" }}
+              >
+                Privacy Policy
+              </a>
             </div>
           </div>
         </footer>
