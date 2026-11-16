@@ -222,5 +222,64 @@ def test_get_allowed_origins_env_override(monkeypatch):
     assert origins == ["https://app.chronocoder.io", "https://staging.chronocoder.io"]
 
 
+def test_rate_limit_sliding_window_and_limit():
+    """Ensure check_rate_limit enforces rate limit and sliding window (#CC-010)."""
+    backend_main.request_counts.clear()
+    user = "test_user_rate"
+
+    # Make 5 requests with limit=5
+    for _ in range(5):
+        assert backend_main.check_rate_limit(user, limit=5, window_seconds=60) is True
+
+    # 6th request must be rejected
+    assert backend_main.check_rate_limit(user, limit=5, window_seconds=60) is False
+    backend_main.request_counts.clear()
+
+
+def test_rate_limit_prunes_expired_keys():
+    """Ensure expired timestamps and idle keys are purged to prevent memory leaks (#CC-010)."""
+    from datetime import datetime, timedelta
+
+    backend_main.request_counts.clear()
+    old_time = datetime.now() - timedelta(seconds=120)
+
+    # Insert old timestamps for user_idle
+    backend_main.request_counts["user_idle"] = [old_time, old_time]
+    backend_main.request_counts["user_active"] = [datetime.now()]
+
+    removed = backend_main.prune_expired_rate_limit_keys(cutoff_seconds=60)
+    assert removed == 1
+    assert "user_idle" not in backend_main.request_counts
+    assert "user_active" in backend_main.request_counts
+
+    backend_main.request_counts.clear()
+
+
+def test_rate_limit_lru_capacity_eviction(monkeypatch):
+    """Ensure MAX_RATE_LIMIT_KEYS strictly bounds dictionary size using LRU eviction (#CC-010)."""
+    backend_main.request_counts.clear()
+    monkeypatch.setattr(backend_main, "MAX_RATE_LIMIT_KEYS", 3)
+
+    # Add 3 users
+    assert backend_main.check_rate_limit("u1", limit=10) is True
+    assert backend_main.check_rate_limit("u2", limit=10) is True
+    assert backend_main.check_rate_limit("u3", limit=10) is True
+    assert len(backend_main.request_counts) == 3
+
+    # Touch u1 so order is u2 (oldest), u3, u1 (newest)
+    assert backend_main.check_rate_limit("u1", limit=10) is True
+
+    # Add u4 -> u2 must be evicted as LRU
+    assert backend_main.check_rate_limit("u4", limit=10) is True
+    assert len(backend_main.request_counts) == 3
+    assert "u2" not in backend_main.request_counts
+    assert "u1" in backend_main.request_counts
+    assert "u3" in backend_main.request_counts
+    assert "u4" in backend_main.request_counts
+
+    backend_main.request_counts.clear()
+
+
+
 
 

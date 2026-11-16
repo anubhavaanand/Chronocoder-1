@@ -6,6 +6,7 @@ FastAPI Application Server with Supabase Auth + Structured AI Feedback
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+from collections import OrderedDict
 import asyncio
 from datetime import datetime
 from typing import Optional
@@ -38,7 +39,8 @@ SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
 # Rate limiting
-request_counts: dict[str, list[datetime]] = {}
+MAX_RATE_LIMIT_KEYS = int(os.getenv("MAX_RATE_LIMIT_KEYS", "10000"))
+request_counts: OrderedDict[str, list[datetime]] = OrderedDict()
 RATE_LIMIT = 30  # requests per minute
 
 
@@ -78,26 +80,55 @@ async def verify_jwt_token(authorization: Optional[str] = Header(None)) -> str:
         raise HTTPException(status_code=401, detail=f"Invalid token: {str(e)}")
 
 
-def check_rate_limit(user_id: str) -> bool:
-    """Check if user is within rate limit"""
+def prune_expired_rate_limit_keys(cutoff_seconds: int = 60) -> int:
+    """Prune entries from request_counts whose timestamps have expired. Returns count of keys removed."""
+    now_ts = datetime.now().timestamp()
+    cutoff = now_ts - cutoff_seconds
+    keys_to_remove = []
+
+    for user_key, timestamps in list(request_counts.items()):
+        active_ts = [ts for ts in timestamps if ts.timestamp() > cutoff]
+        if not active_ts:
+            keys_to_remove.append(user_key)
+        else:
+            request_counts[user_key] = active_ts
+
+    for k in keys_to_remove:
+        del request_counts[k]
+
+    return len(keys_to_remove)
+
+
+def check_rate_limit(user_id: str, limit: int = RATE_LIMIT, window_seconds: int = 60) -> bool:
+    """Check if user is within rate limit using sliding window and bounded LRU storage."""
     now = datetime.now()
-    minute_ago = now.timestamp() - 60
-    
+    window_start = now.timestamp() - window_seconds
+
+    # Prune user's expired requests
+    if user_id in request_counts:
+        request_counts[user_id] = [
+            ts for ts in request_counts[user_id]
+            if ts.timestamp() > window_start
+        ]
+        if not request_counts[user_id]:
+            del request_counts[user_id]
+
     if user_id not in request_counts:
+        # Enforce max key capacity
+        if len(request_counts) >= MAX_RATE_LIMIT_KEYS:
+            prune_expired_rate_limit_keys(cutoff_seconds=window_seconds)
+            while len(request_counts) >= MAX_RATE_LIMIT_KEYS and request_counts:
+                request_counts.popitem(last=False)
         request_counts[user_id] = []
-    
-    # Clean old requests
-    request_counts[user_id] = [
-        ts for ts in request_counts[user_id] 
-        if ts.timestamp() > minute_ago
-    ]
-    
+
     # Check limit
-    if len(request_counts[user_id]) >= RATE_LIMIT:
+    if len(request_counts[user_id]) >= limit:
+        request_counts.move_to_end(user_id)
         return False
-    
+
     # Record this request
     request_counts[user_id].append(now)
+    request_counts.move_to_end(user_id)
     return True
 
 
