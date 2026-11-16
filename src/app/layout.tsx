@@ -3,11 +3,11 @@ import { JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
 /**
- * Mona Sans is not on Google Fonts — it's GitHub's open-source font.
- * We load it via next/font/local from the /public/fonts directory,
- * falling back to system display fonts in the CSS variable stack.
+ * Mona Sans is GitHub's open-source variable font loaded via CDN with
+ * React 19 stylesheet resource hoisting, falling back to system display
+ * fonts (Hubot Sans, ui-sans-serif, system-ui) in the CSS variable stack.
  *
- * JetBrains Mono is loaded via next/font/google as before.
+ * JetBrains Mono is loaded via next/font/google with swap display.
  */
 
 const jetbrainsMono = JetBrains_Mono({
