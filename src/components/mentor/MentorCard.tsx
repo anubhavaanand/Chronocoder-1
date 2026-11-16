@@ -181,15 +181,18 @@ export function MentorCard({
             </div>
           </div>
 
-          {/* Hover Button */}
+          {/* Hover Action */}
           <motion.div
             className="absolute bottom-0 left-0 right-0 p-4 bg-[oklch(8%_0.010_265)]/90 backdrop-blur-sm border-t border-[oklch(22%_0.012_265)] translate-y-full group-hover:translate-y-0 transition-transform duration-300"
             initial={false}
             animate={isHovered ? { y: 0 } : { y: "100%" }}
           >
-            <button className="w-full py-2 bg-gradient-primary text-white font-semibold text-sm rounded-lg hover:shadow-neon transition-shadow">
+            <span
+              className="block w-full py-2 text-center bg-gradient-primary text-white font-semibold text-sm rounded-lg hover:shadow-neon transition-shadow"
+              aria-hidden="true"
+            >
               Select Mentor
-            </button>
+            </span>
           </motion.div>
         </div>
 
