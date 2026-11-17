@@ -216,6 +216,9 @@ class MentorConfig(BaseModel):
     signature_closing: str
 
 
+DEFAULT_GEMINI_MODEL = "gemini-2.0-flash"
+
+
 class AIGateway:
     """Unified interface to Google Gemini API with streaming + structured output."""
 
@@ -226,6 +229,7 @@ class AIGateway:
         retry_delay: float = 0.5,
         max_output_tokens: Optional[int] = None,
         mentors_dir: Optional[Union[Path, str]] = None,
+        model: Optional[str] = None,
     ):
         self.api_key = api_key
         self.max_retries = max_retries
@@ -233,6 +237,9 @@ class AIGateway:
         self.max_output_tokens = max_output_tokens
         self.mentors_dir = resolve_mentors_dir(mentors_dir)
         self.base_url = "https://generativelanguage.googleapis.com/v1beta/models"
+        # Model is configurable so it can be pinned or upgraded without a code
+        # change; defaults to the previous hardcoded value.
+        self.model = (model or os.getenv("GEMINI_MODEL") or DEFAULT_GEMINI_MODEL).strip()
         self.mentors: dict[str, MentorConfig] = self._load_mentor_registry()
 
     def _calculate_max_output_tokens(self, code_analysis: Optional[dict] = None) -> int:
@@ -419,7 +426,7 @@ Tone: {mentor.tone}
         # alt=sse returns one `data: {json}` event per token batch instead of
         # a raw JSON array, so arbitrary TCP chunk boundaries can never split
         # a JSON value (the old raw-chunk decoder silently dropped those).
-        url = f"{self.base_url}/gemini-2.0-flash:streamGenerateContent?alt=sse"
+        url = f"{self.base_url}/{self.model}:streamGenerateContent?alt=sse"
 
         headers = {
             "Content-Type": "application/json",
