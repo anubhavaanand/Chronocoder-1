@@ -33,7 +33,11 @@ BEGIN
         updated_at = NOW();
     RETURN new;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql
+-- SECURITY DEFINER runs with the owner's rights, so the search_path is
+-- pinned to stop a caller-supplied path from shadowing the objects this
+-- function touches (#247). pg_temp is last so it cannot shadow anything.
+SET search_path = public, pg_temp;
 
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
