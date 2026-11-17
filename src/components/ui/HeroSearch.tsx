@@ -1,20 +1,25 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { SearchBar } from "./SearchBar";
 
 /**
  * HeroSearch — the homepage search bar wrapped in an animated glow frame.
  * The glow wraps all four sides: a rotating conic-gradient ring plus a
  * blurred copy of the same ring acting as the light bloom. Submitting
- * smooth-scrolls down to the mentor gallery.
+ * carries the typed question into the mentor workspace via `?query=...`.
  */
 
 const RING_BACKGROUND =
   "repeating-conic-gradient(from var(--glow-angle), oklch(72% 0.18 165 / 0.95) 0deg 30deg, transparent 30deg 110deg, oklch(62% 0.16 245 / 0.95) 110deg 140deg, transparent 140deg 220deg, oklch(68% 0.14 65 / 0.9) 220deg 250deg, transparent 250deg 360deg)";
 
 export function HeroSearch() {
-  const scrollToMentors = () => {
-    document.getElementById("mentors")?.scrollIntoView({ behavior: "smooth" });
+  const router = useRouter();
+
+  // Keep the user's question instead of silently dropping it (#203): the
+  // workspace already reads ?query= and shows it in the Ask tab.
+  const handleSubmit = (query: string) => {
+    router.push(`/workspace/ada_lovelace?query=${encodeURIComponent(query)}`);
   };
 
   return (
@@ -51,7 +56,7 @@ export function HeroSearch() {
           boxShadow: "inset 0 1px 0 oklch(100% 0 0 / 0.06)",
         }}
       >
-        <SearchBar large onQuerySubmit={scrollToMentors} />
+        <SearchBar large onQuerySubmit={handleSubmit} />
       </div>
     </div>
   );
