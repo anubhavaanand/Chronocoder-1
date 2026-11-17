@@ -79,9 +79,12 @@
   --color-background: var(--bg);
   --color-foreground: var(--fg);
 
-  --font-sans:    var(--font-sans);
-  --font-mono:    var(--font-mono);
-  --font-display: var(--font-display);
+  /* Font families — map Tailwind utilities to the :root font stacks.
+     (`--font-sans` etc. are defined in :root; referencing them here would be
+     a self-referential cycle, so the stacks are inlined.) */
+  --font-sans:    "Mona Sans", "Hubot Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono:    "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+  --font-display: "Mona Sans", "Hubot Sans", ui-sans-serif, system-ui, sans-serif;
 
   /* Surface tokens */
   --color-surface:    oklch(14% 0.012 265);
@@ -102,10 +105,12 @@
   --color-accent-rose:    oklch(62% 0.18 10);
   --color-accent-blue:    oklch(62% 0.16 245);
 
-  /* Shadow tokens */
-  --shadow-neon: var(--shadow-neon);
-  --shadow-card: var(--shadow-card);
-  --shadow-glow: var(--shadow-glow);
+  /* Shadow tokens — inlined (same values as :root) to avoid the same
+     self-referential cycle as the font tokens above. */
+  --shadow-neon:  0 0 12px oklch(72% 0.18 165 / 0.5),
+                  0 0 28px oklch(72% 0.18 165 / 0.25);
+  --shadow-card:  0 8px 32px oklch(0% 0 0 / 0.5);
+  --shadow-glow:  0 0 24px oklch(62% 0.18 10 / 0.3);
 }
 
 /* ─── Base ────────────────────────────────────────────────────────────── */
