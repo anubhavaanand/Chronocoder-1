@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { MENTORS, type Mentor } from "@/data/mentors";
@@ -66,21 +67,27 @@ function PortraitMedallion({ mentor }: { mentor: Mentor }) {
         }}
       />
 
-      <motion.img
-        src={mentor.avatarUrl}
-        alt={`Portrait of ${mentor.name}`}
-        loading="lazy"
+      <motion.div
         initial={{ opacity: 0, scale: 0.92, y: 28 }}
         whileInView={{ opacity: 1, scale: 1, y: 0 }}
         viewport={{ once: true, margin: "-80px" }}
         transition={{ duration: 0.7, ease: EASE }}
-        className="relative z-10 h-full w-full rounded-full object-cover"
+        className="relative z-10 h-full w-full overflow-hidden rounded-full"
         style={{
-          objectPosition: mentor.portraitPosition || "center",
           border: `1px solid ${mentor.accentColor}66`,
           boxShadow: `0 0 0 8px oklch(13% 0.012 265 / 0.55), 0 0 56px ${mentor.accentColor}30, 0 24px 56px oklch(0% 0 0 / 0.5)`,
         }}
-      />
+      >
+        <Image
+          src={mentor.avatarUrl}
+          alt={`Portrait of ${mentor.name}`}
+          width={360}
+          height={360}
+          sizes="(max-width: 768px) 280px, 360px"
+          className="h-full w-full object-cover"
+          style={{ objectPosition: mentor.portraitPosition || "center" }}
+        />
+      </motion.div>
 
       {/* Timeline index badge */}
       <div
