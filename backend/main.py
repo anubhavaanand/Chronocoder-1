@@ -595,13 +595,12 @@ async def feedback_websocket(websocket: WebSocket):
                 })
                 continue
             
-            # Rate limit by session_id or client IP when unauthenticated (#CC-011)
+            # Rate limit by trusted client IP. The session id is supplied by the
+            # unauthenticated client, so keying on it lets a caller rotate ids to
+            # mint a fresh bucket (#216). Authenticated requests can be keyed by
+            # user id once WS auth lands (#190).
             client_ip = get_client_ip(websocket)
-            rate_limit_key = (
-                session_id.strip()
-                if (session_id and isinstance(session_id, str) and session_id.strip() and session_id.strip() != "anonymous")
-                else f"ip:{client_ip}"
-            )
+            rate_limit_key = f"ip:{client_ip}"
             if not check_rate_limit(rate_limit_key):
                 await websocket.send_json({
                     "type": "error",
