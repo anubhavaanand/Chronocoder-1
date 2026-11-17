@@ -240,7 +240,7 @@ ${userCode}
       </header>
       
 {/* Main Content */}
-      <main className="flex-1 container mx-auto px-4 py-8">
+      <main id="main" tabIndex={-1} className="flex-1 container mx-auto px-4 py-8">
         <div className="flex justify-center mb-8">
           <SearchBarSection className="max-w-[800px]" currentMentorId={mentorId} />
         </div>

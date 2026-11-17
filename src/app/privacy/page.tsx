@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   return (
-    <main className="relative min-h-screen px-6 py-24">
+    <main id="main" tabIndex={-1} className="relative min-h-screen px-6 py-24">
       <article className="container mx-auto max-w-3xl">
         <h1 className="text-4xl font-black mb-4">Privacy Policy</h1>
         <p className="text-sm mb-10" style={{ color: "var(--muted)" }}>
