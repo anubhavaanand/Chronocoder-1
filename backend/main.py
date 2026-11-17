@@ -25,6 +25,18 @@ from backend.utils.env import env_int
 from backend.utils.websocket_manager import ConnectionManager
 from backend.db.session_repo import SessionRepository, SessionCreate, coerce_uuid
 
+# Configure logging once, at import. Uvicorn configures its own loggers but
+# leaves the root logger alone, so without this the app-level records had no
+# handler and no level control (#278).
+_LOG_LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
+_log_level_name = os.getenv("LOG_LEVEL", "INFO").strip().upper()
+
+if not logging.getLogger().handlers:
+    logging.basicConfig(
+        level=getattr(logging, _log_level_name) if _log_level_name in _LOG_LEVELS else logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
+
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
@@ -295,23 +307,23 @@ async def lifespan(app: FastAPI):
     # Startup
     global ai_gateway
     if not GOOGLE_API_KEY:
-        print("⚠️ GOOGLE_API_KEY not set - AI features will be unavailable")
+        logger.warning("GOOGLE_API_KEY not set - AI features will be unavailable")
     else:
         ai_gateway = AIGateway(api_key=GOOGLE_API_KEY)
-        print("✅ AI Gateway initialized")
+        logger.info("AI Gateway initialized")
     
     # Verify Supabase connection
     if SUPABASE_URL and SUPABASE_ANON_KEY:
         try:
             get_supabase_client()
-            print("✅ Supabase client initialized")
+            logger.info("Supabase client initialized")
         except Exception as e:
-            print(f"⚠️ Supabase init failed: {e}")
+            logger.warning("Supabase init failed: %s", e)
     
-    print("✅ Backend initialized successfully")
+    logger.info("Backend initialized successfully")
     yield
     # Shutdown
-    print("👋 Backend shutting down")
+    logger.info("Backend shutting down")
 
 
 app.router.lifespan_context = lifespan
