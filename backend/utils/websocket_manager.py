@@ -33,9 +33,14 @@ class ConnectionManager:
             self.active_connections.add(websocket)
             return True
 
-    def disconnect(self, websocket: WebSocket):
-        """Remove closed connection"""
-        self.active_connections.discard(websocket)
+    async def disconnect(self, websocket: WebSocket):
+        """Remove closed connection.
+
+        Mutating ``active_connections`` without the lock raced ``broadcast``'s
+        ``self.active_connections -= disconnected`` under concurrency (#279).
+        """
+        async with self._lock:
+            self.active_connections.discard(websocket)
 
     async def broadcast(self, message: dict):
         """Broadcast message to all connected clients without mutation race conditions"""
@@ -59,8 +64,8 @@ class ConnectionManager:
         try:
             await websocket.send_json(message)
         except Exception as e:
-            print(f"Error sending to client: {e}")
-            self.disconnect(websocket)
+            logger.warning("Error sending to client: %s", e)
+            await self.disconnect(websocket)
 
     async def send_heartbeat(self, websocket: WebSocket) -> bool:
         """Send a heartbeat ping frame to a specific client, returning False if disconnected (#CC-016)."""
@@ -68,7 +73,7 @@ class ConnectionManager:
             await websocket.send_json({"type": "ping"})
             return True
         except Exception:
-            self.disconnect(websocket)
+            await self.disconnect(websocket)
             return False
 
     async def broadcast_heartbeat(self) -> int:

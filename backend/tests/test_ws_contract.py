@@ -619,7 +619,7 @@ async def test_connection_manager_concurrency_and_safe_broadcast():
         # Concurrently add and remove connections while broadcast is awaiting send_json
         ws_new = MockWS("mutant")
         await cm.connect(ws_new)
-        cm.disconnect(ws1)
+        await cm.disconnect(ws1)
 
     ws1 = MockWS("ws1", on_send=mutate_during_broadcast)
     ws2 = MockWS("ws2")

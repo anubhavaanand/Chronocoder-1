@@ -499,10 +499,10 @@ async def feedback_websocket(websocket: WebSocket):
                 })
                 
     except WebSocketDisconnect:
-        manager.disconnect(websocket)
-    except Exception as e:
-        print(f"❌ WebSocket error: {e}")
-        manager.disconnect(websocket)
+        await manager.disconnect(websocket)
+    except Exception:
+        logger.exception("WebSocket error")
+        await manager.disconnect(websocket)
 
 
 def analyze_code_locally(code: str) -> dict:
