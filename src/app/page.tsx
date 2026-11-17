@@ -401,7 +401,9 @@ export default function Home() {
             </p>
             <div className="flex items-center justify-center gap-6 text-sm">
               <a
-                href="#features"
+                href="https://github.com/anubhavaanand/Chronocoder-1#readme"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="transition-colors duration-150 hover:text-[oklch(72%_0.18_165)]"
                 style={{ color: "var(--muted)" }}
               >
@@ -417,7 +419,7 @@ export default function Home() {
                 GitHub
               </a>
               <a
-                href="#features"
+                href="/privacy"
                 className="transition-colors duration-150 hover:text-[oklch(72%_0.18_165)]"
                 style={{ color: "var(--muted)" }}
               >
