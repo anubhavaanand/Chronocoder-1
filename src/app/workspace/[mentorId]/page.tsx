@@ -180,6 +180,7 @@ ${userCode}
       <header className="sticky top-0 z-50 backdrop-blur-md bg-retro-darker/80 border-b border-retro-border">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <button
+            type="button"
             onClick={() => router.push("/")}
             className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors"
           >
@@ -210,6 +211,7 @@ ${userCode}
           <div className="flex items-center space-x-3">
             {feedbackContent && (
               <button
+                type="button"
                 onClick={handleExport}
                 disabled={!feedbackContent}
                 className="flex items-center space-x-2 px-4 py-2 glass-effect rounded-lg hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -219,6 +221,7 @@ ${userCode}
               </button>
             )}
             <button
+              type="button"
               onClick={handleSubmit}
               disabled={isAnalyzing || !userCode.trim()}
               className="flex items-center space-x-2 px-6 py-2 bg-gradient-primary text-white font-semibold rounded-lg hover:shadow-neon transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-none"
@@ -250,6 +253,7 @@ ${userCode}
               reachable without submitting first (#CC-036). */}
           <div className="flex space-x-1 mb-6 border-b border-retro-border">
             <button
+              type="button"
               onClick={() => setActiveTab("ask")}
               className={clsx(
                 "pb-3 px-6 font-semibold transition-colors relative",
@@ -262,6 +266,7 @@ ${userCode}
               )}
             </button>
             <button
+              type="button"
               onClick={() => setActiveTab("review")}
               className={clsx(
                 "pb-3 px-6 font-semibold transition-colors relative",

@@ -74,6 +74,7 @@ export function FeedbackRenderer({
               <p className="text-sm">{error}</p>
               {onClearError && (
                 <button
+                  type="button"
                   onClick={onClearError}
                   className="mt-2 px-4 py-2 bg-red-400/20 hover:bg-red-400/30 text-red-300 rounded transition-colors"
                 >
