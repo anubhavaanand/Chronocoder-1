@@ -7,6 +7,23 @@ import { NextResponse } from "next/server";
  */
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
+/**
+ * Build an AbortSignal that fires after `ms`.
+ *
+ * `AbortSignal.timeout()` is unavailable in older Safari (<16) and some
+ * embedded WebViews, where it is `undefined`. Calling it there throws a
+ * TypeError and every request 502s (#222). Fall back to an AbortController +
+ * setTimeout so the timeout works everywhere.
+ */
+function timeoutSignal(ms: number): AbortSignal {
+  if (typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function") {
+    return AbortSignal.timeout(ms);
+  }
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(), ms);
+  return controller.signal;
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -19,7 +36,7 @@ export async function POST(request: Request) {
         ...(auth ? { Authorization: auth } : {}),
       },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(5000),
+      signal: timeoutSignal(5000),
     });
 
     const data = await res.json().catch(() => ({}));

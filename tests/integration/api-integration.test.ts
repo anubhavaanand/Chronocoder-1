@@ -171,6 +171,40 @@ describe.sequential('API & Route Integration', () => {
       expect(calledInit.signal).toBeDefined();
       expect(calledInit.signal).toBeInstanceOf(AbortSignal);
     });
+
+    it('falls back to AbortController when AbortSignal.timeout is unavailable (#222)', async () => {
+      // Simulate an older Safari/WebView where AbortSignal.timeout is undefined.
+      const originalTimeout = (AbortSignal as { timeout?: unknown }).timeout;
+      // @ts-expect-error — deliberately removing the static method for the test
+      delete AbortSignal.timeout;
+
+      try {
+        const mockFetch = vi.fn().mockResolvedValue(
+          new Response(JSON.stringify({ session_id: 'fallback-test' }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        );
+        globalThis.fetch = mockFetch;
+
+        const request = new Request('http://localhost:3000/api/sessions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mentor_id: 'hopper' }),
+        });
+
+        const response = await sessionsPost(request);
+
+        // The request must succeed (not throw / 502) and still carry a signal.
+        expect(response.status).toBe(200);
+        expect(mockFetch).toHaveBeenCalledTimes(1);
+        const [, calledInit] = mockFetch.mock.calls[0];
+        expect(calledInit.signal).toBeDefined();
+        expect(calledInit.signal).toBeInstanceOf(AbortSignal);
+      } finally {
+        (AbortSignal as { timeout?: unknown }).timeout = originalTimeout;
+      }
+    });
   });
 
   describe('WebSocket & Feedback Protocol Contracts', () => {
