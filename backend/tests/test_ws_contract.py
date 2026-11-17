@@ -498,6 +498,38 @@ def test_websocket_anonymous_rate_limiting_isolated_per_ip(client, monkeypatch):
     backend_main.request_counts.clear()
 
 
+def test_websocket_rate_limit_ignores_client_session_id(client, monkeypatch):
+    """Rotating the client-supplied session_id must not reset the per-IP limit (#216)."""
+    backend_main.request_counts.clear()
+    monkeypatch.setattr(backend_main, "RATE_LIMIT", 2)
+    monkeypatch.setattr(backend_main, "TRUSTED_PROXIES", ("testclient",))
+
+    with client.websocket_connect(
+        "/ws/feedback", headers={"x-forwarded-for": "198.51.100.20"}
+    ) as ws:
+        for session_id in ("s1", "s2"):
+            ws.send_json({
+                "mentor_id": "ada_lovelace",
+                "user_code": VALID_CODE,
+                "session_id": session_id,
+            })
+            msg = ws.receive_json()
+            assert msg["type"] == "analysis_complete"
+            ws.receive_json()
+            ws.receive_json()
+
+        ws.send_json({
+            "mentor_id": "ada_lovelace",
+            "user_code": VALID_CODE,
+            "session_id": "s3",
+        })
+        err = ws.receive_json()
+        assert err["type"] == "error"
+        assert err["payload"]["code"] == "RATE_LIMIT_EXCEEDED"
+
+    backend_main.request_counts.clear()
+
+
 def test_create_session_endpoint_wires_to_repository(client):
     """Ensure POST /api/sessions persists session via SessionRepository (#CC-012)."""
     import uuid
