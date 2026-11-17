@@ -145,6 +145,31 @@ describe('Home Page', () => {
     expect(featuresSpans.length).toBe(2);
   });
 
+  it('renders no two adjacent divider lines, for every divider (#137)', () => {
+    const { container } = render(<Home />);
+
+    // A divider line is a flex:1 1px-tall span. Collect every one on the page
+    // rather than naming sections, so a new divider is covered automatically.
+    // Match on the serialized style attribute rather than el.style, so the
+    // assertion does not depend on jsdom supporting the `flex` shorthand.
+    const isLine = (el: Element | null): boolean => {
+      if (!el || el.tagName !== 'SPAN') return false;
+      return (el.getAttribute('style') ?? '').includes('height: 1px');
+    };
+
+    const lines = Array.from(container.querySelectorAll('span')).filter((s) => isLine(s));
+
+    // The page has three dividers: Works, Their Stories, Features.
+    expect(lines.length).toBe(3);
+
+    for (const line of lines) {
+      // The bug in #129 was two adjacent flex:1 rules; guard that shape
+      // directly instead of only counting spans per section.
+      expect(isLine(line.previousElementSibling)).toBe(false);
+      expect(isLine(line.nextElementSibling)).toBe(false);
+    }
+  });
+
   it('standardizes all GitHub repository URLs to the correct canonical repository (#CC-072)', () => {
     const { container } = render(<Home />);
     const githubLinks = Array.from(container.querySelectorAll('a')).filter(
