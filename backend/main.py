@@ -410,7 +410,25 @@ async def feedback_websocket(websocket: WebSocket):
             mentor_id = data.get("mentor_id")
             user_code = data.get("user_code", "")
             session_id = data.get("session_id")
-            
+
+            # Validate types before use (#311): a non-string user_code (e.g.
+            # 123, [], {}) passed the truthiness check below and then crashed
+            # analyze_code_locally() with AttributeError, which the outer
+            # handler swallowed and turned into a silent disconnect. A
+            # non-string mentor_id likewise raises TypeError on the `in` check.
+            if "mentor_id" in data and not isinstance(mentor_id, str):
+                await websocket.send_json({
+                    "type": "error",
+                    "payload": {"code": "INVALID_INPUT", "message": "mentor_id must be a string"}
+                })
+                continue
+            if "user_code" in data and not isinstance(user_code, str):
+                await websocket.send_json({
+                    "type": "error",
+                    "payload": {"code": "INVALID_INPUT", "message": "user_code must be a string"}
+                })
+                continue
+
             if not mentor_id or not user_code:
                 await websocket.send_json({
                     "type": "error",
