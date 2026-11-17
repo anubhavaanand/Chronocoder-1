@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # Frontend (Next.js)
   frontend:
@@ -13,9 +11,10 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
-      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
-      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      # Server-side proxy target for POST /api/sessions (container network).
+      - NEXT_PUBLIC_API_URL=http://backend:8000
+      # Public backend URL used by the browser for the feedback WebSocket.
+      # Must be reachable from the host running the browser.
       - NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL:-ws://localhost:8000}
     depends_on:
       - backend
@@ -45,6 +44,8 @@ services:
       - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
       - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
       - SUPABASE_JWT_SECRET=${SUPABASE_JWT_SECRET}
+      # CORS allowlist for the browser origin serving the frontend.
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3000}
     networks:
       - chronocoder-network
     healthcheck:
