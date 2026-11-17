@@ -342,21 +342,21 @@ export default function Home() {
                 },
                 {
                   label: "04",
-                  title: "Session Persistence",
+                  title: "Session Recording",
                   description:
-                    "Your learning journey is automatically saved across devices. Pick up exactly where you left off anytime.",
+                    "Sessions are recorded through Supabase when the backend is configured with database credentials. Without them the API acknowledges the request but stores nothing.",
                 },
                 {
                   label: "05",
-                  title: "Global Edge Access",
+                  title: "Responsive Layout",
                   description:
-                    "Deployed on edge networks for minimal latency. Perfect experience on desktop, tablet, and mobile devices.",
+                    "Runs as a single container in one region. The interface adapts from desktop down to tablet and mobile widths.",
                 },
                 {
                   label: "06",
                   title: "Privacy First",
                   description:
-                    "Your code stays private. Sessions are encrypted and optionally exportable for personal records.",
+                    "Your code goes only to the configured AI provider. Sessions export to Markdown for your own records, and no third-party analytics are loaded.",
                 },
               ].map((feature) => (
                 <div
