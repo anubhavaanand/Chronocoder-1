@@ -107,6 +107,9 @@ function JourneySection({ mentor, index }: { mentor: Mentor; index: number }) {
   const paragraphs = bio?.paragraphs || (mentor.greeting ? [mentor.greeting] : []);
   const quote = bio?.quote || mentor.greeting;
   const quoteContext = bio?.quoteContext || mentor.era;
+  // Paraphrases are rendered without quotation marks and labelled, so a
+  // summary of someone's views is never presented as their verbatim words.
+  const isParaphrase = bio?.quoteKind === "paraphrase";
 
   return (
     <section
@@ -170,13 +173,14 @@ function JourneySection({ mentor, index }: { mentor: Mentor; index: number }) {
               style={{ borderColor: `${mentor.accentColor}80` }}
             >
               <p className="italic" style={{ color: "var(--fg)" }}>
-                &ldquo;{quote}&rdquo;
+                {isParaphrase ? quote : <>&ldquo;{quote}&rdquo;</>}
               </p>
               <cite
                 className="mt-1 block font-mono text-[10px] uppercase not-italic tracking-[0.15em]"
                 style={{ color: "var(--muted)" }}
               >
                 {quoteContext}
+                {isParaphrase ? " (paraphrased)" : ""}
               </cite>
             </blockquote>
 
