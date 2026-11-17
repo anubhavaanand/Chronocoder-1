@@ -9,6 +9,8 @@ from contextlib import asynccontextmanager
 from collections import OrderedDict
 import asyncio
 import ast
+import ipaddress
+import logging
 import re
 from datetime import datetime, timezone
 from typing import Optional
@@ -21,6 +23,8 @@ from supabase import create_client, Client
 from backend.services.ai_service import AIGateway
 from backend.utils.websocket_manager import ConnectionManager
 from backend.db.session_repo import SessionRepository, SessionCreate, coerce_uuid
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="ChronoCoder API",
@@ -115,16 +119,76 @@ async def verify_jwt_token(authorization: Optional[str] = Header(None)) -> str:
         raise HTTPException(status_code=401, detail=f"Invalid token: {str(e)}")
 
 
+def _parse_trusted_proxies(raw: Optional[str]) -> tuple[str, ...]:
+    """Parse a comma-separated list of trusted proxy entries from env.
+
+    Entries are matched against the WebSocket peer host verbatim. They are
+    normally IP addresses, but a literal host token (e.g. ``testclient`` under
+    Starlette's TestClient) is also accepted so tests and non-IP peers work.
+    """
+    if not raw:
+        return ()
+    tokens: list[str] = []
+    for part in raw.split(","):
+        token = part.strip()
+        if not token:
+            continue
+        try:
+            ipaddress.ip_address(token)
+        except ValueError:
+            logger.warning("TRUSTED_PROXIES entry is not an IP address: %r", token)
+        tokens.append(token)
+    return tuple(tokens)
+
+
+# Only trust X-Forwarded-For / CF-Connecting-IP when the immediate peer is a
+# configured proxy. Otherwise any client could spoof these headers to bypass
+# the IP-based rate limit (#191).
+TRUSTED_PROXIES = _parse_trusted_proxies(os.getenv("TRUSTED_PROXIES"))
+
+
+def _is_trusted_proxy(peer_ip: Optional[str]) -> bool:
+    if not TRUSTED_PROXIES or not peer_ip:
+        return False
+    # Fast path / literal host token (e.g. "testclient").
+    if peer_ip in TRUSTED_PROXIES:
+        return True
+    try:
+        peer = ipaddress.ip_address(peer_ip)
+    except ValueError:
+        return False
+    for token in TRUSTED_PROXIES:
+        try:
+            if peer == ipaddress.ip_address(token):
+                return True
+        except ValueError:
+            continue
+    return False
+
+
 def get_client_ip(websocket: WebSocket) -> str:
-    """Extract client IP address from WebSocket connection, honoring forwarded headers."""
-    forwarded = websocket.headers.get("x-forwarded-for")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    cf_ip = websocket.headers.get("cf-connecting-ip")
-    if cf_ip:
-        return cf_ip.strip()
-    if websocket.client and websocket.client.host:
-        return websocket.client.host
+    """Extract client IP address from a WebSocket connection.
+
+    Forwarded headers (``X-Forwarded-For`` / ``CF-Connecting-IP``) are only
+    honored when the immediate peer is a configured trusted proxy
+    (``TRUSTED_PROXIES``). Otherwise the peer address is authoritative, so a
+    client cannot spoof these headers to get a fresh rate-limit bucket (#191).
+    """
+    peer_ip = websocket.client.host if websocket.client else None
+
+    if _is_trusted_proxy(peer_ip):
+        forwarded = websocket.headers.get("x-forwarded-for")
+        if forwarded:
+            # Left-most entry is the original client (per XFF convention).
+            candidate = forwarded.split(",")[0].strip()
+            if candidate:
+                return candidate
+        cf_ip = websocket.headers.get("cf-connecting-ip")
+        if cf_ip:
+            return cf_ip.strip()
+
+    if peer_ip:
+        return peer_ip
     return "127.0.0.1"
 
 
