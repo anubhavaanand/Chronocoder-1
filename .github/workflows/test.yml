@@ -32,6 +32,28 @@ jobs:
       - name: Build
         run: npm run build
 
+  frontend-tests:
+    name: Frontend Tests (Vitest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+          cache-dependency-path: tests/package-lock.json
+
+      - name: Install test dependencies
+        run: npm ci --prefix tests
+
+      - name: Run unit and component tests
+        run: npm --prefix tests run test
+
+      - name: Typecheck test files
+        run: npm --prefix tests run test:types
+
   backend-lint:
     name: Backend Lint
     runs-on: ubuntu-latest
