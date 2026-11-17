@@ -78,8 +78,8 @@ def test_feedback_message_sequence(client):
     ]
 
     analysis = messages[0]["payload"]
-    # backend counts lines with str.split("\n") — a trailing newline is a line
-    assert analysis["line_count"] == len(VALID_CODE.split("\n"))
+    # splitlines() counts real lines — a trailing newline is not an extra line
+    assert analysis["line_count"] == len(VALID_CODE.splitlines())
     assert analysis["functions"] == 1
 
     chunk = messages[1]["payload"]
@@ -87,6 +87,13 @@ def test_feedback_message_sequence(client):
 
     assert messages[2]["payload"]["mentor_id"] == "ada_lovelace"
     assert messages[2]["payload"]["session_id"] == "t1"
+
+
+def test_line_count_ignores_trailing_newline_and_handles_crlf():
+    """#288: a trailing newline is not an extra line, and CRLF leaves no stray \\r."""
+    assert backend_main.analyze_code_locally("x = 1\n")["line_count"] == 1
+    assert backend_main.analyze_code_locally("x = 1\r\ny = 2\r\n")["line_count"] == 2
+    assert backend_main.analyze_code_locally("x = 1\ny = 2")["line_count"] == 2
 
 
 def test_invalid_input_is_rejected(client):

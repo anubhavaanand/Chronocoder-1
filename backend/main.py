@@ -507,7 +507,8 @@ async def feedback_websocket(websocket: WebSocket):
 
 def analyze_code_locally(code: str) -> dict:
     """Analyze code locally using Python AST parser with regex fallback for incomplete syntax (#CC-013)."""
-    lines = code.split("\n")
+    # splitlines() handles \r\n and does not count a trailing newline as a line (#288)
+    lines = code.splitlines()
     functions = 0
     classes = 0
     imports = 0
