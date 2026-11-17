@@ -5,7 +5,7 @@
 [![Python](https://img.shields.io/badge/Python-3.12+-green)](https://python.org/)
 [![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
 
-**Learn Python from the Legends of Computing** — A complete rebuild using modern 2026 tech stack with real-time streaming, global edge distribution, and production-grade infrastructure.
+**Learn Python from the Legends of Computing** — A complete rebuild on a modern Next.js + FastAPI stack, with real-time streaming feedback.
 
 ---
 
@@ -28,13 +28,13 @@
 ### Key Features
 
 - ⚡ **Real-time Streaming**: Feedback streamed token-by-token like chat apps
-- 🌍 **Global Edge Distribution**: Deployed on 30+ CDN locations worldwide
-- 🔐 **Production Security**: Rate limiting, input sanitization, HTTPS-only
-- 💾 **Persistent Sessions**: Saved across devices via Supabase
-- 🧪 **Comprehensive Testing**: E2E, unit, integration tests with CI/CD automation
-- 📊 **Analytics Ready**: Built-in monitoring with Sentry + Logtail
+- 🌍 **Containerised Deployment**: Next.js standalone image for Fly.io, plus a Docker Compose setup for local runs
+- 🔐 **Request Validation**: Rate limiting on the feedback API and a server-side cap on WebSocket payload size
+- 💾 **Optional Session Persistence**: Session records via Supabase when database credentials are configured; the API still responds without them
+- 🧪 **Test Suites**: Vitest component tests and a Pytest WebSocket contract suite. CI runs backend lint, backend tests, frontend lint & build, and Docker build validation
+- 📊 **Health Reporting**: `GET /api/health` reports per-dependency readiness (`ai`, `database`)
 - 🎨 **Professional UI**: Glassmorphism cards, neon effects, retro-computing theme
-- 🔒 **Privacy First**: Encrypted sessions, optional export functionality
+- 🔒 **Exportable Sessions**: Download a session as Markdown; no third-party analytics or trackers are loaded
 
 ---
 
