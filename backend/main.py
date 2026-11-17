@@ -1,5 +1,5 @@
 """
-ChronoCoder v4 - Backend API
+ChronoCoder v3 - Backend API
 FastAPI Application Server with Supabase Auth + Structured AI Feedback
 """
 
@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="ChronoCoder API",
-    version="4.0.0",
+    version="3.0.0",
     description="AI-Powered Python Learning Platform Backend",
     docs_url="/api/docs",
     redoc_url="/api/redoc"
@@ -299,7 +299,7 @@ app.add_middleware(
 
 @app.get("/")
 async def root():
-    return {"status": "healthy", "message": "ChronoCoder v4 API", "version": "4.0.0"}
+    return {"status": "healthy", "message": "ChronoCoder v3 API", "version": "3.0.0"}
 
 
 @app.get("/api/health")
