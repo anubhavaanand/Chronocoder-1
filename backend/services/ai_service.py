@@ -114,8 +114,8 @@ def _extract_partial_array(
 
 
 def extract_partial_feedback(text: str) -> dict:
-    """Best-effort extraction of the MentorFeedback fields from a partial
-    JSON object text (possibly a prefix of the full object).
+    """Best-effort extraction of the feedback fields from a partial JSON
+    object text (possibly a prefix of the full object).
 
     - Complete fields decode fully.
     - An unterminated string value yields its decoded prefix (typewriter).
@@ -183,21 +183,6 @@ def extract_partial_feedback(text: str) -> dict:
                 break
 
     return result
-
-
-class FeedbackSection(BaseModel):
-    id: str
-    label: str
-    icon: str
-    content: str
-
-
-class MentorFeedback(BaseModel):
-    mentor_id: str
-    reading: str
-    sections: List[FeedbackSection]
-    challenge: str
-    closing: str
 
 
 class MentorConfig(BaseModel):
