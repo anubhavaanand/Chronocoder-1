@@ -39,3 +39,6 @@ playwright-report/
 avatars/
 session-*.md
 tsconfig.tsbuildinfo
+
+# Local agent planning notes (contain developer machine paths)
+.kilo/plans/
