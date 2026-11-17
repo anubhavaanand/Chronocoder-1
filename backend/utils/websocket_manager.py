@@ -4,9 +4,13 @@ Manages multiple client connections for real-time streaming
 """
 
 import asyncio
-import os
+import logging
 from typing import Set, Optional
 from fastapi import WebSocket
+
+from backend.utils.env import env_int
+
+logger = logging.getLogger(__name__)
 
 
 class ConnectionManager:
@@ -14,7 +18,7 @@ class ConnectionManager:
 
     def __init__(self, max_connections: Optional[int] = None):
         self.active_connections: Set[WebSocket] = set()
-        env_limit = int(os.getenv("MAX_WS_CONNECTIONS", "1000"))
+        env_limit = env_int("MAX_WS_CONNECTIONS", 1000)
         self.max_connections = max_connections if max_connections is not None else env_limit
         self._lock = asyncio.Lock()
 
@@ -29,9 +33,14 @@ class ConnectionManager:
             self.active_connections.add(websocket)
             return True
 
-    def disconnect(self, websocket: WebSocket):
-        """Remove closed connection"""
-        self.active_connections.discard(websocket)
+    async def disconnect(self, websocket: WebSocket):
+        """Remove closed connection.
+
+        Mutating ``active_connections`` without the lock raced ``broadcast``'s
+        ``self.active_connections -= disconnected`` under concurrency (#279).
+        """
+        async with self._lock:
+            self.active_connections.discard(websocket)
 
     async def broadcast(self, message: dict):
         """Broadcast message to all connected clients without mutation race conditions"""
@@ -55,8 +64,8 @@ class ConnectionManager:
         try:
             await websocket.send_json(message)
         except Exception as e:
-            print(f"Error sending to client: {e}")
-            self.disconnect(websocket)
+            logger.warning("Error sending to client: %s", e)
+            await self.disconnect(websocket)
 
     async def send_heartbeat(self, websocket: WebSocket) -> bool:
         """Send a heartbeat ping frame to a specific client, returning False if disconnected (#CC-016)."""
@@ -64,7 +73,7 @@ class ConnectionManager:
             await websocket.send_json({"type": "ping"})
             return True
         except Exception:
-            self.disconnect(websocket)
+            await self.disconnect(websocket)
             return False
 
     async def broadcast_heartbeat(self) -> int:

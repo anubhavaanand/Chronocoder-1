@@ -13,9 +13,6 @@ from backend.services.ai_service import resolve_mentors_dir
 
 logger = logging.getLogger(__name__)
 
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-
 VALID_MENTOR_COLUMNS = {
     "mentor_id",
     "name",
@@ -34,8 +31,8 @@ VALID_MENTOR_COLUMNS = {
 
 
 def get_supabase() -> Client:
-    supabase_url = os.getenv("SUPABASE_URL") or SUPABASE_URL
-    supabase_service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or SUPABASE_SERVICE_KEY
+    supabase_url = os.getenv("SUPABASE_URL")
+    supabase_service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
     if not supabase_url or not supabase_service_key:
         raise RuntimeError("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY required")
     return create_client(supabase_url, supabase_service_key)
@@ -95,12 +92,12 @@ def seed_mentors(
         # Upsert mentor
         result = client.table("mentors").upsert(record).execute()
         seeded_records.append(record)
-        logger.info(f"Seeded {record['mentor_id']}: {result}")
-        print(f"Seeded {record['mentor_id']}: {result}")
+        logger.info("Seeded %s: %s", record["mentor_id"], result)
 
-    print(f"All mentors seeded. Total: {len(seeded_records)}")
+    logger.info("All mentors seeded. Total: %s", len(seeded_records))
     return seeded_records
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     seed_mentors()

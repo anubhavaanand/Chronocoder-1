@@ -21,6 +21,7 @@ from supabase import create_client, Client
 
 # Import services
 from backend.services.ai_service import AIGateway
+from backend.utils.env import env_int
 from backend.utils.websocket_manager import ConnectionManager
 from backend.db.session_repo import SessionRepository, SessionCreate, coerce_uuid
 
@@ -48,7 +49,7 @@ SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
 # Rate limiting
-MAX_RATE_LIMIT_KEYS = int(os.getenv("MAX_RATE_LIMIT_KEYS", "10000"))
+MAX_RATE_LIMIT_KEYS = env_int("MAX_RATE_LIMIT_KEYS", 10000)
 request_counts: OrderedDict[str, list[datetime]] = OrderedDict()
 RATE_LIMIT = 30  # requests per minute
 
@@ -471,6 +472,8 @@ async def feedback_websocket(websocket: WebSocket):
             # Stream AI feedback with structured output
             if ai_gateway:
                 try:
+                    # Resolve once per request, not per chunk (#281)
+                    pace_delay = get_stream_pace_delay()
                     async for chunk in ai_gateway.get_feedback_streaming(
                         mentor_id=mentor_id,
                         user_code=user_code,
@@ -478,7 +481,6 @@ async def feedback_websocket(websocket: WebSocket):
                     ):
                         # chunk is already a dict with type/payload from new AIGateway
                         await websocket.send_json(chunk)
-                        pace_delay = get_stream_pace_delay()
                         if pace_delay > 0:
                             await asyncio.sleep(pace_delay)
 
@@ -498,15 +500,16 @@ async def feedback_websocket(websocket: WebSocket):
                 })
                 
     except WebSocketDisconnect:
-        manager.disconnect(websocket)
-    except Exception as e:
-        print(f"❌ WebSocket error: {e}")
-        manager.disconnect(websocket)
+        await manager.disconnect(websocket)
+    except Exception:
+        logger.exception("WebSocket error")
+        await manager.disconnect(websocket)
 
 
 def analyze_code_locally(code: str) -> dict:
     """Analyze code locally using Python AST parser with regex fallback for incomplete syntax (#CC-013)."""
-    lines = code.split("\n")
+    # splitlines() handles \r\n and does not count a trailing newline as a line (#288)
+    lines = code.splitlines()
     functions = 0
     classes = 0
     imports = 0
@@ -555,7 +558,7 @@ def get_uvicorn_config() -> dict:
     else:
         should_reload = os.getenv("FASTAPI_ENV", FASTAPI_ENV).strip().lower() != "production"
 
-    port = int(os.getenv("PORT", "8000"))
+    port = env_int("PORT", 8000)
     host = os.getenv("HOST", "0.0.0.0")
     return {
         "app": "main:app",
