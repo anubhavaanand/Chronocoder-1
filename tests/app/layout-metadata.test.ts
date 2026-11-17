@@ -24,8 +24,9 @@ describe('root layout metadata', () => {
   });
 
   it('defines metadataBase as an absolute URL (#199)', () => {
-    expect(metadata.metadataBase).toBeInstanceOf(URL);
-    expect(metadata.metadataBase!.protocol).toBe('https:');
+    const metadataBase = metadata.metadataBase as URL;
+    expect(metadataBase).toBeInstanceOf(URL);
+    expect(metadataBase.protocol).toBe('https:');
   });
 
   it('has openGraph images with explicit dimensions (#199)', () => {
