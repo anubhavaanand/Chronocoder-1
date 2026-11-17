@@ -68,6 +68,10 @@ def get_mentor_catalog() -> dict:
             raise HTTPException(status_code=503, detail="Mentor catalog unavailable")
     return _mentor_catalog
 
+# Max accepted user_code length on the feedback WebSocket. The editor limit is
+# advisory only, so the server has to enforce it too (#211).
+MAX_CODE_LENGTH = env_int("MAX_CODE_LENGTH", 50000)
+
 # Rate limiting
 MAX_RATE_LIMIT_KEYS = env_int("MAX_RATE_LIMIT_KEYS", 10000)
 request_counts: OrderedDict[str, list[datetime]] = OrderedDict()
@@ -479,6 +483,19 @@ async def feedback_websocket(websocket: WebSocket):
                 await websocket.send_json({
                     "type": "error",
                     "payload": {"code": "INVALID_INPUT", "message": "Missing mentor_id or user_code"}
+                })
+                continue
+
+            # Reject oversized payloads before AST analysis or the Gemini call.
+            # Without this the only guard is the editor's characterLimit, which
+            # a non-browser client simply ignores (#211).
+            if len(user_code) > MAX_CODE_LENGTH:
+                await websocket.send_json({
+                    "type": "error",
+                    "payload": {
+                        "code": "PAYLOAD_TOO_LARGE",
+                        "message": f"user_code exceeds {MAX_CODE_LENGTH} characters",
+                    },
                 })
                 continue
 

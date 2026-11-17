@@ -108,6 +108,26 @@ def test_invalid_input_is_rejected(client):
     assert message["payload"]["code"] == "INVALID_INPUT"
 
 
+def test_oversized_user_code_is_rejected(client, monkeypatch):
+    """user_code above MAX_CODE_LENGTH must be rejected before analysis (#211).
+
+    The editor's characterLimit is advisory, so the server has to enforce it.
+    """
+    monkeypatch.setattr(backend_main, "MAX_CODE_LENGTH", 10)
+
+    with client.websocket_connect("/ws/feedback") as ws:
+        ws.send_json({"mentor_id": "ada_lovelace", "user_code": "x" * 11})
+        message = ws.receive_json()
+
+        assert message["type"] == "error"
+        assert message["payload"]["code"] == "PAYLOAD_TOO_LARGE"
+
+        # The socket must stay usable after the rejection.
+        ws.send_json({"mentor_id": "", "user_code": ""})
+        follow_up = ws.receive_json()
+        assert follow_up["payload"]["code"] == "INVALID_INPUT"
+
+
 def test_non_string_user_code_is_rejected_without_disconnect(client):
     """Non-string user_code must yield an INVALID_INPUT error, not a silent close (#311).
 
