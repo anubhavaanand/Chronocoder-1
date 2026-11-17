@@ -20,7 +20,7 @@ from jose import jwt, JWTError
 from supabase import create_client, Client
 
 # Import services
-from backend.services.ai_service import AIGateway
+from backend.services.ai_service import AIGateway, load_mentor_registry, mentor_summary
 from backend.utils.env import env_int
 from backend.utils.websocket_manager import ConnectionManager
 from backend.db.session_repo import SessionRepository, SessionCreate, coerce_uuid
@@ -47,6 +47,26 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
 SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+
+# Mentor catalog. Loaded lazily and independent of the Gemini client: the
+# catalog is static JSON and must be served even with no GOOGLE_API_KEY (#213).
+_mentor_catalog: Optional[dict] = None
+
+
+def get_mentor_catalog() -> dict:
+    """Return the mentor registry, loading it on first use.
+
+    A failure here means the JSON catalog itself is missing or unreadable, so
+    it surfaces as 503 rather than a 500 traceback.
+    """
+    global _mentor_catalog
+    if _mentor_catalog is None:
+        try:
+            _mentor_catalog = load_mentor_registry()
+        except Exception as e:
+            logger.error("Mentor catalog failed to load: %s", e)
+            raise HTTPException(status_code=503, detail="Mentor catalog unavailable")
+    return _mentor_catalog
 
 # Rate limiting
 MAX_RATE_LIMIT_KEYS = env_int("MAX_RATE_LIMIT_KEYS", 10000)
@@ -340,18 +360,17 @@ async def health_check():
 # Public mentor catalog endpoints (#CC-018)
 @app.get("/api/mentors", tags=["mentors"])
 async def get_mentors():
-    if not ai_gateway:
-        raise HTTPException(status_code=503, detail="AI service unavailable")
-    return {"mentors": ai_gateway.list_mentors()}
+    catalog = get_mentor_catalog()
+    return {"mentors": [mentor_summary(m) for m in catalog.values()]}
 
 
 @app.get("/api/mentors/{mentor_id}", tags=["mentors"])
 async def get_mentor(mentor_id: str):
-    if not ai_gateway:
-        raise HTTPException(status_code=503, detail="AI service unavailable")
-    config = ai_gateway.get_mentor_config(mentor_id)
+    config = get_mentor_catalog().get(mentor_id)
     if not config:
         raise HTTPException(status_code=404, detail="Mentor not found")
+    # Keep the single-mentor shape (id, not mentor_id) that clients
+    # already depend on.
     return {
         "id": config.mentor_id,
         "name": config.name,

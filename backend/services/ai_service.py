@@ -219,6 +219,36 @@ class MentorConfig(BaseModel):
 DEFAULT_GEMINI_MODEL = "gemini-2.0-flash"
 
 
+def load_mentor_registry(mentors_dir: Optional[Union[Path, str]] = None) -> dict[str, MentorConfig]:
+    """Load mentor JSON files from disk.
+
+    Deliberately independent of the Gemini client: the catalog is static JSON,
+    so it must be readable even when no API key is configured (#213).
+    """
+    directory = resolve_mentors_dir(mentors_dir)
+    mentors: dict[str, MentorConfig] = {}
+    for path in directory.glob("*.json"):
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        mentors[data["mentor_id"]] = MentorConfig(**data)
+    if not mentors:
+        raise RuntimeError(f"No mentor configs found in {directory}")
+    return mentors
+
+
+def mentor_summary(mentor: MentorConfig) -> dict:
+    """Public shape of a mentor, shared by the catalog endpoints."""
+    return {
+        "mentor_id": mentor.mentor_id,
+        "name": mentor.name,
+        "era": mentor.era,
+        "icon": mentor.icon,
+        "accent_color": mentor.accent_color,
+        "avatar_url": mentor.avatar_url,
+        "signature_opening": mentor.signature_opening,
+    }
+
+
 class AIGateway:
     """Unified interface to Google Gemini API with streaming + structured output."""
 
@@ -300,15 +330,7 @@ class AIGateway:
 
     def _load_mentor_registry(self) -> dict[str, MentorConfig]:
         """Load all mentor JSON files from self.mentors_dir."""
-        mentors = {}
-        for path in self.mentors_dir.glob("*.json"):
-            with open(path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            mentor_id = data["mentor_id"]
-            mentors[mentor_id] = MentorConfig(**data)
-        if not mentors:
-            raise RuntimeError(f"No mentor configs found in {self.mentors_dir}")
-        return mentors
+        return load_mentor_registry(self.mentors_dir)
 
     def _build_response_schema(self, mentor: MentorConfig) -> dict:
         """Dynamically generate Gemini OpenAPI responseSchema from mentor.feedback_schema."""
@@ -524,15 +546,4 @@ Tone: {mentor.tone}
         return self.mentors.get(mentor_id)
 
     def list_mentors(self) -> List[dict]:
-        return [
-            {
-                "mentor_id": m.mentor_id,
-                "name": m.name,
-                "era": m.era,
-                "icon": m.icon,
-                "accent_color": m.accent_color,
-                "avatar_url": m.avatar_url,
-                "signature_opening": m.signature_opening,
-            }
-            for m in self.mentors.values()
-        ]
+        return [mentor_summary(m) for m in self.mentors.values()]
