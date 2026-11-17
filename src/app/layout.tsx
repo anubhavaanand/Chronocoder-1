@@ -70,6 +70,19 @@ export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en" className={jetbrainsMono.variable}>
       <body className="min-h-screen bg-[var(--bg)] text-[var(--fg)] font-sans antialiased">
+        {/*
+         * Bypass-blocks link (WCAG 2.4.1). It is the first focusable
+         * element in the document, so keyboard and screen-reader users can
+         * jump past the sticky header/nav straight to the page content.
+         * Every route's <main> carries id="main" and tabIndex={-1} so focus
+         * actually lands there.
+         */}
+        <a
+          href="#main"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-md focus:bg-[var(--accent)] focus:px-4 focus:py-2 focus:font-semibold focus:text-[var(--bg)] focus:outline-none"
+        >
+          Skip to content
+        </a>
         {children}
       </body>
     </html>

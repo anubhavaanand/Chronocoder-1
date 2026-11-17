@@ -77,6 +77,8 @@ export default function Home() {
       </div>
 
       <main
+        id="main"
+        tabIndex={-1}
         className="relative min-h-screen flex flex-col"
         style={{ isolation: "isolate" }}
       >
