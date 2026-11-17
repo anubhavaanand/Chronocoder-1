@@ -1,4 +1,4 @@
-# 🕰️ ChronoCoder v3 - Production-Ready AI Mentor Platform
+# 🕰️ ChronoCoder v3 - AI Mentor Platform
 
 [![Next.js](https://img.shields.io/badge/Next.js-16-black)](https://nextjs.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.109+-blue)](https://fastapi.tiangolo.com/)
@@ -19,7 +19,7 @@
 | **Backend** | Single-file monolith | FastAPI microservices | Async-first, WebSocket support |
 | **Database** | JSON files | PostgreSQL (Supabase) | Persistent, scalable, ACID-compliant |
 | **Auth** | None | Supabase Auth (Roadmap) | Multi-provider login (Email + OAuth) planned |
-| **Deployment** | Streamlit Cloud | Fly.io + Vercel | Global edge, 99.9% uptime SLA |
+| **Deployment** | Streamlit Cloud | Fly.io + Vercel | Global edge deployment |
 | **Streaming** | Polling | WebSockets/SSE | Real-time token-by-token feedback |
 | **Testing** | Manual | Vitest + Pytest | Automated CI test suites |
 | **Performance** | ~3.5s TTI | <1.5s TTI | 2.3x faster |
@@ -199,15 +199,19 @@ cd tests && npm run test:watch
 
 ### Performance Benchmarks
 
-Target metrics (achievable with proper optimization):
+Targets, not measurements. Nothing in this repository measures these
+numbers — there is no Lighthouse budget, bundle-size gate, or load-test
+harness wired into CI, and `tests/performance/budgets.json` is not
+enforced anywhere. Treat the table as goals to verify, not as achieved
+results.
 
-| Metric | Target | Current | Status |
-|--------|--------|---------|--------|
-| First Contentful Paint | <1.0s | ~0.8s | ✅ Achieved |
-| Time to Interactive | <1.5s | ~1.2s | ✅ Achieved |
-| Lighthouse Score | >95 | 96/100 | ✅ Achieved |
-| Bundle Size | <150KB gzipped | ~120KB | ✅ Achieved |
-| API Response Time | <300ms p95 | ~250ms | ✅ Achieved |
+| Metric | Target | Measured |
+|--------|--------|----------|
+| First Contentful Paint | <1.0s | not measured |
+| Time to Interactive | <1.5s | not measured |
+| Lighthouse Score | >95 | not measured |
+| Bundle Size | <150KB gzipped | not measured |
+| API Response Time | <300ms p95 | not measured |
 
 ---
 
@@ -299,10 +303,10 @@ If you use ChronoCoder in your research or project, please cite it using the met
 
 ## 🙏 Acknowledgments
 
-This project builds upon the original ChronoCoder concept and transforms it into a production-grade SaaS platform suitable for millions of users. All historical mentor personas are based on real computing legends whose contributions shaped modern software engineering.
+This project builds upon the original ChronoCoder concept and rebuilds it on a modern Next.js + FastAPI stack. All historical mentor personas are based on real computing legends whose contributions shaped modern software engineering.
 
 **Version**: 3.0.0  
-**Status**: Production Ready ✅  
+**Status**: Active development  
 **Last Updated**: September 23, 2026
 
 ---
