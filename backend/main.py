@@ -472,6 +472,8 @@ async def feedback_websocket(websocket: WebSocket):
             # Stream AI feedback with structured output
             if ai_gateway:
                 try:
+                    # Resolve once per request, not per chunk (#281)
+                    pace_delay = get_stream_pace_delay()
                     async for chunk in ai_gateway.get_feedback_streaming(
                         mentor_id=mentor_id,
                         user_code=user_code,
@@ -479,7 +481,6 @@ async def feedback_websocket(websocket: WebSocket):
                     ):
                         # chunk is already a dict with type/payload from new AIGateway
                         await websocket.send_json(chunk)
-                        pace_delay = get_stream_pace_delay()
                         if pace_delay > 0:
                             await asyncio.sleep(pace_delay)
 
