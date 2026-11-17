@@ -8,7 +8,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 
 let currentQuery: string | null = null;
 let currentMentorId: string = 'alan_turing';
@@ -106,5 +106,29 @@ describe.sequential('WorkspacePage ?query= capture', () => {
     currentMentorId = 'non_existent_mentor';
     expect(() => render(<WorkspacePage />)).toThrow('NEXT_NOT_FOUND');
     expect(notFoundMock).toHaveBeenCalled();
+  });
+
+  it('exposes accessible tablist/tab semantics for the workspace tabs (#240)', () => {
+    render(<WorkspacePage />);
+
+    const tablist = screen.getByRole('tablist', { name: 'Workspace views' });
+    expect(tablist).toBeInTheDocument();
+
+    const askTab = screen.getByRole('tab', { name: 'Ask Question' });
+    const reviewTab = screen.getByRole('tab', { name: 'Code Review' });
+
+    // Exactly one tab is selected, and it points at its panel.
+    expect(askTab).toHaveAttribute('aria-selected', 'true');
+    expect(reviewTab).toHaveAttribute('aria-selected', 'false');
+    expect(askTab).toHaveAttribute('aria-controls', 'panel-ask');
+    expect(screen.getByRole('tabpanel', { name: 'Ask Question' })).toBeInTheDocument();
+
+    // ArrowRight moves selection to Code Review.
+    askTab.focus();
+    fireEvent.keyDown(askTab, { key: 'ArrowRight' });
+    expect(screen.getByRole('tab', { name: 'Code Review' })).toHaveAttribute(
+      'aria-selected',
+      'true'
+    );
   });
 });
