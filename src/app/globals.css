@@ -24,7 +24,7 @@
   /* Text — synced with gallery */
   --fg:          oklch(96% 0.005 265);         /* warm white (gallery match) */
   --fg-mid:      oklch(72% 0.008 265);         /* secondary text */
-  --muted:       oklch(52% 0.012 265);         /* de-emphasised (gallery match) */
+  --muted:       oklch(62% 0.012 265);         /* de-emphasised; 5.7:1 on --bg, 5.6:1 on --surface-solid (WCAG AA) */
 
   /* Borders */
   --border:      oklch(100% 0 0 / 0.08);       /* hairline glass edge */
