@@ -15,6 +15,8 @@ export interface FeedbackRendererProps {
   isAnalyzing: boolean;
   error: string | null;
   onClearError?: () => void;
+  /** Re-run the request after an error. Preferred over onClearError for "Try Again". */
+  onRetry?: () => void;
 }
 
 /**
@@ -57,6 +59,7 @@ export function FeedbackRenderer({
   isAnalyzing,
   error,
   onClearError,
+  onRetry,
 }: FeedbackRendererProps) {
   const hasContent =
     Boolean(reading) || sections.length > 0 || Boolean(challenge);
@@ -72,10 +75,10 @@ export function FeedbackRenderer({
             <div>
               <p className="font-semibold">Error:</p>
               <p className="text-sm">{error}</p>
-              {onClearError && (
+              {(onRetry || onClearError) && (
                 <button
                   type="button"
-                  onClick={onClearError}
+                  onClick={onRetry ?? onClearError}
                   className="mt-2 px-4 py-2 bg-red-400/20 hover:bg-red-400/30 text-red-300 rounded transition-colors"
                 >
                   Try Again
