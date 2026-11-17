@@ -205,6 +205,25 @@ describe.sequential('API & Route Integration', () => {
         (AbortSignal as { timeout?: unknown }).timeout = originalTimeout;
       }
     });
+
+    it('rejects oversized bodies with 413 before forwarding (#223)', async () => {
+      const mockFetch = vi.fn();
+      globalThis.fetch = mockFetch;
+
+      // Declared Content-Length above the 256 KB cap → 413, backend untouched.
+      const request = new Request('http://localhost:3000/api/sessions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': String(300 * 1024),
+        },
+        body: JSON.stringify({ mentor_id: 'ada' }),
+      });
+
+      const response = await sessionsPost(request);
+      expect(response.status).toBe(413);
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
   });
 
   describe('WebSocket & Feedback Protocol Contracts', () => {

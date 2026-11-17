@@ -8,6 +8,14 @@ import { NextResponse } from "next/server";
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 /**
+ * Maximum accepted request body size (bytes). This proxy forwards arbitrary
+ * client JSON to the backend, so without a cap a huge body is read fully into
+ * memory before being rejected downstream (#223). 256 KB is far above any real
+ * session payload (code + feedback) while still bounding memory.
+ */
+const MAX_BODY_BYTES = 256 * 1024;
+
+/**
  * Build an AbortSignal that fires after `ms`.
  *
  * `AbortSignal.timeout()` is unavailable in older Safari (<16) and some
@@ -26,8 +34,28 @@ function timeoutSignal(ms: number): AbortSignal {
 
 export async function POST(request: Request) {
   try {
+    // Reject oversized bodies up front from the declared Content-Length so a
+    // huge payload is never buffered into memory (#223).
+    const declaredLength = Number(request.headers.get("content-length") ?? "");
+    if (Number.isFinite(declaredLength) && declaredLength > MAX_BODY_BYTES) {
+      return NextResponse.json(
+        { code: "PAYLOAD_TOO_LARGE", detail: `Request body exceeds ${MAX_BODY_BYTES} bytes` },
+        { status: 413 },
+      );
+    }
+
     const body = await request.json();
     const auth = request.headers.get("authorization");
+
+    // Also enforce the cap on the actual bytes, for chunked requests that omit
+    // Content-Length. Serialise once and measure.
+    const serialized = JSON.stringify(body);
+    if (serialized.length > MAX_BODY_BYTES) {
+      return NextResponse.json(
+        { code: "PAYLOAD_TOO_LARGE", detail: `Request body exceeds ${MAX_BODY_BYTES} bytes` },
+        { status: 413 },
+      );
+    }
 
     const res = await fetch(`${BACKEND_URL}/api/sessions`, {
       method: "POST",
@@ -35,7 +63,7 @@ export async function POST(request: Request) {
         "Content-Type": "application/json",
         ...(auth ? { Authorization: auth } : {}),
       },
-      body: JSON.stringify(body),
+      body: serialized,
       signal: timeoutSignal(5000),
     });
 
