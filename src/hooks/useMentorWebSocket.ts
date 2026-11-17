@@ -225,6 +225,18 @@ export function useMentorWebSocket(options: UseMentorWSOptions) {
             if (request) socket.send(JSON.stringify(request));
           });
         }, delay);
+      } else if (
+        event.code !== 1000 &&
+        !intentionalClose.current &&
+        pendingRequest.current
+      ) {
+        // Reconnect budget exhausted (or no request left to replay): surface a
+        // clear error instead of ending silently with isAnalyzing=false and no
+        // content (#128).
+        pendingRequest.current = null;
+        handlersRef.current.onError?.(
+          "Connection lost before feedback completed. Please try again.",
+        );
       }
     };
 

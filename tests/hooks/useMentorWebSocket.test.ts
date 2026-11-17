@@ -477,6 +477,44 @@ describe.sequential('useMentorWebSocket', () => {
     }
   });
 
+  it('surfaces an error when reconnect attempts are exhausted (#128)', () => {
+    vi.useFakeTimers();
+    try {
+      const onError = vi.fn();
+      const { result, unmount } = renderHook(() =>
+        useMentorWebSocket({ mentorId: 'turing', onError })
+      );
+
+      act(() => {
+        result.current.requestFeedback('def enigma(): pass');
+      });
+      act(() => {
+        MockWebSocket.instances[0].simulateOpen();
+      });
+
+      // Each drop below fails to re-establish: the new socket is closed before
+      // it opens, so ws.onopen (which resets the attempt counter) never runs.
+      // After 3 reconnects the next close must surface an error (#128).
+      for (let i = 0; i < 4; i++) {
+        const active = MockWebSocket.instances[MockWebSocket.instances.length - 1];
+        act(() => {
+          active.simulateAbnormalClose(1006);
+        });
+        act(() => {
+          vi.advanceTimersByTime(20000);
+        });
+      }
+
+      expect(onError).toHaveBeenCalledWith(
+        expect.stringMatching(/Connection lost before feedback completed/)
+      );
+      expect(result.current.isAnalyzing).toBe(false);
+      unmount();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   describe('resolveWebSocketUrl (#CC-047)', () => {
     const originalLocation = window.location;
 
