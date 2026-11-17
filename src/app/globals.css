@@ -360,6 +360,12 @@ h1, h2, h3, h4, h5, h6 {
 
 /* ─── Reduced Motion ──────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
+  /* Smooth scrolling is an animation trigger for vestibular disorders
+     (WCAG 2.3.3); disable it along with the CSS animations below. */
+  html {
+    scroll-behavior: auto;
+  }
+
   .animate-float,
   .animate-pulse-glow,
   .animate-shimmer {
