@@ -18,6 +18,9 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL || "https://chronocoder-1.onrender.com"
+  ),
   title: "ChronoCoder — Learn Python from Legends of Computing",
   description:
     "Get code reviews from legendary programmers including Ada Lovelace, Linus Torvalds, Grace Hopper, Alan Turing, and more. AI-powered Python learning platform.",
@@ -37,11 +40,21 @@ export const metadata: Metadata = {
     description: "Learn Python from the legends themselves",
     type: "website",
     locale: "en_US",
+    siteName: "ChronoCoder",
+    images: [
+      {
+        url: "/og.png",
+        width: 1200,
+        height: 630,
+        alt: "ChronoCoder — Learn Python from the legends of computing",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "ChronoCoder — AI-Powered Code Review",
     description: "Learn Python from legendary programmers",
+    images: ["/og.png"],
   },
 };
 
