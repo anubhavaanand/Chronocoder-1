@@ -328,8 +328,8 @@ def test_rate_limit_lru_capacity_eviction(monkeypatch):
     backend_main.request_counts.clear()
 
 
-def test_get_client_ip_extraction():
-    """Ensure get_client_ip correctly resolves client IP and forwarded headers (#CC-011)."""
+def test_get_client_ip_extraction(monkeypatch):
+    """Ensure get_client_ip trusts forwarded headers only from configured proxies (#CC-011, #191)."""
     from starlette.datastructures import Headers
 
     class DummyClient:
@@ -340,27 +340,43 @@ def test_get_client_ip_extraction():
             self.headers = Headers(headers or {})
             self.client = client
 
-    # Normal client
+    # No TRUSTED_PROXIES configured: forwarded headers are ignored, the peer
+    # address is authoritative (#191).
+    monkeypatch.setattr(backend_main, "TRUSTED_PROXIES", ())
+
     ws1 = DummyWS(client=DummyClient())
     assert backend_main.get_client_ip(ws1) == "192.168.1.50"
 
-    # Forwarded header
+    # Spoofed X-Forwarded-For from an untrusted peer is ignored.
     ws2 = DummyWS(headers={"x-forwarded-for": "203.0.113.195, 70.41.3.18"}, client=DummyClient())
-    assert backend_main.get_client_ip(ws2) == "203.0.113.195"
+    assert backend_main.get_client_ip(ws2) == "192.168.1.50"
 
-    # Cloudflare header
+    # Spoofed CF-Connecting-IP from an untrusted peer is ignored.
     ws3 = DummyWS(headers={"cf-connecting-ip": "198.51.100.8"}, client=DummyClient())
-    assert backend_main.get_client_ip(ws3) == "198.51.100.8"
+    assert backend_main.get_client_ip(ws3) == "192.168.1.50"
 
-    # Missing client
+    # Missing client falls back to loopback.
     ws4 = DummyWS()
     assert backend_main.get_client_ip(ws4) == "127.0.0.1"
 
+    # When the peer IS a trusted proxy, forwarded headers are honored.
+    monkeypatch.setattr(backend_main, "TRUSTED_PROXIES", ("192.168.1.50",))
+    ws5 = DummyWS(headers={"x-forwarded-for": "203.0.113.195, 70.41.3.18"}, client=DummyClient())
+    assert backend_main.get_client_ip(ws5) == "203.0.113.195"
+
+    ws6 = DummyWS(headers={"cf-connecting-ip": "198.51.100.8"}, client=DummyClient())
+    assert backend_main.get_client_ip(ws6) == "198.51.100.8"
+
 
 def test_websocket_anonymous_rate_limiting_isolated_per_ip(client, monkeypatch):
-    """Ensure anonymous WebSocket users are rate-limited per IP rather than a shared bucket (#CC-011)."""
+    """Ensure anonymous WebSocket users are rate-limited per IP rather than a shared bucket (#CC-011, #191)."""
     backend_main.request_counts.clear()
     monkeypatch.setattr(backend_main, "RATE_LIMIT", 2)
+    # Starlette's TestClient reports the peer host as the literal "testclient"
+    # (not an IP). Trust it so X-Forwarded-For headers — which simulate
+    # distinct client IPs — are honored in this test.
+    monkeypatch.setattr(backend_main, "TRUSTED_PROXIES", ("testclient",))
+
 
     # Client A from IP 198.51.100.1 sends 2 requests without session_id (rate limit = 2)
     with client.websocket_connect("/ws/feedback", headers={"x-forwarded-for": "198.51.100.1"}) as ws_a:
