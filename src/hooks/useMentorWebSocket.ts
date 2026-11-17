@@ -134,8 +134,21 @@ export function useMentorWebSocket(options: UseMentorWSOptions) {
 
   const connect = useCallback<ConnectFn>((onOpen) => {
     const existing = wsRef.current;
-    if (existing && (existing.readyState === WebSocket.OPEN || existing.readyState === WebSocket.CONNECTING)) {
-      return;
+    if (existing) {
+      if (existing.readyState === WebSocket.OPEN) {
+        // Already open: nothing to wait for, but honour the caller's intent to
+        // send now (e.g. a second submit while the socket is live).
+        onOpen?.(existing);
+        return;
+      }
+      if (existing.readyState === WebSocket.CONNECTING) {
+        // Handshake in flight (#205): the previous code returned without
+        // invoking onOpen, so the pending request was silently dropped and the
+        // UI stayed in "Analyzing..." forever. Defer the send until onopen.
+        existing.addEventListener("open", () => onOpen?.(existing), { once: true });
+        return;
+      }
+      // CLOSING/CLOSED: fall through and open a fresh socket.
     }
 
     const wsUrl = resolveWebSocketUrl();
