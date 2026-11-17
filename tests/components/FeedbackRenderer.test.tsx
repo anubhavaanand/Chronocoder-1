@@ -152,11 +152,11 @@ describe.sequential('FeedbackRenderer', () => {
         />
       );
       expect(
-        screen.getByRole('heading', { level: 4, name: 'Structure' })
+        screen.getByRole('heading', { level: 3, name: 'Structure' })
       ).toBeInTheDocument();
       expect(screen.getByText('🏛️')).toBeInTheDocument();
       expect(
-        screen.getByRole('heading', { level: 4, name: 'Complexity' })
+        screen.getByRole('heading', { level: 3, name: 'Complexity' })
       ).toBeInTheDocument();
       const markdown = screen.getAllByTestId('markdown-content');
       expect(markdown).toHaveLength(2);
