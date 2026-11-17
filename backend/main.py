@@ -21,6 +21,7 @@ from supabase import create_client, Client
 
 # Import services
 from backend.services.ai_service import AIGateway
+from backend.utils.env import env_int
 from backend.utils.websocket_manager import ConnectionManager
 from backend.db.session_repo import SessionRepository, SessionCreate, coerce_uuid
 
@@ -48,7 +49,7 @@ SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
 # Rate limiting
-MAX_RATE_LIMIT_KEYS = int(os.getenv("MAX_RATE_LIMIT_KEYS", "10000"))
+MAX_RATE_LIMIT_KEYS = env_int("MAX_RATE_LIMIT_KEYS", 10000)
 request_counts: OrderedDict[str, list[datetime]] = OrderedDict()
 RATE_LIMIT = 30  # requests per minute
 
@@ -555,7 +556,7 @@ def get_uvicorn_config() -> dict:
     else:
         should_reload = os.getenv("FASTAPI_ENV", FASTAPI_ENV).strip().lower() != "production"
 
-    port = int(os.getenv("PORT", "8000"))
+    port = env_int("PORT", 8000)
     host = os.getenv("HOST", "0.0.0.0")
     return {
         "app": "main:app",

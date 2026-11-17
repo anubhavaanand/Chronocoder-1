@@ -4,9 +4,13 @@ Manages multiple client connections for real-time streaming
 """
 
 import asyncio
-import os
+import logging
 from typing import Set, Optional
 from fastapi import WebSocket
+
+from backend.utils.env import env_int
+
+logger = logging.getLogger(__name__)
 
 
 class ConnectionManager:
@@ -14,7 +18,7 @@ class ConnectionManager:
 
     def __init__(self, max_connections: Optional[int] = None):
         self.active_connections: Set[WebSocket] = set()
-        env_limit = int(os.getenv("MAX_WS_CONNECTIONS", "1000"))
+        env_limit = env_int("MAX_WS_CONNECTIONS", 1000)
         self.max_connections = max_connections if max_connections is not None else env_limit
         self._lock = asyncio.Lock()
 
