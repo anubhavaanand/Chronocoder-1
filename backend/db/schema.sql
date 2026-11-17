@@ -66,7 +66,11 @@ CREATE TABLE IF NOT EXISTS mentors (
 CREATE TABLE IF NOT EXISTS sessions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    mentor_id TEXT NOT NULL REFERENCES mentors(mentor_id),
+    -- No foreign key to mentors(mentor_id): the canonical mentor catalog is
+    -- backend/mentors/*.json, served in-process, and the mentors table is not
+    -- seeded on startup. The FK made every session insert fail on a fresh
+    -- database (#285).
+    mentor_id TEXT NOT NULL,
     user_code TEXT NOT NULL,
     language TEXT DEFAULT 'python',
     complexity_score INT,
