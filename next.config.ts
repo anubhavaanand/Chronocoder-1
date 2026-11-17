@@ -65,6 +65,16 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  images: {
+    // The only optimized images are the mentor portraits under
+    // /public/mentors (see workspace/[mentorId]/page.tsx). Prefer AVIF and
+    // fall back to WebP so those thumbnails ship materially smaller than
+    // the JPEG originals.
+    formats: ["image/avif", "image/webp"],
+    // Portraits are static build-time assets, so an optimized variant can
+    // be cached far longer than the 4h default.
+    minimumCacheTTL: 86400,
+  },
   async headers() {
     return [
       {
