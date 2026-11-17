@@ -593,6 +593,48 @@ async def feedback_websocket(websocket: WebSocket):
         await manager.disconnect(websocket)
 
 
+def _strip_strings_and_comments(line: str, in_triple: str) -> tuple[str, str]:
+    """Remove string literals and comments from one line of code.
+
+    Returns the cleaned line plus the triple-quote delimiter still open, if
+    any. Used by the syntax-error fallback in 'analyze_code_locally' so that
+    'def'/'class' inside a string or a trailing comment is not counted
+    as a definition (#289).
+    """
+    out: list[str] = []
+    quote = ""
+    i = 0
+    while i < len(line):
+        if in_triple:
+            if line.startswith(in_triple, i):
+                i += 3
+                in_triple = ""
+            else:
+                i += 1
+            continue
+        if quote:
+            if line[i] == "\\":
+                i += 2
+                continue
+            if line[i] == quote:
+                quote = ""
+            i += 1
+            continue
+        if line.startswith(chr(34) * 3, i) or line.startswith(chr(39) * 3, i):
+            in_triple = line[i : i + 3]
+            i += 3
+            continue
+        if line[i] in (chr(34), chr(39)):
+            quote = line[i]
+            i += 1
+            continue
+        if line[i] == "#":
+            break
+        out.append(line[i])
+        i += 1
+    return "".join(out), in_triple
+
+
 def analyze_code_locally(code: str) -> dict:
     """Analyze code locally using Python AST parser with regex fallback for incomplete syntax (#CC-013)."""
     # splitlines() handles \r\n and does not count a trailing newline as a line (#288)
@@ -611,16 +653,21 @@ def analyze_code_locally(code: str) -> dict:
             elif isinstance(node, (ast.Import, ast.ImportFrom)):
                 imports += 1
     except SyntaxError:
-        # Fallback regex parsing when code contains syntax errors (e.g. typing in progress)
+        # Fallback regex parsing when code contains syntax errors (e.g. typing
+        # in progress). Strings and comments are stripped first: without that,
+        # `msg = "def helper()"` or `x = 1  # class Foo` counted as
+        # definitions, and only whole-line comments were skipped (#289).
         func_re = re.compile(r"^\s*(?:async\s+)?def\s+[a-zA-Z_]\w*\s*(\(|:)")
         class_re = re.compile(r"^\s*class\s+[a-zA-Z_]\w*\s*(\(|:)")
+        in_triple = ""
         for line in lines:
-            stripped = line.strip()
-            if stripped.startswith("#"):
+            cleaned, in_triple = _strip_strings_and_comments(line, in_triple)
+            stripped = cleaned.strip()
+            if not stripped:
                 continue
-            if func_re.match(line):
+            if func_re.match(cleaned):
                 functions += 1
-            elif class_re.match(line):
+            elif class_re.match(cleaned):
                 classes += 1
             elif stripped.startswith("import ") or stripped.startswith("from "):
                 imports += 1

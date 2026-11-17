@@ -624,6 +624,42 @@ def test_analyze_code_locally_fallback_on_syntax_error():
     assert result["imports"] == 0
 
 
+def test_regex_fallback_ignores_defs_inside_strings_and_inline_comments():
+    """#289: the syntax-error fallback must not count def/class inside strings or trailing comments."""
+    code = (
+        'def broken(:'
+        '    msg = "def fake(): pass"\n'
+        '    x = 1  # class Fake: pass\n'
+        "    other = 'import fake_module'\n"
+    )
+    result = backend_main.analyze_code_locally(code)
+    assert result["functions"] == 1  # only the real, unfinished def
+    assert result["classes"] == 0
+    assert result["imports"] == 0
+
+
+def test_regex_fallback_ignores_defs_inside_triple_quoted_strings():
+    """#289: a triple-quoted block must be skipped wholesale by the fallback."""
+    code = (
+        'def broken(:'
+        '    """\n'
+        '    def fake(): pass\n'
+        '    class Fake: pass\n'
+        '    """\n'
+    )
+    result = backend_main.analyze_code_locally(code)
+    assert result["functions"] == 1
+    assert result["classes"] == 0
+
+
+def test_regex_fallback_ignores_imports_inside_comments():
+    """#289: a commented-out import must not be counted by the fallback."""
+    code = 'def broken(:\n    x = 1  # import os\n'
+    result = backend_main.analyze_code_locally(code)
+    assert result["imports"] == 0
+    assert result["functions"] == 1
+
+
 @pytest.mark.asyncio
 async def test_connection_manager_concurrency_and_safe_broadcast():
     """Ensure ConnectionManager broadcast handles concurrent mutations without Set size error (#CC-015)."""
