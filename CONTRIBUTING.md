@@ -74,7 +74,7 @@ cd tests && npm install && cd ..
 
 # 4. Set up environment variables
 cp .env.example .env
-# Edit .env with your GEMINI_API_KEY and SUPABASE credentials
+# Edit .env with your GOOGLE_API_KEY and SUPABASE credentials
 
 # 5. Run development servers
 # Terminal 1: FastAPI Backend
@@ -96,14 +96,16 @@ Chronocoder-1/
 │   ├── db/                  # Schema, migrations & Supabase repository
 │   ├── mentors/             # Historical mentor JSON registries
 │   ├── services/            # AI streaming service & Gemini client
+│   ├── utils/               # env parsing & WebSocket connection manager
 │   ├── tests/               # Backend Pytest test suite
 │   └── main.py              # FastAPI server entrypoint
 │
 ├── src/                     # Next.js 16 frontend
 │   ├── app/                 # App router pages, layouts, & API routes
 │   ├── components/          # UI, workspace, & WebGL components
+│   ├── data/                # Generated mentor catalog & hand-written bios
 │   ├── hooks/               # WebSocket and session state hooks
-│   └── types/               # TypeScript interfaces & mentor models
+│   └── lib/                 # Shared client-side helpers
 │
 ├── tests/                   # Frontend Vitest test suite
 ├── docker/                  # Dockerfiles for frontend & backend
@@ -166,7 +168,7 @@ cd tests && npm test
 ### Before Submitting
 
 Ensure your PR:
-- References the issue it resolves (e.g., `Resolves #CC-103`).
+- References the issue it resolves with `Closes #<number>` in the PR body (e.g. `Closes #103`).
 - Passes all local lint checks and unit tests.
 - Keeps commit history clean and atomic.
 
