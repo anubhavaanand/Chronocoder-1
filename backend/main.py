@@ -302,12 +302,38 @@ async def root():
     return {"status": "healthy", "message": "ChronoCoder v3 API", "version": "3.0.0"}
 
 
+def _dependency_state(is_ready: bool, is_configured: bool) -> Optional[bool]:
+    """Tri-state dependency health: True ready, False broken, None not configured."""
+    if is_ready:
+        return True
+    return False if is_configured else None
+
+
 @app.get("/api/health")
 async def health_check():
+    """Liveness plus per-dependency readiness.
+
+    Always returns HTTP 200 while the process can serve. A missing API key or
+    database credential is a configuration state, not a transient failure, so
+    answering 503 would make the Docker/Fly healthchecks restart an otherwise
+    healthy process in a loop. Callers that need to distinguish a broken
+    deployment from a working one should read `status` / `checks`.
+
+    Each check is tri-state:
+      true  - dependency is initialised
+      false - dependency is configured but failed to initialise
+      null  - dependency is not configured (acceptable outside production)
+    """
+    checks = {
+        "ai": _dependency_state(ai_gateway is not None, bool(GOOGLE_API_KEY)),
+        "database": _dependency_state(supabase is not None, bool(SUPABASE_URL and SUPABASE_ANON_KEY)),
+    }
+    degraded = any(state is False for state in checks.values())
     return {
-        "status": "ok",
+        "status": "degraded" if degraded else "ok",
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "service": "chronocoder-backend"
+        "service": "chronocoder-backend",
+        "checks": checks,
     }
 
 

@@ -60,6 +60,9 @@ def test_health_endpoint(client):
     assert data["service"] == "chronocoder-backend"
     # Ensure timezone-aware ISO string is returned without deprecation warnings (#CC-014)
     assert "timestamp" in data
+    # Per-dependency readiness is reported (and the stubbed gateway is ready) (#215)
+    assert data["checks"]["ai"] is True
+    assert "database" in data["checks"]
     from datetime import datetime
     ts = datetime.fromisoformat(data["timestamp"])
     assert ts.tzinfo is not None
