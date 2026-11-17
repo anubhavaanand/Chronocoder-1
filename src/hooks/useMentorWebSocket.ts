@@ -203,6 +203,7 @@ export function useMentorWebSocket(options: UseMentorWSOptions) {
         pendingRequest.current = null;
         reconnectAttempts.current = maxReconnectAttempts;
         clearReconnectTimer();
+        wsRef.current = null;
         handlersRef.current.onError?.(
           event.reason || "Authentication failed: access denied to mentor session"
         );
