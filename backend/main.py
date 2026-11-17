@@ -5,7 +5,7 @@ FastAPI Application Server with Supabase Auth + Structured AI Feedback
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from collections import OrderedDict
 import asyncio
 import ast
@@ -49,6 +49,11 @@ app = FastAPI(
 
 # Global state
 manager = ConnectionManager()
+
+# Interval between server-initiated heartbeat pings, in seconds. 0 disables the
+# background task. Without it nothing ever called broadcast_heartbeat, so
+# half-open sockets were only noticed when a send failed (#221).
+WS_HEARTBEAT_INTERVAL = env_int("WS_HEARTBEAT_INTERVAL", 30)
 ai_gateway: Optional[AIGateway] = None
 supabase: Optional[Client] = None
 session_repo: Optional[SessionRepository] = None
@@ -302,6 +307,16 @@ def check_rate_limit(user_id: str, limit: Optional[int] = None, window_seconds: 
     return True
 
 
+async def heartbeat_loop(interval: int) -> None:
+    """Ping every connected client on a timer so dead sockets get pruned (#221)."""
+    while True:
+        await asyncio.sleep(interval)
+        try:
+            await manager.broadcast_heartbeat()
+        except Exception:
+            logger.exception("Heartbeat broadcast failed")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
@@ -321,8 +336,20 @@ async def lifespan(app: FastAPI):
             logger.warning("Supabase init failed: %s", e)
     
     logger.info("Backend initialized successfully")
+
+    heartbeat_task = (
+        asyncio.create_task(heartbeat_loop(WS_HEARTBEAT_INTERVAL))
+        if WS_HEARTBEAT_INTERVAL > 0
+        else None
+    )
+
     yield
+
     # Shutdown
+    if heartbeat_task is not None:
+        heartbeat_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await heartbeat_task
     logger.info("Backend shutting down")
 
 
