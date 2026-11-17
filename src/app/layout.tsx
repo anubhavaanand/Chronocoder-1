@@ -1,20 +1,24 @@
 import type { Metadata } from "next";
-import { JetBrains_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 
 /**
- * Mona Sans is GitHub's open-source variable font loaded via CDN with
- * React 19 stylesheet resource hoisting, falling back to system display
- * fonts (Hubot Sans, ui-sans-serif, system-ui) in the CSS variable stack.
+ * Fonts are self-hosted (no third-party CDN) so builds are hermetic and
+ * there is no render-blocking external stylesheet (#201, #309).
  *
- * JetBrains Mono is loaded via next/font/google with swap display.
+ * - JetBrains Mono: variable `--font-jetbrains`, weights 400/500/600.
+ * - Mona Sans is not bundled (licensing/size); the CSS `--font-display`
+ *   stack falls back to Hubot Sans / system display fonts.
  */
 
-const jetbrainsMono = JetBrains_Mono({
+const jetbrainsMono = localFont({
+  src: [
+    { path: "../../public/fonts/JetBrainsMono-Regular.woff2", weight: "400", style: "normal" },
+    { path: "../../public/fonts/JetBrainsMono-Medium.woff2", weight: "500", style: "normal" },
+    { path: "../../public/fonts/JetBrainsMono-SemiBold.woff2", weight: "600", style: "normal" },
+  ],
   variable: "--font-jetbrains",
-  subsets: ["latin"],
   display: "swap",
-  weight: ["400", "500", "600"],
 });
 
 export const metadata: Metadata = {
@@ -65,19 +69,6 @@ interface RootLayoutProps {
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en" className={jetbrainsMono.variable}>
-      <head>
-        {/*
-          Mona Sans — GitHub's open-source display font.
-          Self-hosted via CDN since it's not on Google Fonts.
-          Provides the "Linear / GitHub" wordmark aesthetic.
-        */}
-        <link rel="preconnect" href="https://fonts.cdnfonts.com" crossOrigin="anonymous" />
-        <link
-          rel="stylesheet"
-          href="https://fonts.cdnfonts.com/css/mona-sans"
-          precedence="default"
-        />
-      </head>
       <body className="min-h-screen bg-[var(--bg)] text-[var(--fg)] font-sans antialiased">
         {children}
       </body>
