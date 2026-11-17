@@ -115,6 +115,8 @@ export function CodeEditor({
           value={value}
           onChange={(val) => onChange(val || "")}
           options={{
+            // Monaco renders a <textarea> for input; this is its accessible name.
+            ariaLabel: "Python code editor",
             minimap: { enabled: false },
             fontSize: 14,
             lineHeight: 1.5,
