@@ -23,6 +23,7 @@ class MockWebSocket {
   onmessage: ((event: { data: string }) => void) | null = null;
   onerror: ((event?: unknown) => void) | null = null;
   sentMessages: string[] = [];
+  private openListeners: Array<() => void> = [];
 
   constructor(url: string) {
     this.url = url;
@@ -41,6 +42,20 @@ class MockWebSocket {
   simulateOpen() {
     this.readyState = MockWebSocket.OPEN;
     this.onopen?.();
+    const listeners = this.openListeners;
+    this.openListeners = [];
+    for (const cb of listeners) cb();
+  }
+
+  /** Minimal EventTarget surface used by the hook's addEventListener('open'). */
+  addEventListener(type: string, cb: () => void) {
+    if (type === 'open') this.openListeners.push(cb);
+  }
+
+  removeEventListener(type: string, cb: () => void) {
+    if (type === 'open') {
+      this.openListeners = this.openListeners.filter((l) => l !== cb);
+    }
   }
 
   simulateMessage(data: unknown) {
@@ -363,6 +378,58 @@ describe.sequential('useMentorWebSocket', () => {
     unmount();
 
     expect(ws.readyState).toBe(MockWebSocket.CLOSED);
+  });
+
+  it('sends both requests when a second requestFeedback arrives while CONNECTING (#205)', () => {
+    const { result, unmount } = renderHook(() =>
+      useMentorWebSocket({ mentorId: 'ada' })
+    );
+
+    // First call opens a socket that stays CONNECTING.
+    act(() => {
+      result.current.requestFeedback('x = 1');
+    });
+    expect(MockWebSocket.instances.length).toBe(1);
+    const ws = MockWebSocket.instances[0];
+    expect(ws.readyState).toBe(MockWebSocket.CONNECTING);
+    expect(ws.sentMessages.length).toBe(0);
+
+    // Second call while still CONNECTING must not be dropped.
+    act(() => {
+      result.current.requestFeedback('x = 2');
+    });
+    expect(MockWebSocket.instances.length).toBe(1); // no duplicate socket
+
+    // Handshake completes: both requests should now have been sent.
+    act(() => {
+      ws.simulateOpen();
+    });
+
+    expect(ws.sentMessages.length).toBe(2);
+    expect(JSON.parse(ws.sentMessages[0]).user_code).toBe('x = 1');
+    expect(JSON.parse(ws.sentMessages[1]).user_code).toBe('x = 2');
+    unmount();
+  });
+
+  it('sends a request immediately when the socket is already OPEN', () => {
+    const { result, unmount } = renderHook(() =>
+      useMentorWebSocket({ mentorId: 'ada' })
+    );
+
+    act(() => {
+      result.current.requestFeedback('x = 1');
+    });
+    const ws = MockWebSocket.instances[0];
+    act(() => {
+      ws.simulateOpen();
+    });
+
+    act(() => {
+      result.current.requestFeedback('x = 2');
+    });
+
+    expect(ws.sentMessages.length).toBe(2);
+    unmount();
   });
 
   it('attempts reconnection with backoff on abnormal close while analysis is pending', () => {
