@@ -15,6 +15,13 @@ export interface MentorBio {
   /** A documented quote that closes the section */
   quote: string;
   quoteContext: string;
+  /**
+   * Whether the line above is the person's own words or a later summary of
+   * them. "paraphrase" renders without quotation marks and is labelled as a
+   * paraphrase, so readers are not told a summary is a verbatim quote.
+   * Omit for quotes with a documented source.
+   */
+  quoteKind?: "verbatim" | "paraphrase";
 }
 
 export const MENTOR_BIOS: Record<string, MentorBio> = {
@@ -46,6 +53,7 @@ export const MENTOR_BIOS: Record<string, MentorBio> = {
     ],
     quote: "It's easier to ask forgiveness than it is to get permission.",
     quoteContext: "Attributed, from her later years teaching at DEC",
+    quoteKind: "paraphrase",
   },
 
   margaret_hamilton: {
@@ -66,6 +74,7 @@ export const MENTOR_BIOS: Record<string, MentorBio> = {
     ],
     quote: "Unix is simple. It just takes a genius to understand its simplicity.",
     quoteContext: "Attributed, reflecting on the Unix philosophy",
+    quoteKind: "paraphrase",
   },
 
   barbara_liskov: {
@@ -76,6 +85,7 @@ export const MENTOR_BIOS: Record<string, MentorBio> = {
     ],
     quote: "Software correctness isn't something you test into existence. It's something you design for.",
     quoteContext: "Paraphrasing her lifelong teaching on program development",
+    quoteKind: "paraphrase",
   },
 
   guido_van_rossum: {
