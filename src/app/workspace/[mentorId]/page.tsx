@@ -322,6 +322,7 @@ print(fibonacci(10))`);
                 closing={closing}
                 isAnalyzing={isAnalyzing}
                 error={error}
+                onRetry={handleSubmit}
                 onClearError={() => {
                   setError(null);
                   setReading("");

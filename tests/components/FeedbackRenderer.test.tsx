@@ -126,6 +126,31 @@ describe.sequential('FeedbackRenderer', () => {
         screen.queryByRole('button', { name: 'Try Again' })
       ).not.toBeInTheDocument();
     });
+
+    it('prefers onRetry over onClearError so Try Again re-runs the request (#313)', () => {
+      const onClearError = vi.fn();
+      const onRetry = vi.fn();
+      render(
+        <FeedbackRenderer
+          {...baseProps}
+          error="Connection lost"
+          onClearError={onClearError}
+          onRetry={onRetry}
+        />
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'Try Again' }));
+      expect(onRetry).toHaveBeenCalledTimes(1);
+      expect(onClearError).not.toHaveBeenCalled();
+    });
+
+    it('invokes onRetry when only onRetry is provided (#313)', () => {
+      const onRetry = vi.fn();
+      render(
+        <FeedbackRenderer {...baseProps} error="Connection lost" onRetry={onRetry} />
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'Try Again' }));
+      expect(onRetry).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('Streaming feedback', () => {
