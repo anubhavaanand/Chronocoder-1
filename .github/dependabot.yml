@@ -1,0 +1,68 @@
+version: 2
+
+# Dependabot configuration.
+#
+# Four ecosystems are tracked:
+#   - /            the Next.js frontend (package.json + package-lock.json)
+#   - /tests       the Vitest/Playwright suite, which has its own lockfile
+#   - /            the FastAPI backend (requirements.txt)
+#   - github-actions  the workflow steps in .github/workflows
+
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+    commit-message:
+      prefix: "chore(deps)"
+      include: scope
+
+  - package-ecosystem: npm
+    directory: "/tests"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - testing
+    commit-message:
+      prefix: "chore(deps)"
+      include: scope
+
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+    commit-message:
+      prefix: "chore(deps)"
+      include: scope
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - infrastructure
+    commit-message:
+      prefix: "ci(deps)"
+      include: scope
