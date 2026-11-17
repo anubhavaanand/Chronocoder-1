@@ -734,7 +734,7 @@ def get_uvicorn_config() -> dict:
     port = env_int("PORT", 8000)
     host = os.getenv("HOST", "0.0.0.0")
     return {
-        "app": "main:app",
+        "app": "backend.main:app",
         "host": host,
         "port": port,
         "reload": should_reload,

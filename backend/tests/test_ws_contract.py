@@ -856,7 +856,7 @@ def test_uvicorn_config_reload_and_environment(monkeypatch):
     monkeypatch.setenv("HOST", "127.0.0.1")
 
     cfg = backend_main.get_uvicorn_config()
-    assert cfg["app"] == "main:app"
+    assert cfg["app"] == "backend.main:app"
     assert cfg["host"] == "127.0.0.1"
     assert cfg["port"] == 9000
     assert cfg["reload"] is True
