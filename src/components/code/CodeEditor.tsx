@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import clsx from "clsx";
 
@@ -70,11 +70,16 @@ export function CodeEditor({
   const overLimit = characterLimit != null && characterCount > characterLimit;
   const hasError = Boolean(errorText) || overLimit;
 
-  // Ctrl/Cmd + Enter submits from anywhere on the page.
+  // The submit shortcut should only fire while the user is actually in this
+  // editor, not from elsewhere on the page (e.g. the search box) (#233). We
+  // scope it to the editor wrapper via a ref and a focus check.
+  const containerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!onSubmit) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+        const active = document.activeElement;
+        if (!active || !containerRef.current?.contains(active)) return;
         e.preventDefault();
         onSubmit();
       }
@@ -84,7 +89,7 @@ export function CodeEditor({
   }, [onSubmit]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" ref={containerRef}>
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold">Your Code</h2>
         <div className="flex items-center space-x-3 text-sm">

@@ -182,26 +182,43 @@ describe.sequential('CodeEditor', () => {
   });
 
   describe('Keyboard shortcut', () => {
-    it('calls onSubmit on Ctrl + Enter', async () => {
+    it('calls onSubmit on Ctrl + Enter while the editor is focused', async () => {
       const onSubmit = vi.fn();
       render(<CodeEditor {...defaultProps} onSubmit={onSubmit} />);
-      await screen.findByTestId('monaco-editor');
+      const editor = await screen.findByTestId('monaco-editor');
+      (editor as HTMLElement).focus();
       fireEvent.keyDown(window, { key: 'Enter', ctrlKey: true });
       expect(onSubmit).toHaveBeenCalledTimes(1);
     });
 
-    it('calls onSubmit on Cmd + Enter', async () => {
+    it('calls onSubmit on Cmd + Enter while the editor is focused', async () => {
       const onSubmit = vi.fn();
       render(<CodeEditor {...defaultProps} onSubmit={onSubmit} />);
-      await screen.findByTestId('monaco-editor');
+      const editor = await screen.findByTestId('monaco-editor');
+      (editor as HTMLElement).focus();
       fireEvent.keyDown(window, { key: 'Enter', metaKey: true });
       expect(onSubmit).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not submit when focus is outside the editor (#233)', async () => {
+      const onSubmit = vi.fn();
+      render(
+        <div>
+          <input data-testid="outside-input" aria-label="search" />
+          <CodeEditor {...defaultProps} onSubmit={onSubmit} />
+        </div>
+      );
+      await screen.findByTestId('monaco-editor');
+      (screen.getByTestId('outside-input') as HTMLElement).focus();
+      fireEvent.keyDown(window, { key: 'Enter', ctrlKey: true });
+      expect(onSubmit).not.toHaveBeenCalled();
     });
 
     it('ignores plain Enter', async () => {
       const onSubmit = vi.fn();
       render(<CodeEditor {...defaultProps} onSubmit={onSubmit} />);
-      await screen.findByTestId('monaco-editor');
+      const editor = await screen.findByTestId('monaco-editor');
+      (editor as HTMLElement).focus();
       fireEvent.keyDown(window, { key: 'Enter' });
       expect(onSubmit).not.toHaveBeenCalled();
     });
@@ -209,7 +226,8 @@ describe.sequential('CodeEditor', () => {
     it('ignores Ctrl+K and other shortcuts', async () => {
       const onSubmit = vi.fn();
       render(<CodeEditor {...defaultProps} onSubmit={onSubmit} />);
-      await screen.findByTestId('monaco-editor');
+      const editor = await screen.findByTestId('monaco-editor');
+      (editor as HTMLElement).focus();
       fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
       fireEvent.keyDown(window, { key: 'Enter', shiftKey: true });
       expect(onSubmit).not.toHaveBeenCalled();
@@ -220,7 +238,8 @@ describe.sequential('CodeEditor', () => {
       const { rerender } = render(
         <CodeEditor {...defaultProps} onSubmit={onSubmit} />
       );
-      await screen.findByTestId('monaco-editor');
+      const editor = await screen.findByTestId('monaco-editor');
+      (editor as HTMLElement).focus();
       rerender(<CodeEditor {...defaultProps} onSubmit={undefined} />);
       fireEvent.keyDown(window, { key: 'Enter', ctrlKey: true });
       expect(onSubmit).not.toHaveBeenCalled();
