@@ -261,10 +261,27 @@ print(fibonacci(10))`);
 
         <div className="max-w-6xl mx-auto">
           {/* Tab headers — visible from the start so the code editor is
-              reachable without submitting first (#CC-036). */}
-          <div className="flex space-x-1 mb-6 border-b border-retro-border">
+              reachable without submitting first (#CC-036). Proper tablist/tab
+              ARIA + arrow-key navigation so the control is accessible (#240). */}
+          <div
+            role="tablist"
+            aria-label="Workspace views"
+            className="flex space-x-1 mb-6 border-b border-retro-border"
+            onKeyDown={(e) => {
+              if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+              e.preventDefault();
+              const next = activeTab === "ask" ? "review" : "ask";
+              setActiveTab(next);
+              document.getElementById(`tab-${next}`)?.focus();
+            }}
+          >
             <button
               type="button"
+              role="tab"
+              id="tab-ask"
+              aria-selected={activeTab === "ask"}
+              aria-controls="panel-ask"
+              tabIndex={activeTab === "ask" ? 0 : -1}
               onClick={() => setActiveTab("ask")}
               className={clsx(
                 "pb-3 px-6 font-semibold transition-colors relative",
@@ -278,6 +295,11 @@ print(fibonacci(10))`);
             </button>
             <button
               type="button"
+              role="tab"
+              id="tab-review"
+              aria-selected={activeTab === "review"}
+              aria-controls="panel-review"
+              tabIndex={activeTab === "review" ? 0 : -1}
               onClick={() => setActiveTab("review")}
               className={clsx(
                 "pb-3 px-6 font-semibold transition-colors relative",
@@ -293,7 +315,12 @@ print(fibonacci(10))`);
 
           {/* Ask Question Tab */}
           {activeTab === "ask" && (
-            <div className="space-y-4">
+            <div
+              role="tabpanel"
+              id="panel-ask"
+              aria-labelledby="tab-ask"
+              className="space-y-4"
+            >
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-bold">{mentor.name}&apos;s Analysis</h2>
                 {isAnalyzing && (
@@ -336,7 +363,12 @@ print(fibonacci(10))`);
 
           {/* Code Review Tab */}
           {activeTab === "review" && (
-            <div className="space-y-4">
+            <div
+              role="tabpanel"
+              id="panel-review"
+              aria-labelledby="tab-review"
+              className="space-y-4"
+            >
               <CodeEditor
                 value={userCode}
                 onChange={setUserCode}
