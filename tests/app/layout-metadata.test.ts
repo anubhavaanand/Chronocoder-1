@@ -9,8 +9,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
 
-vi.mock('next/font/google', () => ({
-  JetBrains_Mono: () => ({ variable: '--font-jetbrains' }),
+vi.mock('next/font/local', () => ({
+  default: () => ({ variable: '--font-jetbrains' }),
 }));
 
 import { metadata } from '@/app/layout';
