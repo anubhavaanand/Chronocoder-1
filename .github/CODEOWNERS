@@ -1,0 +1,7 @@
+# Default owners for everything in this repository.
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+*       @anubhavaanand
+
+# CI and release configuration.
+/.github/ @anubhavaanand
