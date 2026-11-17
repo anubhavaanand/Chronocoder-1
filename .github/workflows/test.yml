@@ -43,7 +43,12 @@ jobs:
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
-          cache-dependency-path: tests/package-lock.json
+          cache-dependency-path: |
+            package-lock.json
+            tests/package-lock.json
+
+      - name: Install app dependencies
+        run: npm ci
 
       - name: Install test dependencies
         run: npm ci --prefix tests
