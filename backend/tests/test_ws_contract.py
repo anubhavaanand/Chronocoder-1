@@ -108,6 +108,20 @@ def test_invalid_input_is_rejected(client):
     assert message["payload"]["code"] == "INVALID_INPUT"
 
 
+def test_malformed_json_keeps_connection_open(client):
+    """A malformed frame returns INVALID_JSON and does not drop the socket (#312)."""
+    with client.websocket_connect("/ws/feedback") as ws:
+        ws.send_text("this is not json")
+        message = ws.receive_json()
+        assert message["type"] == "error"
+        assert message["payload"]["code"] == "INVALID_JSON"
+
+        # Connection must still be usable for a valid follow-up message.
+        ws.send_json({"mentor_id": "ada_lovelace", "user_code": VALID_CODE, "session_id": "t2"})
+        kinds = [ws.receive_json()["type"] for _ in range(3)]
+        assert kinds == ["analysis_complete", "feedback_chunk", "feedback_complete"]
+
+
 def test_oversized_user_code_is_rejected(client, monkeypatch):
     """user_code above MAX_CODE_LENGTH must be rejected before analysis (#211).
 

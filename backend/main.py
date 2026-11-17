@@ -526,7 +526,17 @@ async def feedback_websocket(websocket: WebSocket):
     
     try:
         while True:
-            data = await websocket.receive_json()
+            # A malformed / non-JSON frame must not silently drop the connection
+            # (#312). receive_json() raises json.JSONDecodeError (a ValueError)
+            # on bad input; catch it, tell the client, and keep the socket open.
+            try:
+                data = await websocket.receive_json()
+            except ValueError:
+                await websocket.send_json({
+                    "type": "error",
+                    "payload": {"code": "INVALID_JSON", "message": "Message must be valid JSON"},
+                })
+                continue
 
             # Heartbeat ping/pong keepalive (#CC-016)
             if data.get("type") == "ping" or data.get("action") == "ping":
