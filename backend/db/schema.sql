@@ -1,4 +1,4 @@
--- ChronoCoder v4 Supabase Schema
+-- ChronoCoder v3 Supabase Schema
 -- Run with: supabase db push  OR  psql -f this_file.sql
 
 -- Enable UUID extension
