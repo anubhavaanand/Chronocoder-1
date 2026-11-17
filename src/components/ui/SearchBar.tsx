@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Search, ChevronRight } from "lucide-react";
+import { registerSearchShortcut, unregisterSearchShortcut } from "@/lib/search-shortcut";
 
 export function SearchBar({
   large,
@@ -19,17 +20,18 @@ export function SearchBar({
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
+  // Cmd/Ctrl+K is a global shortcut, but every mounted SearchBar used to
+  // register its own window listener, so the handler fired once per instance
+  // (#204). A module-level registry keeps exactly one listener alive: the
+  // most recently mounted bar becomes the active handler.
   useEffect(() => {
-    const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        inputRef.current?.focus();
-        inputRef.current?.select();
-      }
+    const focusThisInput = () => {
+      inputRef.current?.focus();
+      inputRef.current?.select();
     };
 
-    window.addEventListener("keydown", handleGlobalKeyDown);
-    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+    registerSearchShortcut(focusThisInput);
+    return () => unregisterSearchShortcut(focusThisInput);
   }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
