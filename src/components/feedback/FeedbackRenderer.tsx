@@ -104,7 +104,7 @@ export function FeedbackRenderer({
             <div key={section.id || idx} className="mb-6 p-4 border-l-4 border-accent-cyan bg-retro-darker/50 rounded-r-lg">
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-xl">{section.icon}</span>
-                <h4 className="font-bold text-white">{section.label}</h4>
+                <h3 className="font-bold text-white">{section.label}</h3>
               </div>
               <div className="ml-6 prose prose-invert max-w-none">
                 <ReactMarkdown
@@ -122,7 +122,7 @@ export function FeedbackRenderer({
             <div className="mb-6 p-4 border-l-4 border-accent-magenta bg-retro-darker/50 rounded-r-lg">
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-xl">🎯</span>
-                <h4 className="font-bold text-white">Your Challenge</h4>
+                <h3 className="font-bold text-white">Your Challenge</h3>
               </div>
               <p className="ml-6 text-gray-200">{challenge}</p>
             </div>
