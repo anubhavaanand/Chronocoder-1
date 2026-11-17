@@ -25,6 +25,8 @@ let capturedOnFeedbackChunk:
     }) => void)
   | null = null;
 
+let capturedOnError: ((err: string) => void) | null = null;
+
 const requestFeedbackMock = vi.fn();
 
 vi.mock('next/navigation', () => ({
@@ -39,8 +41,10 @@ vi.mock('next/navigation', () => ({
 vi.mock('../../src/hooks/useMentorWebSocket', () => ({
   useMentorWebSocket: (options: {
     onFeedbackChunk?: (chunk: unknown) => void;
+    onError?: (err: string) => void;
   }) => {
     capturedOnFeedbackChunk = options.onFeedbackChunk ?? null;
+    capturedOnError = options.onError ?? null;
     return {
       isAnalyzing: false,
       requestFeedback: requestFeedbackMock,
@@ -74,6 +78,7 @@ describe('WorkspacePage mentor change reset (#206)', () => {
     currentMentorId = 'ada_lovelace';
     currentQuery = null;
     capturedOnFeedbackChunk = null;
+    capturedOnError = null;
   });
 
   afterEach(() => {
@@ -115,5 +120,37 @@ describe('WorkspacePage mentor change reset (#206)', () => {
     expect(screen.queryByText('Ada says hello')).not.toBeInTheDocument();
     expect(screen.queryByText('Try a loop')).not.toBeInTheDocument();
     expect(screen.queryByText('Keep going')).not.toBeInTheDocument();
+  });
+
+  it('clears stale partial feedback when an error arrives mid-stream (#119)', () => {
+    render(<WorkspacePage />);
+
+    // Stream some partial feedback.
+    act(() => {
+      capturedOnFeedbackChunk?.({
+        reading: 'Partial Ada reading',
+        sections: [
+          {
+            id: 'sec-1',
+            label: 'Correctness',
+            content: 'Half a review',
+            icon: '✅',
+          },
+        ],
+        challenge: 'Partial challenge',
+      });
+    });
+    expect(screen.getByText('Partial Ada reading')).toBeInTheDocument();
+
+    // An error arrives before feedback_complete.
+    act(() => {
+      capturedOnError?.('Connection lost');
+    });
+
+    // The error is shown...
+    expect(screen.getByText(/Connection lost/)).toBeInTheDocument();
+    // ...and the stale partial feedback is gone.
+    expect(screen.queryByText('Partial Ada reading')).not.toBeInTheDocument();
+    expect(screen.queryByText('Partial challenge')).not.toBeInTheDocument();
   });
 });

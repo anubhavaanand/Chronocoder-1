@@ -86,6 +86,12 @@ print(fibonacci(10))`);
     },
     onError: (err) => {
       setError(err);
+      // Clear any partial feedback so a stale half-streamed review does not
+      // remain visible under the error banner (#119).
+      setReading("");
+      setFeedbackSections([]);
+      setChallenge("");
+      setClosing("");
     },
   });
 
