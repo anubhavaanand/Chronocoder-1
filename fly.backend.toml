@@ -9,6 +9,8 @@ primary_region = "sjc"
   FASTAPI_ENV = "production"
   PYTHONUNBUFFERED = "1"
   PORT = "8000"
+  # Browser origins allowed by CORSMiddleware; include the Fly frontend origin (#262).
+  ALLOWED_ORIGINS = "https://chronocoder-v3.fly.dev,https://chronocoder.com,https://www.chronocoder.com"
 
 [[services]]
   internal_port = 8000
