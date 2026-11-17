@@ -100,8 +100,8 @@ export function FeedbackRenderer({
           {reading && (
             <p className="italic text-gray-300 mb-4">{reading}</p>
           )}
-          {sections.map((section: FeedbackSectionView, idx: number) => (
-            <div key={section.id || idx} className="mb-6 p-4 border-l-4 border-accent-cyan bg-retro-darker/50 rounded-r-lg">
+          {sections.map((section: FeedbackSectionView) => (
+            <div key={section.id || section.label} className="mb-6 p-4 border-l-4 border-accent-cyan bg-retro-darker/50 rounded-r-lg">
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-xl">{section.icon}</span>
                 <h3 className="font-bold text-white">{section.label}</h3>

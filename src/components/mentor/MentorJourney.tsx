@@ -18,6 +18,19 @@ import { MentorGLTarget } from "./HeroDistortion";
 const EASE = [0.2, 0, 0, 1] as const;
 
 /**
+ * Stable React key for a paragraph node. Paragraphs are static content, so
+ * hashing the text lets React reconcile by identity instead of by position;
+ * an array index would remount every node whenever a paragraph is inserted.
+ */
+function paragraphKey(text: string): string {
+  let hash = 0;
+  for (let i = 0; i < text.length; i++) {
+    hash = (hash * 31 + text.charCodeAt(i)) | 0;
+  }
+  return `p${hash}`;
+}
+
+/**
  * Calculates a high-contrast text color (dark vs light) for a given background color
  * based on standard WCAG relative luminance, ensuring minimum 4.5:1 contrast ratio.
  */
@@ -144,8 +157,8 @@ function JourneySection({ mentor, index }: { mentor: Mentor; index: number }) {
 
             {/* Article body */}
             <div className="space-y-4" style={{ color: "var(--fg-mid)" }}>
-              {paragraphs.map((paragraph, i) => (
-                <p key={i} className="leading-relaxed">
+              {paragraphs.map((paragraph) => (
+                <p key={paragraphKey(paragraph)} className="leading-relaxed">
                   {paragraph}
                 </p>
               ))}
