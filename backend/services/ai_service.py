@@ -213,9 +213,14 @@ def load_mentor_registry(mentors_dir: Optional[Union[Path, str]] = None) -> dict
     directory = resolve_mentors_dir(mentors_dir)
     mentors: dict[str, MentorConfig] = {}
     for path in directory.glob("*.json"):
-        with open(path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        mentors[data["mentor_id"]] = MentorConfig(**data)
+        # One malformed mentor file must not crash the whole backend at startup
+        # (#252). Log and skip the bad file so the remaining personas load.
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            mentors[data["mentor_id"]] = MentorConfig(**data)
+        except (json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
+            logger.error("Skipping malformed mentor file '%s': %s", path, exc)
     if not mentors:
         raise RuntimeError(f"No mentor configs found in {directory}")
     return mentors

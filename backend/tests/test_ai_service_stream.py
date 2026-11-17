@@ -559,6 +559,32 @@ def test_load_mentor_registry_utf8_encoding(monkeypatch):
     assert gateway.mentors["alan_turing"].icon == "🧠"
 
 
+def test_load_mentor_registry_skips_malformed_file(tmp_path, monkeypatch):
+    """A malformed mentor JSON file is skipped, not fatal to startup (#252)."""
+    good = {
+        "mentor_id": "good_mentor",
+        "name": "Good",
+        "era": "now",
+        "icon": "G",
+        "accent_color": "#ffffff",
+        "avatar_url": "/good.jpg",
+        "system_prompt": "You are good.",
+        "tone": "warm",
+        "focus_areas": ["loops"],
+        "feedback_schema": {"sections": []},
+        "few_shot_examples": [],
+        "signature_opening": "Hello",
+        "signature_closing": "Goodbye",
+    }
+    (tmp_path / "good.json").write_text(json.dumps(good), encoding="utf-8")
+    (tmp_path / "broken.json").write_text("{ not valid json", encoding="utf-8")
+
+    mentors = ai_service.load_mentor_registry(tmp_path)
+    assert "good_mentor" in mentors
+    # The broken file must not appear and must not raise.
+    assert len(mentors) == 1
+
+
 def test_calculate_max_output_tokens_tiered_by_complexity(monkeypatch):
     """Verify _calculate_max_output_tokens tiers tokens based on code complexity and env (#CC-020)."""
     gateway = make_gateway()
