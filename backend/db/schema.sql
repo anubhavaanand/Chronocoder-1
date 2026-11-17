@@ -101,26 +101,33 @@ ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
 
 -- Users: users can only see their own row
+DROP POLICY IF EXISTS "Users can view own profile" ON users;
 CREATE POLICY "Users can view own profile" ON users
     FOR SELECT USING (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Users can update own profile" ON users;
 CREATE POLICY "Users can update own profile" ON users
     FOR UPDATE USING (auth.uid() = id);
 
 -- Sessions: users can only access their own sessions
+DROP POLICY IF EXISTS "Users can view own sessions" ON sessions;
 CREATE POLICY "Users can view own sessions" ON sessions
     FOR SELECT USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can create own sessions" ON sessions;
 CREATE POLICY "Users can create own sessions" ON sessions
     FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update own sessions" ON sessions;
 CREATE POLICY "Users can update own sessions" ON sessions
     FOR UPDATE USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete own sessions" ON sessions;
 CREATE POLICY "Users can delete own sessions" ON sessions
     FOR DELETE USING (auth.uid() = user_id);
 
 -- Messages: users can only access messages in their sessions
+DROP POLICY IF EXISTS "Users can view messages in own sessions" ON messages;
 CREATE POLICY "Users can view messages in own sessions" ON messages
     FOR SELECT USING (
         EXISTS (
@@ -130,6 +137,7 @@ CREATE POLICY "Users can view messages in own sessions" ON messages
         )
     );
 
+DROP POLICY IF EXISTS "Users can insert messages in own sessions" ON messages;
 CREATE POLICY "Users can insert messages in own sessions" ON messages
     FOR INSERT WITH CHECK (
         EXISTS (
@@ -139,6 +147,7 @@ CREATE POLICY "Users can insert messages in own sessions" ON messages
         )
     );
 
+DROP POLICY IF EXISTS "Users can delete messages in own sessions" ON messages;
 CREATE POLICY "Users can delete messages in own sessions" ON messages
     FOR DELETE USING (
         EXISTS (
