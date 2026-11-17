@@ -563,6 +563,21 @@ def test_create_session_dev_fallback_without_repo(client):
         backend_main.app.dependency_overrides.pop(backend_main.get_session_repo, None)
 
 
+def test_create_session_rejects_oversized_user_code(client, monkeypatch):
+    """POST /api/sessions rejects user_code above MAX_CODE_LENGTH (#212)."""
+    monkeypatch.setattr(backend_main, "MAX_CODE_LENGTH", 10)
+    backend_main.app.dependency_overrides[backend_main.get_session_repo] = lambda: None
+    try:
+        response = client.post(
+            "/api/sessions",
+            json={"mentor_id": "ada_lovelace", "user_code": "x" * 11},
+            headers={"Authorization": "Bearer test-dev-token"},
+        )
+        assert response.status_code == 413
+    finally:
+        backend_main.app.dependency_overrides.pop(backend_main.get_session_repo, None)
+
+
 def test_get_session_repo_production_requires_supabase(monkeypatch):
     """Ensure get_session_repo raises HTTP 500 when Supabase is missing in production (#CC-012)."""
     monkeypatch.setenv("FASTAPI_ENV", "production")

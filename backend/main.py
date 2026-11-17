@@ -462,6 +462,21 @@ async def create_session(
     mentor_id = session_data.get("mentor_id") or session_data.get("mentorId") or "ada_lovelace"
     user_code = session_data.get("user_code") or session_data.get("userCode") or ""
     language = session_data.get("language") or "python"
+
+    # Reject oversized user_code before persisting. The REST endpoint takes an
+    # untyped dict, so without this guard a client can post an arbitrarily large
+    # body and have it written to the sessions table (#212). Mirror the WS
+    # handler's MAX_CODE_LENGTH check so both transports agree.
+    if not isinstance(user_code, str):
+        raise HTTPException(
+            status_code=422,
+            detail="user_code must be a string",
+        )
+    if len(user_code) > MAX_CODE_LENGTH:
+        raise HTTPException(
+            status_code=413,
+            detail=f"user_code exceeds {MAX_CODE_LENGTH} characters",
+        )
     complexity = session_data.get("complexity_score")
     if complexity is None and isinstance(session_data.get("analysis"), dict):
         complexity = session_data["analysis"].get("complexity_score")
