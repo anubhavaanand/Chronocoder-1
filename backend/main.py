@@ -48,9 +48,29 @@ SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
 SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
+# Optional public origin (e.g. https://chronocoder-1.onrender.com) used to
+# turn the frontend-relative avatar paths in backend/mentors/*.json into
+# absolute URLs for API consumers (#276). Unset keeps the relative form.
+PUBLIC_BASE_URL = (os.getenv("PUBLIC_BASE_URL") or "").rstrip("/")
+
 # Mentor catalog. Loaded lazily and independent of the Gemini client: the
 # catalog is static JSON and must be served even with no GOOGLE_API_KEY (#213).
 _mentor_catalog: Optional[dict] = None
+
+
+def _with_public_base(path: Optional[str]) -> Optional[str]:
+    """Absolutise a frontend-relative asset path when PUBLIC_BASE_URL is set.
+
+    Mentor configs store '/mentors/ada_lovelace.jpg', which only resolves
+    against the Next.js origin. API clients outside that origin need an
+    absolute URL; when PUBLIC_BASE_URL is unset the relative form is returned
+    unchanged so existing consumers keep working (#276).
+    """
+    if not path or not PUBLIC_BASE_URL:
+        return path
+    if path.startswith(("http://", "https://")):
+        return path
+    return f"{PUBLIC_BASE_URL}/{path.lstrip('/')}"
 
 
 def get_mentor_catalog() -> dict:
@@ -361,7 +381,12 @@ async def health_check():
 @app.get("/api/mentors", tags=["mentors"])
 async def get_mentors():
     catalog = get_mentor_catalog()
-    return {"mentors": [mentor_summary(m) for m in catalog.values()]}
+    mentors = []
+    for mentor in catalog.values():
+        payload = mentor_summary(mentor)
+        payload["avatar_url"] = _with_public_base(mentor.avatar_url)
+        mentors.append(payload)
+    return {"mentors": mentors}
 
 
 @app.get("/api/mentors/{mentor_id}", tags=["mentors"])
@@ -377,7 +402,7 @@ async def get_mentor(mentor_id: str):
         "era": config.era,
         "icon": config.icon,
         "accent_color": config.accent_color,
-        "avatar_url": config.avatar_url,
+        "avatar_url": _with_public_base(config.avatar_url),
         "signature_opening": config.signature_opening,
     }
 
