@@ -926,8 +926,11 @@ def test_database_schema_mentor_id_primary_key_contract():
     assert "mentor_id TEXT PRIMARY KEY" in schema_sql
     assert "avatar_url TEXT" in schema_sql
 
-    # 2. sessions table foreign key must reference mentors(mentor_id)
-    assert "REFERENCES mentors(mentor_id)" in schema_sql
+    # 2. sessions.mentor_id is a plain TEXT column: the canonical catalog is
+    # JSON, and a FK to the unseeded mentors table broke inserts on a fresh
+    # database (#285). The mentors table itself still keys on mentor_id.
+    assert "mentor_id TEXT NOT NULL," in schema_sql
+    assert "REFERENCES mentors(mentor_id)" not in schema_sql
 
     # 3. All JSON personas must provide mentor_id matching the primary key
     mentors_dir = Path(__file__).resolve().parent.parent / "mentors"
