@@ -55,6 +55,11 @@ jobs:
       - name: Run ruff
         run: ruff check backend/
 
+      # src/data/mentors.ts is generated from backend/mentors/*.json. Fail if
+      # the committed file has drifted from the registry (#132).
+      - name: Check generated mentor data is up to date
+        run: python3 scripts/generate_mentor_data.py --check
+
   backend-tests:
     name: Backend Tests (WebSocket contract)
     runs-on: ubuntu-latest

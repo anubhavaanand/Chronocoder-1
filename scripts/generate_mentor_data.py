@@ -10,6 +10,7 @@ portrait framing) live in this script. Run after editing any mentor JSON:
 """
 import json
 import pathlib
+import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 MENTORS_DIR = ROOT / "backend" / "mentors"
@@ -50,7 +51,7 @@ def ts_str(value: str) -> str:
     return json.dumps(value, ensure_ascii=False)
 
 
-def main() -> None:
+def build_content() -> str:
     loaded = {}
     for path in MENTORS_DIR.glob("*.json"):
         data = json.loads(path.read_text(encoding="utf-8"))
@@ -128,8 +129,27 @@ def main() -> None:
     lines.append(");")
     lines.append("")
 
+    return "\n".join(lines)
+
+
+def main() -> None:
+    content = build_content()
+
+    if "--check" in sys.argv[1:]:
+        # CI mode: fail if the committed file differs from what the current
+        # JSON registry would generate, so frontend/backend drift is caught on
+        # the PR that introduces it (#132).
+        current = OUT_FILE.read_text(encoding="utf-8") if OUT_FILE.exists() else ""
+        if current != content:
+            raise SystemExit(
+                f"{OUT_FILE.relative_to(ROOT)} is out of date with {MENTORS_DIR.relative_to(ROOT)}.\n"
+                "Run: python3 scripts/generate_mentor_data.py"
+            )
+        print(f"{OUT_FILE.relative_to(ROOT)} is up to date ({len(ORDER)} mentors)")
+        return
+
     OUT_FILE.parent.mkdir(parents=True, exist_ok=True)
-    OUT_FILE.write_text("\n".join(lines), encoding="utf-8")
+    OUT_FILE.write_text(content, encoding="utf-8")
     print(f"Wrote {OUT_FILE} ({len(ORDER)} mentors)")
 
 
