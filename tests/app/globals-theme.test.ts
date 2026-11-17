@@ -69,3 +69,19 @@ describe('globals.css @theme inline tokens', () => {
     expect(theme['--shadow-glow']).not.toMatch(/^var\(/);
   });
 });
+describe('globals.css reduced-motion handling (#314)', () => {
+  const reducedMotionBlock = css.match(
+    /@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{([\s\S]*?)\n\}/
+  )?.[1];
+
+  it('disables smooth scrolling under prefers-reduced-motion (#314)', () => {
+    expect(reducedMotionBlock).toBeTruthy();
+    // `html { scroll-behavior: auto; }` must appear inside the media query.
+    expect(reducedMotionBlock).toMatch(/html\s*\{[^}]*scroll-behavior\s*:\s*auto/);
+  });
+
+  it('still disables the decorative CSS animations (#314)', () => {
+    expect(reducedMotionBlock).toMatch(/\.animate-float/);
+    expect(reducedMotionBlock).toMatch(/animation\s*:\s*none/);
+  });
+});
