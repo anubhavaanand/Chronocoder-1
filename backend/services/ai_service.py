@@ -10,7 +10,7 @@ import os
 from pathlib import Path
 from typing import AsyncGenerator, List, Optional, Union
 import aiohttp
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 logger = logging.getLogger(__name__)
@@ -192,13 +192,15 @@ class MentorConfig(BaseModel):
     icon: str
     accent_color: str
     avatar_url: Optional[str] = None
-    system_prompt: str
-    tone: str
-    focus_areas: List[str]
-    feedback_schema: dict
-    few_shot_examples: List[dict]
-    signature_opening: str
-    signature_closing: str
+    # Content fields are optional so a new mentor JSON only needs its identity
+    # fields; missing sections fall back to empty values (#253).
+    system_prompt: str = ""
+    tone: str = ""
+    focus_areas: List[str] = Field(default_factory=list)
+    feedback_schema: dict = Field(default_factory=dict)
+    few_shot_examples: List[dict] = Field(default_factory=list)
+    signature_opening: str = ""
+    signature_closing: str = ""
 
 
 DEFAULT_GEMINI_MODEL = "gemini-2.0-flash"
