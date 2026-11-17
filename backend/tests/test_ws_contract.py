@@ -98,6 +98,49 @@ def test_invalid_input_is_rejected(client):
     assert message["payload"]["code"] == "INVALID_INPUT"
 
 
+def test_non_string_user_code_is_rejected_without_disconnect(client):
+    """Non-string user_code must yield an INVALID_INPUT error, not a silent close (#311).
+
+    Previously `user_code=123` passed the truthiness check and then crashed
+    `analyze_code_locally()` with AttributeError, which the outer handler
+    swallowed and turned into a disconnect with no error event.
+    """
+    with client.websocket_connect("/ws/feedback") as ws:
+        ws.send_json({"mentor_id": "ada_lovelace", "user_code": 123})
+        message = ws.receive_json()
+
+        assert message["type"] == "error"
+        assert message["payload"]["code"] == "INVALID_INPUT"
+        assert "string" in message["payload"]["message"].lower()
+
+        # The socket must still be usable afterwards (no disconnect).
+        ws.send_json({"mentor_id": "", "user_code": ""})
+        follow_up = ws.receive_json()
+        assert follow_up["type"] == "error"
+        assert follow_up["payload"]["code"] == "INVALID_INPUT"
+
+
+def test_non_string_mentor_id_is_rejected(client):
+    """A non-string mentor_id must yield INVALID_INPUT instead of a TypeError crash (#311)."""
+    with client.websocket_connect("/ws/feedback") as ws:
+        ws.send_json({"mentor_id": ["ada_lovelace"], "user_code": VALID_CODE})
+        message = ws.receive_json()
+
+    assert message["type"] == "error"
+    assert message["payload"]["code"] == "INVALID_INPUT"
+
+
+def test_non_string_user_code_list_is_rejected(client):
+    """A list/dict user_code is truthy but must still be rejected as INVALID_INPUT (#311)."""
+    for bad in ([], {}, ["print(1)"]):
+        with client.websocket_connect("/ws/feedback") as ws:
+            ws.send_json({"mentor_id": "ada_lovelace", "user_code": bad})
+            message = ws.receive_json()
+
+        assert message["type"] == "error"
+        assert message["payload"]["code"] == "INVALID_INPUT"
+
+
 def test_unknown_mentor_is_rejected_before_analysis(client):
     with client.websocket_connect("/ws/feedback") as ws:
         ws.send_json({"mentor_id": "ghost_mentor", "user_code": VALID_CODE})
