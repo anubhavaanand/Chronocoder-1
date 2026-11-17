@@ -72,6 +72,7 @@ export function SearchBar({
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
+          aria-label="Ask a mentor a question"
           placeholder={`Ask any mentor anything... Try "How do I optimize this recursive function?"`}
           className={`w-full pl-12 pr-36 sm:pr-40 py-4 text-base ${large ? "py-5 text-lg" : ""}`}
           style={{
