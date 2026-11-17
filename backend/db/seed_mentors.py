@@ -92,12 +92,12 @@ def seed_mentors(
         # Upsert mentor
         result = client.table("mentors").upsert(record).execute()
         seeded_records.append(record)
-        logger.info(f"Seeded {record['mentor_id']}: {result}")
-        print(f"Seeded {record['mentor_id']}: {result}")
+        logger.info("Seeded %s: %s", record["mentor_id"], result)
 
-    print(f"All mentors seeded. Total: {len(seeded_records)}")
+    logger.info("All mentors seeded. Total: %s", len(seeded_records))
     return seeded_records
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     seed_mentors()
