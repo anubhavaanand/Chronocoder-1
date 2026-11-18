@@ -43,6 +43,11 @@ export default defineConfig({
       { find: /^lucide-react$/, replacement: path.resolve(__dirname, './node_modules/lucide-react') },
       { find: /^react-markdown$/, replacement: path.resolve(__dirname, './node_modules/react-markdown') },
       { find: /^remark-gfm$/, replacement: path.resolve(__dirname, './node_modules/remark-gfm') },
+      // Resolve the coverage provider to this suite's copy. The root is
+      // path.resolve(__dirname, '..'), so without this alias Vite looks for
+      // @vitest/coverage-v8 at the repo root, misses it, and `--coverage`
+      // dies with "Failed to load url".
+      { find: /^@vitest\/coverage-v8$/, replacement: path.resolve(__dirname, './node_modules/@vitest/coverage-v8/dist/index.js') },
     ],
   },
   
