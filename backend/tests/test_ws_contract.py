@@ -12,6 +12,9 @@ If these tests fail, the frontend streaming UI breaks with them.
 Run:  python -m pytest backend/tests -v
 """
 
+import json
+import logging
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -120,6 +123,34 @@ def test_malformed_json_keeps_connection_open(client):
         ws.send_json({"mentor_id": "ada_lovelace", "user_code": VALID_CODE, "session_id": "t2"})
         kinds = [ws.receive_json()["type"] for _ in range(3)]
         assert kinds == ["analysis_complete", "feedback_chunk", "feedback_complete"]
+
+
+def test_ai_error_does_not_leak_internal_text(client, monkeypatch, caplog):
+    """A gateway failure returns a generic message, not the raw exception (#315)."""
+    secret = "GEMINI_INTERNAL_SECRET_upstream_payload"
+
+    class ExplodingGateway(StubAIGateway):
+        async def get_feedback_streaming(self, mentor_id, user_code, code_analysis):
+            raise RuntimeError(secret)
+            yield  # pragma: no cover — make this an async generator
+
+    monkeypatch.setattr(backend_main, "ai_gateway", ExplodingGateway())
+
+    with caplog.at_level(logging.ERROR, logger="backend.main"):
+        with client.websocket_connect("/ws/feedback") as ws:
+            ws.send_json({"mentor_id": "ada_lovelace", "user_code": VALID_CODE, "session_id": "t3"})
+            # analysis_complete is emitted before streaming fails
+            first = ws.receive_json()
+            assert first["type"] == "analysis_complete"
+            error = ws.receive_json()
+
+    assert error["type"] == "error"
+    assert error["payload"]["code"] == "AI_ERROR"
+    assert error["payload"]["message"] == backend_main.AI_CLIENT_ERROR_MESSAGE
+    # The sentinel must not appear anywhere in the outbound frame.
+    assert secret not in json.dumps(error)
+    assert secret in caplog.text
+    assert "correlation_id=" in caplog.text
 
 
 def test_oversized_user_code_is_rejected(client, monkeypatch):

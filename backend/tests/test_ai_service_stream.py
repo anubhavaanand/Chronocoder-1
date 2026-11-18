@@ -17,6 +17,7 @@ Run: python -m pytest backend/tests -v
 """
 
 import json
+import logging
 
 import pytest
 
@@ -246,15 +247,21 @@ async def test_uses_sse_endpoint(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_non_200_raises_with_body(monkeypatch):
+async def test_non_200_raises_with_body(monkeypatch, caplog):
+    """HTTP errors keep the raw body on GeminiAPIError.detail for logs only."""
     patch_session(monkeypatch, FakeResponse([b"irrelevant"], status=429), {})
 
-    gateway = make_gateway()
-    with pytest.raises(Exception, match="HTTP 429.*upstream error body"):
-        async for _ in gateway.get_feedback_streaming(
-            mentor_id="ada_lovelace", user_code="x", code_analysis={}
-        ):
-            pass
+    gateway = make_gateway(retry_delay=0.01)
+    with caplog.at_level(logging.ERROR, logger="backend.services.ai_service"):
+        with pytest.raises(ai_service.GeminiAPIError, match=r"Gemini API error \(HTTP 429\)") as caught:
+            async for _ in gateway.get_feedback_streaming(
+                mentor_id="ada_lovelace", user_code="x", code_analysis={}
+            ):
+                pass
+
+    assert caught.value.detail == "upstream error body"
+    assert "upstream error body" not in str(caught.value)
+    assert "detail=upstream error body" in caplog.text
 
 
 @pytest.mark.asyncio
@@ -535,10 +542,13 @@ async def test_no_retry_on_400_bad_request(monkeypatch):
     captured = {}
     patch_session(monkeypatch, responses, captured)
 
-    with pytest.raises(Exception, match=r"Gemini API error \(HTTP 400\)"):
+    with pytest.raises(ai_service.GeminiAPIError, match=r"Gemini API error \(HTTP 400\)") as caught:
         await collect(gateway, mentor_id="ada_lovelace")
 
     assert captured.get("call_count") == 1
+    # Raw body stays on the structured field, not in the exception message.
+    assert caught.value.detail == "upstream error body"
+    assert "upstream error body" not in str(caught.value)
 
 
 def test_load_mentor_registry_utf8_encoding(monkeypatch):
