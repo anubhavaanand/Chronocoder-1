@@ -11,9 +11,10 @@
  *
  * Architecture:
  *   - Fixed z-index: 0, pointer-events: none — never intercepts UI interaction
- *   - Planes are created for each `img[data-gl-src]` element in the DOM
+ *   - Planes are created for each `[data-gl-src]` or `[data-gl-color]` element
  *   - ResizeObserver keeps plane positions synced to DOM layout
  *   - Native scroll via window.scrollY — no dependency on Lenis or other libs
+ *   - Color-only targets render procedurally; no hidden bitmaps are decoded (#274)
  *
  * Credits: effect pattern by Jan Kohlbach / Codrops (MIT)
  *          simplex noise: Ashima Arts (MIT)
@@ -93,9 +94,22 @@ uniform float     uScrollVelocity;
 uniform float     uMouseEnter;
 uniform vec2      uMouseOverPos;
 uniform float     uTime;
+uniform vec3      uColor;
+uniform float     uUseColor;
 in vec2 vUv;
 in vec2 vUvCover;
 out vec4 outColor;
+
+/* Procedural stand-in for the per-card mentor texture (#274). Previously every
+   target embedded an invisible 400x560 SVG data URI, so the browser decoded a
+   full image per card for no visual gain. The gradient is cheap to evaluate and
+   keeps the same accent-at-the-top falloff. */
+vec3 proceduralColor() {
+  float d = distance(vec2(vUv.x, vUv.y), vec2(0.5, 0.7));
+  float glow = 0.4 * (1.0 - smoothstep(0.0, 0.7, d));
+  vec3 base = vec3(0.039, 0.039, 0.059);
+  return mix(base, uColor, glow);
+}
 
 void main() {
   vec2 tc = vUvCover;
@@ -114,7 +128,7 @@ void main() {
   tc.x += circle * n * 0.012 * strength;
   tc.y += circle * n * 0.012 * strength;
 
-  vec3 col = texture(uTexture, tc).rgb;
+  vec3 col = uUseColor > 0.5 ? proceduralColor() : texture(uTexture, tc).rgb;
 
   /* Film grain — fast hash, no per-pixel snoise */
   float g = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233)) + uTime * 57.0) * 43758.5453);
@@ -130,10 +144,10 @@ void main() {
 interface PlaneEntry {
   mesh: THREE.Mesh;
   material: THREE.ShaderMaterial;
-  domEl: HTMLImageElement;
+  domEl: HTMLElement;
   measure: () => void;
   update: (scrollY: number, vel: number, time: number) => void;
-  el: HTMLImageElement;
+  el: HTMLElement;
   enter: number;
   over: { cx: number; cy: number; tx: number; ty: number };
   tEnter: number;
@@ -143,6 +157,8 @@ interface PlaneEntry {
   w: number;
   h: number;
   mat: THREE.ShaderMaterial;
+  /** Undefined for procedural (data-gl-color) planes. */
+  texture?: THREE.Texture | null;
   destroy?: () => void;
 }
 
@@ -204,6 +220,10 @@ export default function WebGLBackground() {
     camera.fov = calcFov(CAMERA_POS);
     camera.updateProjectionMatrix();
 
+    /* A plane is driven either by a decoded <img data-gl-src> or, for
+       color-only targets that must not decode an image, by data-gl-color (#274). */
+    const GL_TARGET_SELECTOR = "img[data-gl-src], [data-gl-color]";
+
     const geometry = new THREE.PlaneGeometry(1, 1, 28, 28);
     const loader = new THREE.TextureLoader();
     const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
@@ -214,9 +234,9 @@ export default function WebGLBackground() {
     const prefersReduced = typeof window !== "undefined" && window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : null;
     const isReducedMotion = () => Boolean(prefersReduced?.matches);
 
-    /* ---- Media class: one instance per img[data-gl-src] ---- */
+    /* ---- Media class: one instance per [data-gl-src] / [data-gl-color] ---- */
     class Media implements PlaneEntry {
-      el: HTMLImageElement;
+      el: HTMLElement;
       enter: number;
       over: { cx: number; cy: number; tx: number; ty: number };
       tEnter: number;
@@ -228,10 +248,13 @@ export default function WebGLBackground() {
       mesh: THREE.Mesh;
       mat: THREE.ShaderMaterial;
       material: THREE.ShaderMaterial;
-      domEl: HTMLImageElement;
+      domEl: HTMLElement;
       pointerTarget: HTMLElement;
+      /* Set when the plane draws from uColor instead of a decoded image (#274). */
+      procedural: boolean;
+      texture: THREE.Texture | null = null;
 
-      constructor(el: HTMLImageElement) {
+      constructor(el: HTMLElement) {
         this.el = el;
         this.domEl = el;
         this.enter = 0;
@@ -242,6 +265,7 @@ export default function WebGLBackground() {
         this.left = this.b.left;
         this.w = this.b.width;
         this.h = this.b.height;
+        this.procedural = !el.hasAttribute("data-gl-src");
 
         this.mat = new THREE.ShaderMaterial({
           glslVersion: THREE.GLSL3,
@@ -255,6 +279,8 @@ export default function WebGLBackground() {
             uMouseEnter: { value: 0 },
             uMouseOverPos: { value: new THREE.Vector2(0.5, 0.5) },
             uTime: { value: 0 },
+            uColor: { value: cssToRgb(el.getAttribute("data-gl-color") ?? "") },
+            uUseColor: { value: 0 },
           },
         });
         this.material = this.mat;
@@ -262,15 +288,22 @@ export default function WebGLBackground() {
         this.mesh = new THREE.Mesh(geometry, this.mat);
         scene.add(this.mesh);
 
-        this.mat.uniforms.uTexture.value = loader.load(el.src, (tex) => {
-          tex.colorSpace = THREE.SRGBColorSpace;
-          this.mat.uniforms.uTextureSize.value.set(tex.image.width, tex.image.height);
-        });
+        if (this.procedural) {
+          // No image to decode: the fragment shader paints the accent gradient.
+          this.mat.uniforms.uUseColor.value = 1;
+        } else {
+          const src = el.getAttribute("data-gl-src")!;
+          this.texture = loader.load(src, (tex) => {
+            tex.colorSpace = THREE.SRGBColorSpace;
+            this.mat.uniforms.uTextureSize.value.set(tex.image.width, tex.image.height);
+          });
+          this.mat.uniforms.uTexture.value = this.texture;
+        }
 
-        /* Pointer events. The <img data-gl-src> carries `pointer-events: none`
+        /* Pointer events. A plain [data-gl-src] anchor is `pointer-events: none`
            so it can't block clicks, which means listeners on it never fire
            (#273). Attach to the nearest ancestor that accepts pointer events
-           instead, and fall back to the image itself. */
+           instead, and fall back to the element itself. */
         this.pointerTarget = (el.closest("[data-gl-pointer]") as HTMLElement | null)
           ?? this.findPointerHost(el)
           ?? el;
@@ -361,14 +394,16 @@ export default function WebGLBackground() {
     }
     window.addEventListener("resize", resize, { passive: true });
 
-    /* Build Media instances for every img[data-gl-src] not already tracked.
-       Returns the ones newly created. (#272) */
+    /* Targets are either an <img data-gl-src> (decoded texture) or any element
+       carrying data-gl-color, which is painted procedurally in the shader
+       (#274). Returns the ones newly created. */
     function addPlanesFor(el: ParentNode) {
       const created: Media[] = [];
       const seen = new Set(store.map((m) => m.el));
-      Array.from(el.querySelectorAll<HTMLImageElement>("img[data-gl-src]")).forEach((im) => {
-        if (!seen.has(im)) {
-          const m = new Media(im);
+      const targets = el.querySelectorAll<HTMLElement>(GL_TARGET_SELECTOR);
+      Array.from(targets).forEach((t) => {
+        if (!seen.has(t)) {
+          const m = new Media(t);
           store.push(m);
           created.push(m);
         }
@@ -381,6 +416,42 @@ export default function WebGLBackground() {
     let prevY = window.scrollY, vel = 0;
     let isDisposed = false;
     let rafId: number | null = null;
+
+    /* Parse a CSS color for procedural planes (#274). Handles the formats the
+       mentors data actually uses — hex (3/4/6/8 digits) and rgb()/rgba() — and
+       falls back to the brand indigo for anything exotic (oklch, color-mix).
+       Deliberately free of canvas: jsdom has no 2d context, and a canvas readback
+       is overkill for a handful of constants. */
+    function cssToRgb(color: string): THREE.Vector3 {
+      const fallback = new THREE.Vector3(0.31, 0.275, 0.902); // #4f46e5
+      if (!color) return fallback;
+      const t = color.trim();
+
+      if (/^#?[0-9a-fA-F]{3,8}$/.test(t)) {
+        let hex = t.startsWith("#") ? t.slice(1) : t;
+        if (hex.length === 3 || hex.length === 4) {
+          hex = hex.split("").map((c) => c + c).join("");
+        }
+        if (hex.length === 6 || hex.length === 8) {
+          const n = parseInt(hex.slice(0, 6), 16);
+          return new THREE.Vector3(((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255);
+        }
+        return fallback;
+      }
+
+      const rgb = t.match(/^rgba?\(([^)]+)\)$/i);
+      if (rgb) {
+        const parts = rgb[1].split(/[,\s/]+/).filter(Boolean).slice(0, 3);
+        if (parts.length === 3) {
+          const ch = parts.map((p) => parseFloat(p));
+          if (ch.every((c) => Number.isFinite(c) && c >= 0 && c <= 255)) {
+            return new THREE.Vector3(ch[0] / 255, ch[1] / 255, ch[2] / 255);
+          }
+        }
+      }
+
+      return fallback;
+    }
 
     /* One animation loop for the whole component, started on demand. Images
        inserted after mount have no loop of their own, so the observer kicks
@@ -409,11 +480,12 @@ export default function WebGLBackground() {
       ensureLoop();
     }
 
-    /* Wait for all img[data-gl-src] textures to have natural dimensions */
+    /* Wait for all decoded textures to have natural dimensions */
     (function whenReady(cb: () => void) {
       const imgs = Array.from(document.querySelectorAll<HTMLImageElement>("img[data-gl-src]"));
       let n = 0;
       const total = imgs.length;
+      // A data-gl-color target has no bitmap to wait for; only decode waits matter.
       const done = () => { if (++n >= total && !isDisposed) cb(); };
       imgs.forEach((im) => {
         if (im.complete && im.naturalWidth) done();
@@ -422,8 +494,8 @@ export default function WebGLBackground() {
       if (!total && !isDisposed) cb();
     })(boot);
 
-    /* Newly-inserted <img data-gl-src> elements (route changes, lazy sections)
-       previously never got a plane, because boot() ran exactly once (#272). */
+    /* Newly-inserted targets (route changes, lazy sections) previously never
+       got a plane, because boot() ran exactly once (#272). */
     let observer: MutationObserver | null = null;
     // Deferred so a node that is removed and re-inserted in the same task (a
     // move) keeps its plane instead of tearing it down and rebuilding.
@@ -435,13 +507,14 @@ export default function WebGLBackground() {
           sweepTimer = null;
           if (isDisposed) return;
           const live = new Set(
-            Array.from(document.querySelectorAll("img[data-gl-src]"))
+            Array.from(document.querySelectorAll<HTMLElement>(GL_TARGET_SELECTOR))
           );
           const stale = store.filter((m) => !live.has(m.el));
           if (!stale.length) return;
           stale.forEach((m) => {
             scene.remove(m.mesh);
             m.mat.uniforms.uTexture.value?.dispose();
+            m.texture?.dispose();
             m.mat.dispose();
             m.destroy?.();
           });
