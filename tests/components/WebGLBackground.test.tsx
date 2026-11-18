@@ -263,6 +263,64 @@ describe('WebGLBackground component (#CC-051)', () => {
     window.matchMedia = originalMatchMedia;
   });
 
+  // #231: matchMedia must be consulted every frame, not sampled once at mount.
+  // A live MediaQueryList reflects the OS setting changing while the page is
+  // open, so the shader uniforms have to follow it.
+  it('re-reads prefers-reduced-motion so runtime OS changes take effect (#231)', () => {
+    const originalMatchMedia = window.matchMedia;
+    let reduced = false;
+    const mediaQueryList = {
+      get matches() {
+        return reduced;
+      },
+      media: '(prefers-reduced-motion: reduce)',
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    };
+    window.matchMedia = vi.fn().mockImplementation(() => mediaQueryList);
+
+    const img = document.createElement('img');
+    img.setAttribute('data-gl-src', 'true');
+    img.src = 'https://example.com/test-live-reduced.png';
+    Object.defineProperty(img, 'complete', { value: true });
+    Object.defineProperty(img, 'naturalWidth', { value: 100 });
+    document.body.appendChild(img);
+
+    const { unmount } = render(<WebGLBackground />);
+
+    // Enter the card so uMouseEnter ramps up — that is the uniform that proves
+    // motion is being applied at all.
+    img.dispatchEvent(new Event('pointerenter'));
+    window.scrollY = 40;
+    if (rafCallback) rafCallback(100);
+    const lastMat = createdMaterials[createdMaterials.length - 1];
+    expect(lastMat.uniforms.uMouseEnter.value).not.toBe(0);
+
+    // User turns on "reduce motion" mid-session.
+    reduced = true;
+
+    // The next frame must suppress motion without a remount.
+    window.scrollY = 80;
+    if (rafCallback) rafCallback(200);
+    expect(lastMat.uniforms.uScrollVelocity.value).toBe(0);
+    expect(lastMat.uniforms.uMouseEnter.value).toBe(0);
+    expect(lastMat.uniforms.uTime.value).toBe(0);
+
+    // ...and turning it back off restores it.
+    reduced = false;
+    window.scrollY = 120;
+    if (rafCallback) rafCallback(300);
+    expect(lastMat.uniforms.uMouseEnter.value).not.toBe(0);
+
+    unmount();
+    img.remove();
+    window.matchMedia = originalMatchMedia;
+  });
+
   it('handles WebGL context creation failure gracefully without crashing the app (#CC-057)', () => {
     rendererShouldThrow = true;
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
