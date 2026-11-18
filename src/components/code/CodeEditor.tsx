@@ -26,19 +26,26 @@ const MonacoEditor = dynamic(
 );
 
 export interface ComplexityInfo {
-  label: "Simple" | "Medium" | "Complex";
+  /** Code *length* tier — not AST complexity (#318). */
+  label: "Short" | "Medium" | "Long";
   className: string;
 }
 
 /**
- * Character-count based complexity heuristic shared by the workspace header.
+ * Character-count based size heuristic for the workspace header.
+ *
+ * Deliberately *not* the same thing as the Static Analysis panel's
+ * `complexity_score`, which is derived from AST node counts — a 600-character
+ * file with no functions is "Long" here but `0/10` there. The labels are kept
+ * distinct so the two numbers never read as contradictions (#318).
+ *
  * Returns null when there is no code yet.
  */
 export function getComplexity(characterCount: number): ComplexityInfo | null {
   if (characterCount <= 0) return null;
-  if (characterCount < 100) return { label: "Simple", className: "text-accent-green" };
+  if (characterCount < 100) return { label: "Short", className: "text-accent-green" };
   if (characterCount < 500) return { label: "Medium", className: "text-accent-amber" };
-  return { label: "Complex", className: "text-accent-magenta" };
+  return { label: "Long", className: "text-accent-magenta" };
 }
 
 export interface CodeEditorProps {
@@ -101,7 +108,7 @@ export function CodeEditor({
           </span>
           {complexity && (
             <span className={clsx("font-semibold", complexity.className)}>
-              {complexity.label}
+              Length: {complexity.label}
             </span>
           )}
         </div>

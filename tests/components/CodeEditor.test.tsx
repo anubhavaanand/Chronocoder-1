@@ -4,7 +4,7 @@
  * Tests the extracted src/components/code/CodeEditor.tsx against the
  * workspace editor behavior:
  * - Monaco editor mounting with value/language/theme/height
- * - Live character count and complexity badge (Simple/Medium/Complex)
+ * - Live character count and code-length badge (Short/Medium/Long)
  * - onChange propagation from the editor
  * - Ctrl/Cmd + Enter submission shortcut
  * - Character limit enforcement and error display
@@ -125,28 +125,38 @@ describe.sequential('CodeEditor', () => {
       expect(screen.getByTestId('character-count')).toHaveTextContent('1,234 characters');
     });
 
-    it('shows no complexity badge for empty code', async () => {
+    it('shows no length badge for empty code', async () => {
       render(<CodeEditor {...defaultProps} value="" />);
       await screen.findByTestId('monaco-editor');
-      expect(screen.queryByText(/Simple|Medium|Complex/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Length:/)).not.toBeInTheDocument();
     });
 
-    it('classifies short code as Simple', async () => {
+    it('classifies short code as Short', async () => {
       render(<CodeEditor {...defaultProps} value={'x'.repeat(99)} />);
       await screen.findByTestId('monaco-editor');
-      expect(screen.getByText('Simple')).toBeInTheDocument();
+      expect(screen.getByText('Length: Short')).toBeInTheDocument();
     });
 
     it('classifies medium-length code as Medium', async () => {
       render(<CodeEditor {...defaultProps} value={'x'.repeat(200)} />);
       await screen.findByTestId('monaco-editor');
-      expect(screen.getByText('Medium')).toBeInTheDocument();
+      expect(screen.getByText('Length: Medium')).toBeInTheDocument();
     });
 
-    it('classifies long code as Complex', async () => {
+    it('classifies long code as Long', async () => {
       render(<CodeEditor {...defaultProps} value={'x'.repeat(600)} />);
       await screen.findByTestId('monaco-editor');
-      expect(screen.getByText('Complex')).toBeInTheDocument();
+      expect(screen.getByText('Length: Long')).toBeInTheDocument();
+    });
+
+    // #318: the header badge measures character count; the Static Analysis
+    // panel measures AST complexity. They must not both say "Complex" for the
+    // same file, or the two numbers read as a contradiction.
+    it('does not label the character-count badge as "Complex" (#318)', async () => {
+      render(<CodeEditor {...defaultProps} value={'x'.repeat(600)} />);
+      await screen.findByTestId('monaco-editor');
+      expect(screen.queryByText(/^Complex$/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Complexity/)).not.toBeInTheDocument();
     });
 
     it('updates count and badge as the user types', async () => {
@@ -159,7 +169,7 @@ describe.sequential('CodeEditor', () => {
       const editor = await screen.findByTestId('monaco-editor');
       fireEvent.change(editor, { target: { value: 'print(1)' } });
       expect(screen.getByTestId('character-count')).toHaveTextContent('8 characters');
-      expect(screen.getByText('Simple')).toBeInTheDocument();
+      expect(screen.getByText('Length: Short')).toBeInTheDocument();
     });
   });
 
@@ -304,11 +314,11 @@ describe.sequential('CodeEditor', () => {
     });
 
     it('maps boundary values to the right tier', () => {
-      expect(getComplexity(1)?.label).toBe('Simple');
-      expect(getComplexity(99)?.label).toBe('Simple');
+      expect(getComplexity(1)?.label).toBe('Short');
+      expect(getComplexity(99)?.label).toBe('Short');
       expect(getComplexity(100)?.label).toBe('Medium');
       expect(getComplexity(499)?.label).toBe('Medium');
-      expect(getComplexity(500)?.label).toBe('Complex');
+      expect(getComplexity(500)?.label).toBe('Long');
     });
   });
 
