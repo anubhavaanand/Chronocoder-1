@@ -63,7 +63,7 @@ describe('MentorJourney', () => {
   });
 
   it('renders gracefully without crashing when mentor bio is missing (#CC-064)', () => {
-    // Render with an artificially unmapped mentor
+    // A mentor with no matching MENTOR_BIOS entry and no biography text at all.
     const mockMentorWithoutBio = {
       id: 'unknown_future_mentor',
       name: 'Future Pioneer',
@@ -79,20 +79,15 @@ describe('MentorJourney', () => {
       feedbackSections: [],
     };
 
-    // Temporarily append the unmapped mentor
-    MENTORS.push(mockMentorWithoutBio);
+    // Pass a test-local array rather than pushing onto the shared MENTORS
+    // export, which would leak state into other tests in this worker (#79).
+    render(<MentorJourney mentors={[...MENTORS, mockMentorWithoutBio]} />);
 
-    try {
-      expect(() => render(<MentorJourney />)).not.toThrow();
-      expect(screen.getByText('Future Pioneer')).toBeInTheDocument();
-      expect(screen.getAllByText('Quantum Circuit Synthesis').length).toBe(2);
-      expect(
-        screen.getAllByText(/Welcome to the distributed quantum computing era/).length
-      ).toBe(2);
-    } finally {
-      // Clean up
-      MENTORS.pop();
-    }
+    expect(screen.getByText('Future Pioneer')).toBeInTheDocument();
+    expect(screen.getAllByText('Quantum Circuit Synthesis').length).toBe(2);
+    expect(
+      screen.getAllByText(/Welcome to the distributed quantum computing era/).length
+    ).toBe(2);
   });
 
   describe('getContrastingTextColor (#CC-065)', () => {
