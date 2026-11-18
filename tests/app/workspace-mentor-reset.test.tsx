@@ -153,4 +153,46 @@ describe('WorkspacePage mentor change reset (#206)', () => {
     expect(screen.queryByText('Partial Ada reading')).not.toBeInTheDocument();
     expect(screen.queryByText('Partial challenge')).not.toBeInTheDocument();
   });
+
+  // #319: the in-workspace search bar pushes /workspace/<sameMentor>?query=...
+  // The mentorId does not change, so the #206 reset above never fires and the
+  // new question banner sits on top of the previous mentor's feedback.
+  it('clears feedback when the same mentor is re-searched with a new query (#319)', () => {
+    const { rerender } = render(<WorkspacePage />);
+
+    act(() => {
+      capturedOnFeedbackChunk?.({
+        reading: 'Stale feedback from the first question',
+        sections: [
+          {
+            id: 'sec-1',
+            label: 'Correctness',
+            content: 'Old review',
+            icon: '✅',
+          },
+        ],
+        challenge: 'Old challenge',
+        closing: 'Old closing',
+      });
+    });
+
+    expect(
+      screen.getByText('Stale feedback from the first question')
+    ).toBeInTheDocument();
+
+    // Search again from inside the workspace: same mentor, new ?query=.
+    currentQuery = 'query=a%20second%20question';
+    rerender(<WorkspacePage />);
+
+    // The new question is shown...
+    expect(screen.getByText('a second question')).toBeInTheDocument();
+
+    // ...and the previous answer is gone rather than lingering under it.
+    expect(
+      screen.queryByText('Stale feedback from the first question')
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText('Old review')).not.toBeInTheDocument();
+    expect(screen.queryByText('Old challenge')).not.toBeInTheDocument();
+    expect(screen.queryByText('Old closing')).not.toBeInTheDocument();
+  });
 });

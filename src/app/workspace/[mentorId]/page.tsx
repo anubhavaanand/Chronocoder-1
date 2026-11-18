@@ -119,10 +119,12 @@ print(fibonacci(10))`);
   };
 
   // Clear all per-mentor feedback state. Called on submit and whenever the
-  // route's mentorId changes (#206): the App Router reuses this client
-  // component across /workspace/[a] -> /workspace/[b], so without this the
-  // previous mentor's review would remain on screen.
-  const resetFeedback = () => {
+  // route changes underneath this client component (#206, #319): the App
+  // Router reuses the page across /workspace/[a] -> /workspace/[b], and the
+  // in-workspace search bar pushes /workspace/<sameMentor>?query=..., so
+  // without an explicit reset the previous question's review would stay on
+  // screen under the new question.
+  const clearFeedback = () => {
     setAnalysis(null);
     setError(null);
     setActiveTab("ask");
@@ -132,24 +134,19 @@ print(fibonacci(10))`);
     setClosing("");
   };
 
-  // Reset feedback when the route's mentorId changes (#206). The App Router
-  // reuses this client component across /workspace/[a] -> /workspace/[b], so
-  // the previous mentor's review would otherwise stay on screen.
+  // Reset feedback when the route changes. Both the mentor and the incoming
+  // ?query= are tracked, because either one changing means the user has moved
+  // to a new question and the old answer no longer applies (#206, #319).
   //
-  // Use the React-recommended "adjust state while rendering" pattern instead
+  // Uses the React-recommended "adjust state while rendering" pattern instead
   // of a useEffect + setState (which cascades renders and is flagged by the
-  // react-hooks/set-state-in-effect lint rule): when we detect a mentor
-  // change during render, reset immediately and re-run the render.
-  const [prevMentorId, setPrevMentorId] = useState(mentorId);
-  if (prevMentorId !== mentorId) {
-    setPrevMentorId(mentorId);
-    setAnalysis(null);
-    setError(null);
-    setActiveTab("ask");
-    setReading("");
-    setFeedbackSections([]);
-    setChallenge("");
-    setClosing("");
+  // react-hooks/set-state-in-effect lint rule): when we detect a change during
+  // render, reset immediately and re-run the render.
+  const queryParam = searchParams.get("query") ?? "";
+  const [prevRoute, setPrevRoute] = useState({ mentorId, queryParam });
+  if (prevRoute.mentorId !== mentorId || prevRoute.queryParam !== queryParam) {
+    setPrevRoute({ mentorId, queryParam });
+    clearFeedback();
   }
 
   // Handle submission
@@ -158,7 +155,7 @@ print(fibonacci(10))`);
       setError("Please enter some code to analyze");
       return;
     }
-    resetFeedback();
+    clearFeedback();
     requestFeedback(userCode);
   };
 
