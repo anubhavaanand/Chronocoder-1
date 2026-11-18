@@ -53,7 +53,13 @@ export function getContrastingTextColor(backgroundHexOrColor: string): string {
   return "oklch(10% 0.01 265)";
 }
 
-function PortraitMedallion({ mentor }: { mentor: Mentor }) {
+function PortraitMedallion({
+  mentor,
+  mentors,
+}: {
+  mentor: Mentor;
+  mentors: readonly Mentor[];
+}) {
   return (
     <div className="relative mx-auto h-[280px] w-[280px] md:h-[360px] md:w-[360px]">
       <MentorGLTarget mentorId={mentor.id} accentColor={mentor.accentColor} />
@@ -100,13 +106,21 @@ function PortraitMedallion({ mentor }: { mentor: Mentor }) {
           backdropFilter: "blur(12px)",
         }}
       >
-        {String(MENTORS.indexOf(mentor) + 1).padStart(2, "0")} · {mentor.era}
+        {String(mentors.indexOf(mentor) + 1).padStart(2, "0")} · {mentor.era}
       </div>
     </div>
   );
 }
 
-function JourneySection({ mentor, index }: { mentor: Mentor; index: number }) {
+function JourneySection({
+  mentor,
+  index,
+  mentors,
+}: {
+  mentor: Mentor;
+  index: number;
+  mentors: readonly Mentor[];
+}) {
   const bio = MENTOR_BIOS[mentor.id];
   const reversed = index % 2 === 1;
 
@@ -132,7 +146,7 @@ function JourneySection({ mentor, index }: { mentor: Mentor; index: number }) {
           }`}
         >
           <div className="shrink-0 md:w-[400px]">
-            <PortraitMedallion mentor={mentor} />
+            <PortraitMedallion mentor={mentor} mentors={mentors} />
           </div>
 
           <motion.article
@@ -229,13 +243,17 @@ function JourneySection({ mentor, index }: { mentor: Mentor; index: number }) {
   );
 }
 
-export function MentorJourney() {
+/**
+ * The mentors to render, in order. Defaults to the canonical MENTORS export;
+ * tests can pass a local array instead of mutating that shared module state.
+ */
+export function MentorJourney({ mentors = MENTORS }: { mentors?: readonly Mentor[] }) {
   return (
     <div className="relative" style={{ zIndex: 1 }}>
-      {MENTORS.map((mentor, index) => (
+      {mentors.map((mentor, index) => (
         <div key={mentor.id}>
-          <JourneySection mentor={mentor} index={index} />
-          {index < MENTORS.length - 1 && (
+          <JourneySection mentor={mentor} index={index} mentors={mentors} />
+          {index < mentors.length - 1 && (
             <div
               aria-hidden="true"
               className="mx-auto flex max-w-7xl items-center gap-4 px-6"
