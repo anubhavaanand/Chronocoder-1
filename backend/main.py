@@ -23,7 +23,12 @@ from supabase import create_client, Client
 from backend.services.ai_service import AIGateway, load_mentor_registry, mentor_summary
 from backend.utils.env import env_int
 from backend.utils.websocket_manager import ConnectionManager
-from backend.db.session_repo import SessionRepository, SessionCreate, coerce_uuid
+from backend.db.session_repo import (
+    SessionRepository,
+    SessionCreate,
+    coerce_uuid,
+    get_session_repo as get_session_repo_module,
+)
 
 # Configure logging once, at import. Uvicorn configures its own loggers but
 # leaves the root logger alone, so without this the app-level records had no
@@ -61,7 +66,6 @@ manager = ConnectionManager()
 WS_HEARTBEAT_INTERVAL = env_int("WS_HEARTBEAT_INTERVAL", 30)
 ai_gateway: Optional[AIGateway] = None
 supabase: Optional[Client] = None
-session_repo: Optional[SessionRepository] = None
 
 # Supabase config
 FASTAPI_ENV = os.getenv("FASTAPI_ENV", "development").lower()
@@ -130,11 +134,11 @@ def get_supabase_client() -> Client:
 
 
 def get_session_repo() -> Optional[SessionRepository]:
-    """Dependency provider returning SessionRepository if configured, or None in development."""
-    global session_repo
-    if session_repo is not None:
-        return session_repo
+    """Dependency provider returning a cached SessionRepository, or None in development.
 
+    The cache lives in backend.db.session_repo; keeping a second one here
+    meant the two could disagree (#284).
+    """
     url = os.getenv("SUPABASE_URL", SUPABASE_URL)
     key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_ANON_KEY", SUPABASE_ANON_KEY)
     if not url or not key:
@@ -147,8 +151,7 @@ def get_session_repo() -> Optional[SessionRepository]:
         return None
 
     try:
-        session_repo = SessionRepository()
-        return session_repo
+        return get_session_repo_module()
     except Exception as e:
         current_env = os.getenv("FASTAPI_ENV", FASTAPI_ENV).lower()
         if current_env == "production":
