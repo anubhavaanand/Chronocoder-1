@@ -24,7 +24,9 @@
     "test": "npm --prefix tests test",
     "test:unit": "npm --prefix tests run test:unit",
     "test:types": "npm --prefix tests run test:types",
-    "test:backend": "python -m pytest backend/tests -v"
+    "test:backend": "python -m pytest backend/tests -v",
+    "test:e2e": "npm --prefix tests run test:e2e",
+    "test:e2e:ui": "npm --prefix tests run test:e2e:ui"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
