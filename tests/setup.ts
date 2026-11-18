@@ -8,7 +8,7 @@
  * - Custom matchers and utilities
  */
 
-import { vi, afterEach } from 'vitest';
+import { vi, afterEach, beforeEach } from 'vitest';
 import '@testing-library/jest-dom';
 import { cleanup } from '@testing-library/react';
 
@@ -41,17 +41,34 @@ vi.mock('next/image', () => ({
 // MOCK ENVIRONMENT VARIABLES
 // ============================================================================
 
-(process.env as Record<string, string | undefined>).NODE_ENV = 'test';
-process.env.NEXT_PUBLIC_GEMINI_API_KEY = 'test-api-key-for-mock-responses-only';
-process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co';
-process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test';
-process.env.NEXT_PUBLIC_RATE_LIMIT_WINDOW_MS = '60000';
-process.env.NEXT_PUBLIC_RATE_LIMIT_MAX_REQUESTS = '100';
+// `vi.stubEnv` replaces the old `(process.env as Record<string, ...>).NODE_ENV`
+// cast, which bypassed the type-checker (#229).
+//
+// These are re-applied in `beforeEach`, not once at import: `unstubEnvs: true`
+// in vitest.config.ts makes vitest revert every stubbed env var after each
+// test, which would otherwise wipe this baseline after the first case and
+// leave every later test reading `undefined`.
+function stubBaselineEnv() {
+  vi.stubEnv('NODE_ENV', 'test');
+  vi.stubEnv('NEXT_PUBLIC_GEMINI_API_KEY', 'test-api-key-for-mock-responses-only');
+  vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://test.supabase.co');
+  vi.stubEnv(
+    'NEXT_PUBLIC_SUPABASE_ANON_KEY',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test'
+  );
+  vi.stubEnv('NEXT_PUBLIC_RATE_LIMIT_WINDOW_MS', '60000');
+  vi.stubEnv('NEXT_PUBLIC_RATE_LIMIT_MAX_REQUESTS', '100');
 
-// Backward compatibility for legacy tests
-process.env.VITE_GEMINI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-process.env.VITE_SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-process.env.VITE_SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  // Backward compatibility for legacy tests
+  vi.stubEnv('VITE_GEMINI_API_KEY', process.env.NEXT_PUBLIC_GEMINI_API_KEY);
+  vi.stubEnv('VITE_SUPABASE_URL', process.env.NEXT_PUBLIC_SUPABASE_URL);
+  vi.stubEnv('VITE_SUPABASE_ANON_KEY', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+}
+
+stubBaselineEnv();
+beforeEach(() => {
+  stubBaselineEnv();
+});
 
 // ============================================================================
 // MOCK SUPABASE CLIENT
