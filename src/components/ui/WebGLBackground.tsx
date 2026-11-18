@@ -167,11 +167,32 @@ export default function WebGLBackground() {
       return;
     }
 
+    // Context loss/restore bookkeeping (#230). Declared here because the
+    // handlers below close over it, and they are registered before `boot()`.
+    let isContextLost = false;
+
     const handleContextLost = (e: Event) => {
       e.preventDefault();
+      // preventDefault() tells the browser we intend to restore, without it the
+      // context is never given back and the canvas stays frozen (#230).
+      isContextLost = true;
       console.warn("WebGL context lost.");
     };
+
+    // Without this the page is left on the last frame forever: three.js marks
+    // its internal state stale when the context drops, and only reinitialises
+    // on a `webglcontextrestored` event (#230).
+    const handleContextRestored = () => {
+      if (isDisposed) return;
+      isContextLost = false;
+      renderer.resetState();
+      resize();
+      prevY = window.scrollY;
+      console.info("WebGL context restored.");
+    };
+
     canvas.addEventListener("webglcontextlost", handleContextLost, { passive: false });
+    canvas.addEventListener("webglcontextrestored", handleContextRestored);
 
     // ---- Scene / Camera ----
     const scene = new THREE.Scene();
@@ -334,6 +355,9 @@ export default function WebGLBackground() {
       (function frame(t?: number) {
         if (isDisposed) return;
         rafId = requestAnimationFrame(frame);
+        // Skip drawing while the context is gone: the GL calls would be no-ops
+        // and three.js would keep re-validating stale state every frame (#230).
+        if (isContextLost) return;
         const time = (t || 0) / 1000;
         const y = window.scrollY;
         const raw = y - prevY;
@@ -364,6 +388,7 @@ export default function WebGLBackground() {
         cancelAnimationFrame(rafId);
       }
       canvas.removeEventListener("webglcontextlost", handleContextLost);
+      canvas.removeEventListener("webglcontextrestored", handleContextRestored);
       window.removeEventListener("resize", resize);
       store.forEach((entry) => {
         scene.remove(entry.mesh);
