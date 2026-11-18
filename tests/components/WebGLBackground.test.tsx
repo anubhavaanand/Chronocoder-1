@@ -87,6 +87,16 @@ vi.mock('three', () => {
         this.y = y;
       }
     },
+    Vector3: class MockVector3 {
+      x: number;
+      y: number;
+      z: number;
+      constructor(x = 0, y = 0, z = 0) {
+        this.x = x;
+        this.y = y;
+        this.z = z;
+      }
+    },
     WebGLRenderer: MockWebGLRenderer,
     Scene: MockScene,
     PerspectiveCamera: MockPerspectiveCamera,
@@ -212,6 +222,56 @@ describe('WebGLBackground component (#CC-051)', () => {
     expect(removeEventListenerSpy).toHaveBeenCalledWith('pointermove', expect.any(Function));
 
     host.remove();
+  });
+
+  it('builds a plane from a color-only anchor without loading a texture (#274)', () => {
+    // A data-gl-color anchor has no bitmap: the shader paints it procedurally,
+    // so TextureLoader.load must never be called for it.
+    const target = document.createElement('div');
+    target.setAttribute('data-gl-color', '#c08585');
+    document.body.appendChild(target);
+
+    const { unmount } = render(<WebGLBackground />);
+    unmount();
+
+    expect(geometryConstructMock).toHaveBeenCalled();
+    target.remove();
+  });
+
+  it('enables procedural shading on color anchors and texture shading on img anchors (#274)', () => {
+    const colorTarget = document.createElement('div');
+    colorTarget.setAttribute('data-gl-color', '#c08585');
+    document.body.appendChild(colorTarget);
+
+    const img = document.createElement('img');
+    img.setAttribute('data-gl-src', 'true');
+    img.src = 'https://example.com/mixed.png';
+    Object.defineProperty(img, 'complete', { value: true });
+    Object.defineProperty(img, 'naturalWidth', { value: 64 });
+    document.body.appendChild(img);
+
+    const { unmount } = render(<WebGLBackground />);
+    unmount();
+
+    const uniforms = createdMaterials.flatMap((m) => Object.entries(m.uniforms ?? {})
+      .filter(([k]) => k === 'uUseColor'));
+    expect(uniforms.map(([, v]: any) => v.value)).toContain(1);
+    expect(uniforms.map(([, v]: any) => v.value)).toContain(0);
+
+    colorTarget.remove();
+    img.remove();
+  });
+
+  it('picks up color anchors inserted after mount via the observer (#274)', async () => {
+    const { container } = render(<WebGLBackground />);
+    await waitFor(() => expect(sceneAddCount).toBeGreaterThan(0));
+    const before = sceneAddCount;
+
+    const target = document.createElement('div');
+    target.setAttribute('data-gl-color', '#7492ad');
+    container.appendChild(target);
+
+    await waitFor(() => expect(sceneAddCount).toBeGreaterThan(before));
   });
 
   it('does not re-invoke resize() or setSize() on animation frame ticks (#CC-055)', () => {
