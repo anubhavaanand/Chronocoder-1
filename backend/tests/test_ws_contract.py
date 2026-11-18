@@ -2026,3 +2026,37 @@ async def test_session_repo_get_messages_sequential_order_contract():
 
 
 
+
+
+def test_jwt_error_response_does_not_leak_library_detail():
+    """A forged token must not be told *why* it was rejected (#187).
+
+    PyJWT's error text differs per failure mode (bad signature, expired, wrong
+    audience), so echoing it confirms or denies a forger's guesses about how the
+    token is signed. The detail has to be a fixed string.
+    """
+    import os
+    from fastapi import HTTPException
+    import backend.main as backend_main
+
+    original_secret = os.environ.get("SUPABASE_JWT_SECRET")
+    os.environ["SUPABASE_JWT_SECRET"] = "test-secret-value"
+    try:
+        import asyncio
+
+        backend_main.SUPABASE_JWT_SECRET = "test-secret-value"
+
+        forged = "not.a.valid.jwt"
+        with pytest.raises(HTTPException) as excinfo:
+            asyncio.run(backend_main.verify_jwt_token(authorization=f"Bearer {forged}"))
+
+        assert excinfo.value.status_code == 401
+        detail = excinfo.value.detail
+        assert detail == "Invalid token", detail
+        # Nothing from the library's message, and no fragment of the token.
+        assert "signature" not in detail.lower()
+        assert "expired" not in detail.lower()
+        assert "audience" not in detail.lower()
+        assert forged not in detail
+    finally:
+        backend_main.SUPABASE_JWT_SECRET = original_secret

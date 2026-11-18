@@ -560,6 +560,26 @@ describe.sequential('useMentorWebSocket', () => {
       const url = resolveWebSocketUrl('wss://secure.chronocoder.dev');
       expect(url).toBe('wss://secure.chronocoder.dev/ws/feedback');
     });
+
+    it('uses the page origin when no base URL or env var is set (#121)', () => {
+      Object.defineProperty(window, 'location', {
+        value: { protocol: 'https:', host: 'chronocoder.com' },
+        writable: true,
+      });
+      // Must not fall back to ws://localhost:8000, which in production makes
+      // the browser dial the visitor's own machine.
+      const url = resolveWebSocketUrl();
+      expect(url).toBe('wss://chronocoder.com/ws/feedback');
+    });
+
+    it('keeps http origin on a plain http page when nothing is configured', () => {
+      Object.defineProperty(window, 'location', {
+        value: { protocol: 'http:', host: 'localhost:3000' },
+        writable: true,
+      });
+      const url = resolveWebSocketUrl();
+      expect(url).toBe('ws://localhost:3000/ws/feedback');
+    });
   });
 
   describe('Terminal Auth Rejection & Reconnection (#CC-048)', () => {

@@ -6,7 +6,10 @@ venv/
 .venv/
 .env
 secrets.toml
-.streamlit/secrets.toml
+.streamlit/
+# A nested clone of this repo, left behind by tooling. Committing it embeds
+# a 770M gitlink that clones of the outer repo cannot populate.
+/chronocoder-1/
 .jules/
 .Jules/
 .DS_Store
