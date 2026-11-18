@@ -92,6 +92,10 @@ export default defineConfig({
     
     // Restore mocks after each test
     restoreMocks: true,
+
+    // Restore `vi.stubEnv` values after each test (#229). Without this vitest
+    // only reverts env at file end, so an overwrite leaks into later tests.
+    unstubEnvs: true,
     
     // Mock modules
     mockReset: true,
