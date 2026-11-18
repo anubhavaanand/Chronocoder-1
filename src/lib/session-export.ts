@@ -17,6 +17,21 @@ export interface SessionExportInput {
   feedback: string;
 }
 
+/**
+ * Longest run of backticks anywhere in `code`.
+ *
+ * A markdown code fence is closed by the first line that is at least as long
+ * as the opening fence, so a fence has to be strictly longer than any run it
+ * contains (#244).
+ */
+function longestBacktickRun(code: string): number {
+  let longest = 0;
+  for (const match of code.matchAll(/`+/g)) {
+    longest = Math.max(longest, match[0].length);
+  }
+  return longest;
+}
+
 export function buildSessionMarkdown({
   mentorName,
   date,
@@ -26,15 +41,20 @@ export function buildSessionMarkdown({
 }: SessionExportInput): string {
   const questionLine = question ? `\n**Question:** ${question}` : "";
 
+  // Grow the fence past the longest backtick run in the code, otherwise user
+  // code containing ``` terminates the block early and the rest of the export
+  // renders as body text (#244).
+  const fence = "`".repeat(Math.max(3, longestBacktickRun(userCode) + 1));
+
   return `## ChronoCoder Session Export
 
 **Mentor:** ${mentorName}
 **Date:** ${date}${questionLine}
 
 ### Your Code
-\`\`\`python
+${fence}python
 ${userCode}
-\`\`\`
+${fence}
 
 ### ${mentorName}'s Feedback
 

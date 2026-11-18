@@ -57,4 +57,30 @@ describe('buildSessionMarkdown', () => {
     expect(md.indexOf('**Question:**')).toBeLessThan(md.indexOf('### Your Code'));
     expect(md.indexOf('**Date:**')).toBeLessThan(md.indexOf('**Question:**'));
   });
+
+  // #244: a ```python fence cannot contain user code that itself has a run of
+  // backticks — the inner fence closes the outer one early and the rest of the
+  // document renders as body text. The fence has to grow to out-run the
+  // longest backtick run in the code.
+  it('uses a fence longer than any backtick run inside the user code (#244)', () => {
+    const md = buildSessionMarkdown({
+      ...base,
+      userCode: 'doc = """\n```python\nprint("hi")\n```\n"""',
+    });
+
+    // The opening fence must be strictly longer than the inner ``` run.
+    const openingFence = md.match(/### Your Code\n(`+)python/);
+    expect(openingFence).not.toBeNull();
+    const fenceLength = openingFence![1].length;
+    expect(fenceLength).toBeGreaterThan(3);
+
+    // ...and the matching closer uses the same length.
+    expect(md).toContain(`${'`'.repeat(fenceLength)}\n\n### Ada Lovelace's Feedback`);
+  });
+
+  it('still fences plain code with exactly three backticks', () => {
+    const md = buildSessionMarkdown(base);
+
+    expect(md).toContain('### Your Code\n```python\ndef fib(n):');
+  });
 });
