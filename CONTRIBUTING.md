@@ -109,19 +109,31 @@ Chronocoder-1/
 │
 ├── tests/                   # Frontend Vitest test suite
 ├── docker/                  # Dockerfiles for frontend & backend
+├── scripts/                 # generate_mentor_data.py (src/data/mentors.ts) & perf runner
+├── docs/                    # Contributor docs (branch cleanup, etc.)
 └── .github/workflows/       # CI/CD verification pipelines
 ```
+
+`src/data/mentors.ts` is **generated** from `backend/mentors/*.json` by
+`scripts/generate_mentor_data.py`. Never edit it by hand — run the generator
+and commit the result. CI enforces this with
+`python3 scripts/generate_mentor_data.py --check`.
 
 ### Branch Strategy
 
 We follow a trunk-based development workflow:
 
 ```
-master                       # Main production branch
-└── fix/<issue-name>         # Dedicated branch per issue or feature
+master                          # Main production branch
+├── fix/cc-<issue>-<slug>       # Bug fixes
+├── test/cc-<issue>-<slug>      # Test coverage
+├── feat/cc-<issue>-<slug>      # Features
+└── chore/<slug>                # Maintenance with no issue
 ```
 
 > **Important**: No direct commits to `master`! All changes must be submitted via Pull Requests that pass 100% of CI/CD checks before merging.
+
+Branches are deleted on merge. See [`docs/BRANCH_CLEANUP.md`](docs/BRANCH_CLEANUP.md) for the full policy and the stale-branch sweep command.
 
 ---
 
@@ -138,7 +150,7 @@ Find an issue to work on:
 ```bash
 git checkout master
 git pull origin master
-git checkout -b fix/your-issue-name
+git checkout -b fix/cc-<issue>-<slug>   # or test/…, feat/…, chore/…
 ```
 
 ### Step 3: Make Your Changes
@@ -178,8 +190,10 @@ Ensure your PR:
    - Backend Lint (`ruff check backend/`)
    - Backend Tests (`pytest backend/tests`)
    - Frontend Lint & Build (`npm run lint && npm run build`)
+   - Frontend Tests (Vitest) — 228 unit/component tests
+   - Coverage thresholds — lines 80 / functions 85 / branches 75 / statements 80
    - Docker Build Validation (`Dockerfile.frontend` & `Dockerfile.backend`)
-2. **Merge**: Once all 4 CI checks are green, PR is merged into `master`.
+2. **Merge**: Once all CI checks are green, PR is merged into `master`.
 
 ---
 
