@@ -342,6 +342,22 @@ export default function WebGLBackground() {
     }
     window.addEventListener("resize", resize, { passive: true });
 
+    /* Build Media instances for every img[data-gl-src] not already tracked.
+       Returns the ones newly created. (#272) */
+    function addPlanesFor(el: ParentNode) {
+      const created: Media[] = [];
+      const seen = new Set(store.map((m) => m.el));
+      Array.from(el.querySelectorAll<HTMLImageElement>("img[data-gl-src]")).forEach((im) => {
+        if (!seen.has(im)) {
+          const m = new Media(im);
+          store.push(m);
+          created.push(m);
+        }
+      });
+      if (created.length) resize();
+      return created;
+    }
+
     /* ---- Boot: build Media instances then run RAF ---- */
     let prevY = window.scrollY, vel = 0;
     let rafId: number | null = null;
@@ -349,8 +365,7 @@ export default function WebGLBackground() {
 
     function boot() {
       if (isDisposed) return;
-      Array.from(document.querySelectorAll<HTMLImageElement>("img[data-gl-src]")).forEach((im) => store.push(new Media(im)));
-      resize();
+      addPlanesFor(document);
 
       (function frame(t?: number) {
         if (isDisposed) return;
@@ -381,9 +396,61 @@ export default function WebGLBackground() {
       if (!total && !isDisposed) cb();
     })(boot);
 
+    /* Newly-inserted <img data-gl-src> elements (route changes, lazy sections)
+       previously never got a plane, because boot() ran exactly once (#272). */
+    let observer: MutationObserver | null = null;
+    // Deferred so a node that is removed and re-inserted in the same task (a
+    // move) keeps its plane instead of tearing it down and rebuilding.
+    let sweepTimer: ReturnType<typeof setTimeout> | null = null;
+    if (typeof MutationObserver !== "undefined") {
+      const scheduleRemovalSweep = () => {
+        if (sweepTimer !== null) clearTimeout(sweepTimer);
+        sweepTimer = setTimeout(() => {
+          sweepTimer = null;
+          if (isDisposed) return;
+          const live = new Set(
+            Array.from(document.querySelectorAll("img[data-gl-src]"))
+          );
+          const stale = store.filter((m) => !live.has(m.el));
+          if (!stale.length) return;
+          stale.forEach((m) => {
+            scene.remove(m.mesh);
+            m.mat.uniforms.uTexture.value?.dispose();
+            m.mat.dispose();
+            m.destroy?.();
+          });
+          for (let i = store.length - 1; i >= 0; i--) {
+            if (stale.includes(store[i])) store.splice(i, 1);
+          }
+          resize();
+        }, 0);
+      };
+
+      observer = new MutationObserver((records) => {
+        if (isDisposed) return;
+        for (const r of records) {
+          if (r.type !== "childList") continue;
+          r.addedNodes.forEach((node) => {
+            if (node.nodeType !== 1) return;
+            const el = node as HTMLElement;
+            if (el.matches?.("img[data-gl-src]")) {
+              const im = el as HTMLImageElement;
+              if (!store.some((m) => m.el === im)) store.push(new Media(im));
+            } else {
+              addPlanesFor(el);
+            }
+          });
+          if (r.removedNodes.length) scheduleRemovalSweep();
+        }
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+    }
+
     // ---- Cleanup ----
     return () => {
       isDisposed = true;
+      observer?.disconnect();
+      if (sweepTimer !== null) clearTimeout(sweepTimer);
       if (rafId !== null) {
         cancelAnimationFrame(rafId);
       }

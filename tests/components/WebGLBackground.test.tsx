@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
-import { render, cleanup } from '@testing-library/react';
+import { render, cleanup, waitFor } from '@testing-library/react';
 
 // Mock Three.js to run safely in jsdom without WebGL hardware requirements
 const geometryConstructMock = vi.fn();
@@ -11,6 +11,8 @@ const setSizeMock = vi.fn();
 
 const createdMaterials: any[] = [];
 let rendererShouldThrow = false;
+
+let sceneAddCount = 0;
 
 vi.mock('three', () => {
   const renderMock = vi.fn();
@@ -29,7 +31,9 @@ vi.mock('three', () => {
   }
 
   class MockScene {
-    add = vi.fn();
+    add = vi.fn(() => {
+      sceneAddCount += 1;
+    });
     remove = vi.fn();
   }
 
@@ -348,5 +352,50 @@ describe('WebGLBackground component (#CC-051)', () => {
     unmount();
 
     expect(removeEventListenerSpy).toHaveBeenCalledWith('webglcontextlost', expect.any(Function));
+  });
+
+
+
+  // A MutationObserver must pick up <img data-gl-src> added after mount.
+  // Counting MockScene.add calls proves a plane was actually built.
+  beforeEach(() => {
+    sceneAddCount = 0;
+  });
+
+  // A MutationObserver must pick up <img data-gl-src> added after mount.
+  // Counting MockScene.add calls proves a plane was actually built (#272).
+  const seedImage = (container: HTMLElement, src: string) => {
+    const im = document.createElement('img');
+    im.setAttribute('data-gl-src', src);
+    im.setAttribute('src', src);
+    container.appendChild(im);
+    return im;
+  };
+
+  it('builds a plane for an image added after mount', async () => {
+    const { container } = render(<WebGLBackground />);
+    seedImage(container, '/first.png');
+    await waitFor(() => expect(sceneAddCount).toBeGreaterThan(0));
+    const before = sceneAddCount;
+
+    seedImage(container, '/late.png');
+    await waitFor(() => expect(sceneAddCount).toBeGreaterThan(before));
+  });
+
+  it('does not double-register an image when a container is re-scanned', async () => {
+    const { container } = render(<WebGLBackground />);
+    const first = seedImage(container, '/first.png');
+    await waitFor(() => expect(sceneAddCount).toBeGreaterThan(0));
+    const before = sceneAddCount;
+
+    // Wrapping the existing image in a new node triggers one childList
+    // mutation whose addedNode contains the already-tracked image. The
+    // observer must not build a second plane for it.
+    const wrapper = document.createElement('div');
+    first.parentNode?.insertBefore(wrapper, first);
+    wrapper.appendChild(first);
+    await new Promise((r) => setTimeout(r, 50));
+
+    expect(sceneAddCount).toBe(before);
   });
 });
