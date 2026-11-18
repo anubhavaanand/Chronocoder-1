@@ -153,11 +153,14 @@ def get_session_repo() -> Optional[SessionRepository]:
     try:
         return get_session_repo_module()
     except Exception as e:
+        # Never interpolate the exception text into a response: it can carry
+        # the DSN, including the password (#315).
+        logger.error("Database service initialization failed: %s", e)
         current_env = os.getenv("FASTAPI_ENV", FASTAPI_ENV).lower()
         if current_env == "production":
             raise HTTPException(
                 status_code=500,
-                detail=f"Database service initialization error: {e}",
+                detail="Database service is temporarily unavailable",
             )
         return None
 
@@ -186,7 +189,11 @@ async def verify_jwt_token(authorization: Optional[str] = Header(None)) -> str:
             raise HTTPException(status_code=401, detail="Invalid token: missing sub")
         return user_id
     except JWTError as e:
-        raise HTTPException(status_code=401, detail=f"Invalid token: {str(e)}")
+        # Log the library's reason but return a fixed message: PyJWT's text
+        # varies by failure mode and would tell a caller why a forged token was
+        # rejected (#187).
+        logger.warning("JWT verification failed: %s", e)
+        raise HTTPException(status_code=401, detail="Invalid token")
 
 
 def _parse_trusted_proxies(raw: Optional[str]) -> tuple[str, ...]:

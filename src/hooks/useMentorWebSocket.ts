@@ -50,19 +50,37 @@ type ConnectFn = (onOpen?: (ws: WebSocket) => void) => void;
 /**
  * Resolves the WebSocket URL with automatic HTTPS -> WSS upgrade to prevent
  * browser Mixed Content blocking in production deployments (#CC-047).
+ *
+ * Resolution order:
+ *   1. explicit `baseUrl` argument
+ *   2. `NEXT_PUBLIC_WS_URL` — for split frontend/backend deployments
+ *   3. the current page's origin — so a production deploy needs no env var at
+ *      all. Defaulting to `ws://localhost:8000` instead (the old behaviour)
+ *      made the browser dial the *user's* machine whenever the var was unset
+ *      (#121).
  */
 export function resolveWebSocketUrl(baseUrl?: string): string {
-  const base = baseUrl || process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000";
+  const base =
+    baseUrl ||
+    process.env.NEXT_PUBLIC_WS_URL ||
+    (typeof window !== "undefined" && window.location
+      ? `${window.location.protocol}//${window.location.host}`
+      : "ws://localhost:8000");
   let url = base.replace(/\/+$/, "");
+
+  // Normalise http(s) origins from `window.location` into ws(s) first. The
+  // https-only rewrite below would otherwise leave a plain-http page with
+  // `http://…/ws/feedback`, which is not a WebSocket URL at all.
+  if (url.startsWith("http://")) {
+    url = "ws://" + url.slice(7);
+  } else if (url.startsWith("https://")) {
+    url = "wss://" + url.slice(8);
+  }
 
   // Upgrade ws:// or http:// to wss:// if page is served over HTTPS
   if (typeof window !== "undefined" && window.location?.protocol === "https:") {
     if (url.startsWith("ws://")) {
       url = "wss://" + url.slice(5);
-    } else if (url.startsWith("http://")) {
-      url = "wss://" + url.slice(7);
-    } else if (url.startsWith("https://")) {
-      url = "wss://" + url.slice(8);
     }
   }
 
