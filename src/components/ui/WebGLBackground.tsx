@@ -229,6 +229,7 @@ export default function WebGLBackground() {
       mat: THREE.ShaderMaterial;
       material: THREE.ShaderMaterial;
       domEl: HTMLImageElement;
+      pointerTarget: HTMLElement;
 
       constructor(el: HTMLImageElement) {
         this.el = el;
@@ -266,12 +267,30 @@ export default function WebGLBackground() {
           this.mat.uniforms.uTextureSize.value.set(tex.image.width, tex.image.height);
         });
 
-        /* Pointer events on the invisible DOM image */
-        el.addEventListener("pointerenter", this.onPointerEnter);
-        el.addEventListener("pointerleave", this.onPointerLeave);
-        el.addEventListener("pointermove", this.onPointerMove);
+        /* Pointer events. The <img data-gl-src> carries `pointer-events: none`
+           so it can't block clicks, which means listeners on it never fire
+           (#273). Attach to the nearest ancestor that accepts pointer events
+           instead, and fall back to the image itself. */
+        this.pointerTarget = (el.closest("[data-gl-pointer]") as HTMLElement | null)
+          ?? this.findPointerHost(el)
+          ?? el;
+
+        this.pointerTarget.addEventListener("pointerenter", this.onPointerEnter);
+        this.pointerTarget.addEventListener("pointerleave", this.onPointerLeave);
+        this.pointerTarget.addEventListener("pointermove", this.onPointerMove);
 
         this.measure();
+      }
+
+      /* Walk up until an ancestor actually receives pointer events. */
+      findPointerHost(el: HTMLElement): HTMLElement | null {
+        let node = el.parentElement;
+        while (node) {
+          const pe = window.getComputedStyle(node).pointerEvents;
+          if (pe && pe !== "none") return node;
+          node = node.parentElement;
+        }
+        return null;
       }
 
       onPointerEnter = () => {
@@ -291,9 +310,9 @@ export default function WebGLBackground() {
       };
 
       destroy() {
-        this.el.removeEventListener("pointerenter", this.onPointerEnter);
-        this.el.removeEventListener("pointerleave", this.onPointerLeave);
-        this.el.removeEventListener("pointermove", this.onPointerMove);
+        this.pointerTarget.removeEventListener("pointerenter", this.onPointerEnter);
+        this.pointerTarget.removeEventListener("pointerleave", this.onPointerLeave);
+        this.pointerTarget.removeEventListener("pointermove", this.onPointerMove);
       }
 
       measure() {
@@ -360,13 +379,14 @@ export default function WebGLBackground() {
 
     /* ---- Boot: build Media instances then run RAF ---- */
     let prevY = window.scrollY, vel = 0;
-    let rafId: number | null = null;
     let isDisposed = false;
+    let rafId: number | null = null;
 
-    function boot() {
+    /* One animation loop for the whole component, started on demand. Images
+       inserted after mount have no loop of their own, so the observer kicks
+       this to keep their uniforms animating (#272). */
+    function ensureLoop() {
       if (isDisposed) return;
-      addPlanesFor(document);
-
       (function frame(t?: number) {
         if (isDisposed) return;
         rafId = requestAnimationFrame(frame);
@@ -381,6 +401,12 @@ export default function WebGLBackground() {
         store.forEach((m) => m.update(y, vel, time));
         renderer.render(scene, camera);
       })();
+    }
+
+    function boot() {
+      if (isDisposed) return;
+      addPlanesFor(document);
+      ensureLoop();
     }
 
     /* Wait for all img[data-gl-src] textures to have natural dimensions */
@@ -432,13 +458,8 @@ export default function WebGLBackground() {
           if (r.type !== "childList") continue;
           r.addedNodes.forEach((node) => {
             if (node.nodeType !== 1) return;
-            const el = node as HTMLElement;
-            if (el.matches?.("img[data-gl-src]")) {
-              const im = el as HTMLImageElement;
-              if (!store.some((m) => m.el === im)) store.push(new Media(im));
-            } else {
-              addPlanesFor(el);
-            }
+            const added = addPlanesFor(node as HTMLElement);
+            if (added.length) ensureLoop();
           });
           if (r.removedNodes.length) scheduleRemovalSweep();
         }
