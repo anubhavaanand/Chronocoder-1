@@ -187,7 +187,11 @@ export default function WebGLBackground() {
     const loader = new THREE.TextureLoader();
     const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
     const store: PlaneEntry[] = [];
+    // Read the media query through a getter rather than caching `.matches`:
+    // a MediaQueryList is a live object, so toggling the OS setting mid-session
+    // is picked up on the next frame instead of being frozen at mount (#231).
     const prefersReduced = typeof window !== "undefined" && window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : null;
+    const isReducedMotion = () => Boolean(prefersReduced?.matches);
 
     /* ---- Media class: one instance per img[data-gl-src] ---- */
     class Media implements PlaneEntry {
@@ -294,7 +298,7 @@ export default function WebGLBackground() {
         this.over.cx = lerp(this.over.cx, this.over.tx, 0.055);
         this.over.cy = lerp(this.over.cy, this.over.ty, 0.055);
 
-        const isReduced = Boolean(prefersReduced?.matches);
+        const isReduced = isReducedMotion();
         const u = this.mat.uniforms;
         u.uScrollVelocity.value = isReduced ? 0 : vel;
         u.uMouseEnter.value = isReduced ? 0 : this.enter;
