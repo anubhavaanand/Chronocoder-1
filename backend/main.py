@@ -39,6 +39,11 @@ if not logging.getLogger().handlers:
 
 logger = logging.getLogger(__name__)
 
+# Fixed client copy for AI failures. Never interpolate exception text (#315).
+AI_CLIENT_ERROR_MESSAGE = (
+    "The AI service is temporarily unavailable. Please try again."
+)
+
 app = FastAPI(
     title="ChronoCoder API",
     version="3.0.0",
@@ -639,10 +644,24 @@ async def feedback_websocket(websocket: WebSocket):
                         "type": "feedback_complete",
                         "payload": {"mentor_id": mentor_id, "session_id": session_id}
                     })
-                except Exception as e:
+                except Exception as exc:
+                    # Full exception stays server-side. `detail` is the raw
+                    # upstream body on GeminiAPIError and is logged, never sent.
+                    correlation_id = uuid.uuid4().hex[:8]
+                    detail = getattr(exc, "detail", None)
+                    logger.error(
+                        "AI feedback streaming failed correlation_id=%s detail=%s",
+                        correlation_id,
+                        detail if isinstance(detail, str) else "",
+                        exc_info=True,
+                    )
                     await websocket.send_json({
                         "type": "error",
-                        "payload": {"code": "AI_ERROR", "message": str(e)}
+                        "payload": {
+                            "code": "AI_ERROR",
+                            "message": AI_CLIENT_ERROR_MESSAGE,
+                            "correlation_id": correlation_id,
+                        },
                     })
             else:
                 await websocket.send_json({

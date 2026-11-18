@@ -239,6 +239,19 @@ def mentor_summary(mentor: MentorConfig) -> dict:
     }
 
 
+class GeminiAPIError(Exception):
+    """Non-success response from Gemini.
+
+    ``detail`` is the raw response body. It is omitted from the exception
+    message so ``str(exc)`` is safe to handle; only logging code should read it.
+    """
+
+    def __init__(self, status: int, detail: str) -> None:
+        self.status = status
+        self.detail = detail
+        super().__init__(f"Gemini API error (HTTP {status})")
+
+
 class AIGateway:
     """Unified interface to Google Gemini API with streaming + structured output."""
 
@@ -479,7 +492,15 @@ Tone: {mentor.tone}
 
                         if response.status != 200:
                             error_text = await response.text()
-                            raise Exception(f"Gemini API error (HTTP {response.status}): {error_text}")
+                            exc = GeminiAPIError(response.status, error_text)
+                            # `detail` is the raw body. Log it here; never put it
+                            # on the exception message (#315).
+                            logger.error(
+                                "Gemini API error (HTTP %s) detail=%s",
+                                exc.status,
+                                exc.detail,
+                            )
+                            raise exc
 
                         # Buffer raw network bytes and split complete SSE events on
                         # the blank-line delimiter — a JSON value is never parsed
