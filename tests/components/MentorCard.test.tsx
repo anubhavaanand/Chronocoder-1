@@ -165,6 +165,25 @@ describe('MentorCard', () => {
       }
     });
 
+    it('mirrors the hover affordance for keyboard users via focus/blur (#123)', () => {
+      const { container } = render(<MentorCard {...mockMentor} />);
+      const interactiveCard = container.querySelector('.group');
+      const captionBar = container.querySelector('[data-testid="mentor-caption-bar"]');
+      expect(interactiveCard).toBeInTheDocument();
+      expect(captionBar).toBeInTheDocument();
+
+      // Caption starts visible.
+      expect(captionBar).toHaveStyle({ opacity: '1' });
+
+      // Focusing the card must produce the same affordance as hover: the
+      // caption fades out so it does not collide with the hover action.
+      fireEvent.focus(interactiveCard!);
+      expect(captionBar).toHaveStyle({ opacity: '0' });
+
+      fireEvent.blur(interactiveCard!);
+      expect(captionBar).toHaveStyle({ opacity: '1' });
+    });
+
     it('fades out the glass caption bar on hover to prevent visual collision (#CC-059)', () => {
       const { container } = render(<MentorCard {...mockMentor} />);
       const interactiveCard = container.querySelector('.group');
