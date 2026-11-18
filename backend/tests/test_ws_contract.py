@@ -12,10 +12,12 @@ If these tests fail, the frontend streaming UI breaks with them.
 Run:  python -m pytest backend/tests -v
 """
 
+import asyncio
 import json
 import logging
 
 import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 import backend.main as backend_main
@@ -388,6 +390,150 @@ def test_get_allowed_origins_env_override(monkeypatch):
     assert origins == ["https://app.chronocoder.io", "https://staging.chronocoder.io"]
 
 
+def test_get_allowed_origins_ignores_blank_entries(monkeypatch):
+    """Blank/whitespace entries in ALLOWED_ORIGINS must not become origins (#108)."""
+    monkeypatch.setenv("ALLOWED_ORIGINS", " https://a.example , ,https://b.example ,")
+    assert backend_main.get_allowed_origins() == ["https://a.example", "https://b.example"]
+
+
+def test_get_allowed_origins_defaults_when_unset(monkeypatch):
+    """With no env override the module default list is used (#108)."""
+    monkeypatch.delenv("ALLOWED_ORIGINS", raising=False)
+    monkeypatch.delenv("CORS_ORIGINS", raising=False)
+    assert backend_main.get_allowed_origins() == backend_main.DEFAULT_ALLOWED_ORIGINS
+
+
+def _bearer(token: str) -> dict[str, str]:
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture()
+def jwt_secret(monkeypatch):
+    """Run verify_jwt_token in production mode with a known HS256 secret."""
+    secret = "test-secret-key-for-jwt-verification-12345"
+    monkeypatch.setenv("FASTAPI_ENV", "production")
+    monkeypatch.setattr(backend_main, "SUPABASE_JWT_SECRET", secret)
+    return secret
+
+
+def test_sessions_endpoint_rejects_missing_authorization_header(client):
+    """/api/sessions is auth-guarded: no Authorization header -> 401 (#108, #68)."""
+    backend_main.app.dependency_overrides[backend_main.get_session_repo] = lambda: None
+    try:
+        res = client.post(
+            "/api/sessions",
+            json={"mentor_id": "ada_lovelace", "user_code": "x = 1"},
+        )
+        assert res.status_code == 401
+        assert "Missing or invalid Authorization header" in res.json()["detail"]
+    finally:
+        backend_main.app.dependency_overrides.pop(backend_main.get_session_repo, None)
+
+
+@pytest.mark.parametrize(
+    "header",
+    ["Token abc", "Bearer", "Basic dXNlcjpwYXNz", "", "bearer lower-case"],
+)
+def test_sessions_endpoint_rejects_malformed_authorization_header(client, header):
+    """Only a literal ``Bearer <token>`` scheme is accepted (#108)."""
+    backend_main.app.dependency_overrides[backend_main.get_session_repo] = lambda: None
+    try:
+        res = client.post(
+            "/api/sessions",
+            json={"mentor_id": "ada_lovelace", "user_code": "x = 1"},
+            headers={"Authorization": header},
+        )
+        assert res.status_code == 401
+    finally:
+        backend_main.app.dependency_overrides.pop(backend_main.get_session_repo, None)
+
+
+def test_verify_jwt_token_accepts_valid_hs256_and_rejects_bad_signature(client, jwt_secret):
+    """A valid HS256 token is accepted; one signed with another secret is rejected (#108)."""
+    from jose import jwt
+
+    backend_main.app.dependency_overrides[backend_main.get_session_repo] = lambda: None
+    try:
+        valid = jwt.encode({"sub": "user_123", "aud": "authenticated"}, jwt_secret, algorithm="HS256")
+        bad_sig = jwt.encode({"sub": "user_123", "aud": "authenticated"}, "not-the-secret", algorithm="HS256")
+
+        ok = client.post(
+            "/api/sessions",
+            json={"mentor_id": "ada_lovelace", "user_code": "x = 1"},
+            headers=_bearer(valid),
+        )
+        assert ok.status_code == 201
+
+        rejected = client.post(
+            "/api/sessions",
+            json={"mentor_id": "ada_lovelace", "user_code": "x = 1"},
+            headers=_bearer(bad_sig),
+        )
+        assert rejected.status_code == 401
+        assert "Invalid token" in rejected.json()["detail"]
+    finally:
+        backend_main.app.dependency_overrides.pop(backend_main.get_session_repo, None)
+
+
+def test_verify_jwt_token_rejects_expired_token(client, jwt_secret):
+    """An expired token must not authenticate (#108)."""
+    from datetime import datetime, timedelta, timezone
+
+    from jose import jwt
+
+    backend_main.app.dependency_overrides[backend_main.get_session_repo] = lambda: None
+    try:
+        expired = jwt.encode(
+            {
+                "sub": "user_123",
+                "aud": "authenticated",
+                "exp": datetime.now(timezone.utc) - timedelta(hours=1),
+            },
+            jwt_secret,
+            algorithm="HS256",
+        )
+        res = client.post(
+            "/api/sessions",
+            json={"mentor_id": "ada_lovelace", "user_code": "x = 1"},
+            headers=_bearer(expired),
+        )
+        assert res.status_code == 401
+        assert "Invalid token" in res.json()["detail"]
+    finally:
+        backend_main.app.dependency_overrides.pop(backend_main.get_session_repo, None)
+
+
+def test_verify_jwt_token_rejects_token_without_sub(client, jwt_secret):
+    """A signature-valid token with no ``sub`` claim must be rejected (#108)."""
+    from jose import jwt
+
+    backend_main.app.dependency_overrides[backend_main.get_session_repo] = lambda: None
+    try:
+        no_sub = jwt.encode({"aud": "authenticated"}, jwt_secret, algorithm="HS256")
+        res = client.post(
+            "/api/sessions",
+            json={"mentor_id": "ada_lovelace", "user_code": "x = 1"},
+            headers=_bearer(no_sub),
+        )
+        assert res.status_code == 401
+        assert "Invalid token" in res.json()["detail"]
+    finally:
+        backend_main.app.dependency_overrides.pop(backend_main.get_session_repo, None)
+
+
+def test_verify_jwt_token_dev_mode_without_secret_allows_anonymous(monkeypatch):
+    """Outside production a missing secret degrades to the anonymous principal (#108)."""
+    monkeypatch.setenv("FASTAPI_ENV", "development")
+    monkeypatch.setattr(backend_main, "SUPABASE_JWT_SECRET", None)
+
+    user_id = asyncio.run(backend_main.verify_jwt_token(authorization="Bearer anything"))
+    assert user_id == "anonymous"
+
+    with pytest.raises(HTTPException) as missing:
+        asyncio.run(backend_main.verify_jwt_token(authorization=None))
+    assert missing.value.status_code == 401
+
+
 def test_rate_limit_sliding_window_and_limit():
     """Ensure check_rate_limit enforces rate limit and sliding window (#CC-010)."""
     backend_main.request_counts.clear()
@@ -442,6 +588,26 @@ def test_rate_limit_lru_capacity_eviction(monkeypatch):
     assert "u1" in backend_main.request_counts
     assert "u3" in backend_main.request_counts
     assert "u4" in backend_main.request_counts
+
+    backend_main.request_counts.clear()
+
+
+def test_rate_limit_window_expiry_frees_capacity():
+    """Once the window passes, a previously blocked key is served again (#108)."""
+    backend_main.request_counts.clear()
+    user = "test_user_window_expiry"
+
+    # Exhaust the window.
+    for _ in range(3):
+        assert backend_main.check_rate_limit(user, limit=3, window_seconds=60) is True
+    assert backend_main.check_rate_limit(user, limit=3, window_seconds=60) is False
+
+    # Age every recorded hit past the window, then retry.
+    from datetime import datetime, timedelta
+
+    stale = datetime.now() - timedelta(seconds=120)
+    backend_main.request_counts[user] = [stale, stale, stale]
+    assert backend_main.check_rate_limit(user, limit=3, window_seconds=60) is True
 
     backend_main.request_counts.clear()
 
