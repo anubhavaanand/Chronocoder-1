@@ -2,6 +2,7 @@ import { MentorCard } from "@/components/mentor/MentorCard";
 import { MentorJourney } from "@/components/mentor/MentorJourney";
 import { HeroGLTarget, ScrollIndicator } from "@/components/mentor/HeroDistortion";
 import WebGLBackgroundWrapper from "@/components/ui/WebGLBackgroundWrapper";
+import { HeaderNav } from "@/components/ui/HeaderNav";
 import { HeroSearch } from "@/components/ui/HeroSearch";
 import { ScrollProgressTracker } from "@/components/ui/ScrollProgressTracker";
 import { MENTORS } from "@/data/mentors";
@@ -102,31 +103,9 @@ export default function Home() {
                 ChronoCoder
               </span>
             </div>
-            <nav className="hidden md:flex items-center gap-8 text-sm">
-              <a
-                href="#mentors"
-                style={{ color: "var(--fg-mid)" }}
-                className="hover:text-[oklch(94%_0.006_265)] transition-colors duration-150"
-              >
-                Mentors
-              </a>
-              <a
-                href="#features"
-                style={{ color: "var(--fg-mid)" }}
-                className="hover:text-[oklch(94%_0.006_265)] transition-colors duration-150"
-              >
-                How it works
-              </a>
-              <a
-                href="https://github.com/anubhavaanand/Chronocoder-1"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ color: "var(--fg-mid)" }}
-                className="hover:text-[oklch(94%_0.006_265)] transition-colors duration-150"
-              >
-                GitHub
-              </a>
-            </nav>
+            <div className="relative">
+              <HeaderNav />
+            </div>
           </div>
         </header>
 
