@@ -14,22 +14,32 @@ from supabase import create_client, Client
 
 logger = logging.getLogger(__name__)
 
+# Non-UUID identifiers that mean "no user". These all collapse to one UUID by
+# design: there is no user to distinguish, so any bucket is arbitrary (#CC-026).
+ANONYMOUS_ALIASES = frozenset({"", "anonymous", "anon", "guest"})
+
+# Sentinel so a missing/anonymous caller gets a well-known, stable UUID.
 ANONYMOUS_NAMESPACE = uuid.NAMESPACE_DNS
 
 
 def coerce_uuid(val: Any) -> UUID:
-    """
-    Safely coerce a UUID or arbitrary string (e.g. 'anonymous', custom id, or None)
+    """Coerce a UUID or arbitrary string (e.g. 'anonymous', custom id, or None)
     into a deterministic UUID (#CC-026).
+
+    Only the fixed set of anonymous aliases collapses to the shared sentinel.
+    Any *other* non-UUID string is hashed as-is, so two distinct ids never map
+    to the same row (#249): 'anon' and 'guest' are aliases of each other, but
+    'github_user_1' and 'github_user_2' stay distinct.
     """
     if isinstance(val, UUID):
         return val
-    if val is None or str(val).strip() in ("", "anonymous", "anon", "guest"):
+    text = "" if val is None else str(val).strip()
+    if text.lower() in ANONYMOUS_ALIASES:
         return uuid.uuid5(ANONYMOUS_NAMESPACE, "anonymous")
     try:
-        return UUID(str(val))
+        return UUID(text)
     except (ValueError, TypeError, AttributeError):
-        return uuid.uuid5(ANONYMOUS_NAMESPACE, f"anonymous.{val}")
+        return uuid.uuid5(ANONYMOUS_NAMESPACE, text)
 
 
 class SessionCreate(BaseModel):

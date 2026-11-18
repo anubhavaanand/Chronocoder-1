@@ -689,3 +689,88 @@ def test_gateway_loads_from_custom_mentors_dir(tmp_path):
 
 
 
+
+
+# --- #251: shared ClientSession + request timeout -------------------------
+#
+# The old code did `async with aiohttp.ClientSession() as session:` inside every
+# request, so each call built a fresh connection pool and no timeout was ever
+# set. These tests pin the new behaviour: one lazily-created session reused
+# across requests, closed by aclose(), with a total timeout attached.
+
+
+class _ProbeSession:
+    """Minimal session that records how many times it was created."""
+
+    created = 0
+
+    def __init__(self, *args, **kwargs):
+        _ProbeSession.created += 1
+        self.closed = False
+        self.timeout = kwargs.get("timeout")
+
+    def post(self, url, **kwargs):
+        return _ProbeSession._noop_ctx()
+
+    class _noop_ctx:
+        async def __aenter__(self):
+            raise _StopAfterFirst()
+
+        async def __aexit__(self, *args):
+            return False
+
+    async def close(self):
+        self.closed = True
+
+
+class _StopAfterFirst(Exception):
+    pass
+
+
+def test_request_timeout_defaults_to_env_or_constant(monkeypatch):
+    monkeypatch.delenv("GEMINI_REQUEST_TIMEOUT", raising=False)
+    assert ai_service._request_timeout() == ai_service.DEFAULT_REQUEST_TIMEOUT
+
+    monkeypatch.setenv("GEMINI_REQUEST_TIMEOUT", "12.5")
+    assert ai_service._request_timeout() == 12.5
+
+    # Garbage and non-positive values fall back instead of breaking startup.
+    monkeypatch.setenv("GEMINI_REQUEST_TIMEOUT", "not-a-number")
+    assert ai_service._request_timeout() == ai_service.DEFAULT_REQUEST_TIMEOUT
+    monkeypatch.setenv("GEMINI_REQUEST_TIMEOUT", "0")
+    assert ai_service._request_timeout() == ai_service.DEFAULT_REQUEST_TIMEOUT
+
+
+@pytest.mark.asyncio
+async def test_gateway_reuses_one_session_across_requests(monkeypatch):
+    _ProbeSession.created = 0
+    monkeypatch.setattr(ai_service.aiohttp, "ClientSession", _ProbeSession)
+
+    gateway = make_gateway()
+
+    # Two separate calls: the session must be created only once.
+    for _ in range(2):
+        try:
+            async for _ in gateway.get_feedback_streaming("ada_lovelace", "print(1)", {}):
+                pass
+        except Exception:
+            pass
+
+    assert _ProbeSession.created == 1, "expected a single shared ClientSession"
+
+
+@pytest.mark.asyncio
+async def test_gateway_session_carries_total_timeout():
+    gateway = make_gateway(request_timeout=7.0)
+    session = await gateway._get_session()
+    assert session.timeout.total == 7.0
+    await gateway.aclose()
+
+
+@pytest.mark.asyncio
+async def test_aclose_closes_shared_session():
+    gateway = make_gateway()
+    session = await gateway._get_session()
+    await gateway.aclose()
+    assert session.closed is True
+    assert gateway._session is None

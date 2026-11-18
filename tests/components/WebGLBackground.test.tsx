@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
-import { render, cleanup } from '@testing-library/react';
+import { render, cleanup, waitFor } from '@testing-library/react';
 
 // Mock Three.js to run safely in jsdom without WebGL hardware requirements
 const geometryConstructMock = vi.fn();
@@ -11,6 +11,8 @@ const setSizeMock = vi.fn();
 
 const createdMaterials: any[] = [];
 let rendererShouldThrow = false;
+
+let sceneAddCount = 0;
 
 vi.mock('three', () => {
   const renderMock = vi.fn();
@@ -29,7 +31,9 @@ vi.mock('three', () => {
   }
 
   class MockScene {
-    add = vi.fn();
+    add = vi.fn(() => {
+      sceneAddCount += 1;
+    });
     remove = vi.fn();
   }
 
@@ -185,15 +189,20 @@ describe('WebGLBackground component (#CC-051)', () => {
     img.remove();
   });
 
-  it('removes pointer event listeners from image elements on unmount (#CC-054)', () => {
+  it('removes pointer event listeners from the pointer target on unmount (#CC-054, #273)', () => {
+    // The img is pointer-events:none in production, so listeners attach to the
+    // nearest pointer-enabled host (data-gl-pointer) instead.
+    const host = document.createElement('div');
+    host.setAttribute('data-gl-pointer', '');
     const img = document.createElement('img');
     img.setAttribute('data-gl-src', 'true');
     img.src = 'https://example.com/test-events.png';
     Object.defineProperty(img, 'complete', { value: true });
     Object.defineProperty(img, 'naturalWidth', { value: 100 });
-    document.body.appendChild(img);
+    host.appendChild(img);
+    document.body.appendChild(host);
 
-    const removeEventListenerSpy = vi.spyOn(img, 'removeEventListener');
+    const removeEventListenerSpy = vi.spyOn(host, 'removeEventListener');
 
     const { unmount } = render(<WebGLBackground />);
     unmount();
@@ -202,7 +211,7 @@ describe('WebGLBackground component (#CC-051)', () => {
     expect(removeEventListenerSpy).toHaveBeenCalledWith('pointerleave', expect.any(Function));
     expect(removeEventListenerSpy).toHaveBeenCalledWith('pointermove', expect.any(Function));
 
-    img.remove();
+    host.remove();
   });
 
   it('does not re-invoke resize() or setSize() on animation frame ticks (#CC-055)', () => {
@@ -283,18 +292,21 @@ describe('WebGLBackground component (#CC-051)', () => {
     };
     window.matchMedia = vi.fn().mockImplementation(() => mediaQueryList);
 
+    const host = document.createElement('div');
+    host.setAttribute('data-gl-pointer', '');
     const img = document.createElement('img');
     img.setAttribute('data-gl-src', 'true');
     img.src = 'https://example.com/test-live-reduced.png';
     Object.defineProperty(img, 'complete', { value: true });
     Object.defineProperty(img, 'naturalWidth', { value: 100 });
-    document.body.appendChild(img);
+    host.appendChild(img);
+    document.body.appendChild(host);
 
     const { unmount } = render(<WebGLBackground />);
 
     // Enter the card so uMouseEnter ramps up — that is the uniform that proves
-    // motion is being applied at all.
-    img.dispatchEvent(new Event('pointerenter'));
+    // motion is being applied at all. Pointer listeners live on the host (#273).
+    host.dispatchEvent(new Event('pointerenter'));
     window.scrollY = 40;
     if (rafCallback) rafCallback(100);
     const lastMat = createdMaterials[createdMaterials.length - 1];
@@ -348,5 +360,113 @@ describe('WebGLBackground component (#CC-051)', () => {
     unmount();
 
     expect(removeEventListenerSpy).toHaveBeenCalledWith('webglcontextlost', expect.any(Function));
+  });
+
+
+
+  // A MutationObserver must pick up <img data-gl-src> added after mount.
+  // Counting MockScene.add calls proves a plane was actually built.
+  beforeEach(() => {
+    sceneAddCount = 0;
+  });
+
+  // A MutationObserver must pick up <img data-gl-src> added after mount.
+  // Counting MockScene.add calls proves a plane was actually built (#272).
+  const seedImage = (container: HTMLElement, src: string) => {
+    const im = document.createElement('img');
+    im.setAttribute('data-gl-src', src);
+    im.setAttribute('src', src);
+    container.appendChild(im);
+    return im;
+  };
+
+  it('builds a plane for an image added after mount', async () => {
+    const { container } = render(<WebGLBackground />);
+    seedImage(container, '/first.png');
+    await waitFor(() => expect(sceneAddCount).toBeGreaterThan(0));
+    const before = sceneAddCount;
+
+    seedImage(container, '/late.png');
+    await waitFor(() => expect(sceneAddCount).toBeGreaterThan(before));
+  });
+
+  it('does not double-register an image when a container is re-scanned', async () => {
+    const { container } = render(<WebGLBackground />);
+    const first = seedImage(container, '/first.png');
+    await waitFor(() => expect(sceneAddCount).toBeGreaterThan(0));
+    const before = sceneAddCount;
+
+    // Wrapping the existing image in a new node triggers one childList
+    // mutation whose addedNode contains the already-tracked image. The
+    // observer must not build a second plane for it.
+    const wrapper = document.createElement('div');
+    first.parentNode?.insertBefore(wrapper, first);
+    wrapper.appendChild(first);
+    await new Promise((r) => setTimeout(r, 50));
+
+    expect(sceneAddCount).toBe(before);
+  });
+
+  it('attaches pointer listeners to a pointer-enabled host, not the img (#273)', async () => {
+    // Self-contained: earlier tests replace window.matchMedia and the shared
+    // rafCallback, so install our own RAF + matchMedia for this test.
+    const origRaf = window.requestAnimationFrame;
+    const origMatchMedia = window.matchMedia;
+    let myCb: FrameRequestCallback | null = null;
+    window.requestAnimationFrame = ((cb: FrameRequestCallback) => {
+      myCb = cb;
+      return 1;
+    }) as typeof window.requestAnimationFrame;
+    window.matchMedia = ((q: string) => ({
+      matches: false,
+      media: q,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    })) as unknown as typeof window.matchMedia;
+
+    try {
+      const { unmount } = render(<WebGLBackground />);
+
+      // On-screen box so the plane is not frustum-culled in update().
+      const host = document.createElement('div');
+      host.setAttribute('data-gl-pointer', '');
+      host.style.cssText = 'position:absolute;top:0;left:0;width:300px;height:300px';
+      seedImage(host, '/first.png');
+      document.body.appendChild(host);
+      await waitFor(() => expect(sceneAddCount).toBeGreaterThan(0));
+
+      const material = createdMaterials[createdMaterials.length - 1];
+      const drive = () => {
+        const cb = myCb;
+        if (cb) for (let i = 0; i < 300; i++) cb(i * 16);
+      };
+      const fire = (target: EventTarget, type: string) =>
+        target.dispatchEvent(
+          new MouseEvent(type, { bubbles: false }) as unknown as PointerEvent
+        );
+
+      // The img is pointer-events:none in production, so a listener there is
+      // dead code: firing on the img must NOT start the ripple.
+      fire(host.querySelector('img')!, 'pointerenter');
+      drive();
+      expect(material.uniforms.uMouseEnter.value).toBe(0);
+
+      // The pointer-enabled host must start the ripple.
+      fire(host, 'pointerenter');
+      await waitFor(() => {
+        drive();
+        expect(material.uniforms.uMouseEnter.value).toBeGreaterThan(0);
+      });
+
+      unmount();
+      host.remove();
+    } finally {
+      window.requestAnimationFrame = origRaf;
+      window.matchMedia = origMatchMedia;
+    }
   });
 });

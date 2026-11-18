@@ -1462,7 +1462,7 @@ def test_coerce_uuid_and_session_model_anonymous_safety():
     # 3. Arbitrary non-UUID strings map deterministically without error
     custom_uuid = coerce_uuid("github_oauth_user_98765")
     assert isinstance(custom_uuid, uuid.UUID)
-    assert custom_uuid == uuid.uuid5(ANONYMOUS_NAMESPACE, "anonymous.github_oauth_user_98765")
+    assert custom_uuid == uuid.uuid5(ANONYMOUS_NAMESPACE, "github_oauth_user_98765")  # hashed as-is (#249)
 
     # 4. Session model validates and coerces string user_id and id without crash
     now = datetime.now(timezone.utc)
@@ -2060,3 +2060,29 @@ def test_jwt_error_response_does_not_leak_library_detail():
         assert forged not in detail
     finally:
         backend_main.SUPABASE_JWT_SECRET = original_secret
+
+
+def test_coerce_uuid_keeps_distinct_non_uuid_ids_apart():
+    """Distinct non-UUID ids must not collapse into one shared user (#249).
+
+    The old implementation mapped every non-UUID string to
+    ``uuid5(NS, "anonymous." + val)`` *and* collapsed all anonymous aliases to a
+    single sentinel. The alias collapse is intentional; the risk was that two
+    different real ids could collide, and that a caller passing a non-UUID id
+    could not tell. This pins the distinctness property.
+    """
+    import uuid as _uuid
+    from backend.db.session_repo import coerce_uuid, ANONYMOUS_NAMESPACE
+
+    a = coerce_uuid("github_user_1")
+    b = coerce_uuid("github_user_2")
+    assert a != b, "distinct non-UUID ids must not map to the same UUID"
+    assert a == _uuid.uuid5(ANONYMOUS_NAMESPACE, "github_user_1")
+
+    # Anonymous aliases still share one sentinel (unchanged behaviour).
+    sentinel = _uuid.uuid5(ANONYMOUS_NAMESPACE, "anonymous")
+    for alias in ("", "anonymous", "anon", "guest", None):
+        assert coerce_uuid(alias) == sentinel
+
+    # Case/whitespace-only differences still collapse, as before.
+    assert coerce_uuid("  Anonymous ") == sentinel
