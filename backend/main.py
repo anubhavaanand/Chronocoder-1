@@ -365,6 +365,11 @@ async def lifespan(app: FastAPI):
         heartbeat_task.cancel()
         with suppress(asyncio.CancelledError):
             await heartbeat_task
+    if ai_gateway is not None:
+        # Test stubs and partially-built gateways may not implement aclose().
+        aclose = getattr(ai_gateway, "aclose", None)
+        if aclose is not None:
+            await aclose()
     logger.info("Backend shutting down")
 
 
