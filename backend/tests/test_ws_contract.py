@@ -823,11 +823,15 @@ def test_create_session_rejects_oversized_user_code(client, monkeypatch):
 
 def test_get_session_repo_production_requires_supabase(monkeypatch):
     """Ensure get_session_repo raises HTTP 500 when Supabase is missing in production (#CC-012)."""
+    from backend.db import session_repo as session_repo_module
+
     monkeypatch.setenv("FASTAPI_ENV", "production")
     monkeypatch.setenv("SUPABASE_URL", "")
     monkeypatch.setenv("SUPABASE_ANON_KEY", "")
     monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "")
-    monkeypatch.setattr(backend_main, "session_repo", None)
+    # The repo cache now lives in session_repo (#284); clear it so the
+    # missing-credentials path is actually exercised.
+    monkeypatch.setattr(session_repo_module, "_session_repo", None)
 
     with pytest.raises(backend_main.HTTPException) as exc_info:
         backend_main.get_session_repo()
