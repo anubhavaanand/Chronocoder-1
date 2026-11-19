@@ -204,12 +204,14 @@ describe('MentorCard', () => {
       expect(captionBar).toHaveStyle({ opacity: '1' });
     });
 
-    it('relies on whileInView for scroll-based animation keeping initial state before view trigger (#CC-060)', () => {
+    it('renders the card fully visible before whileInView fires (#116)', () => {
       const { container } = render(<MentorCard {...mockMentor} />);
       const cardMotionDiv = container.querySelector('.group');
       expect(cardMotionDiv).toBeInTheDocument();
-      // Verifies initial viewport state is retained (opacity: 0) instead of eagerly animating on mount
-      expect(cardMotionDiv).toHaveStyle({ opacity: '0' });
+      // #116: an `initial` of opacity:0 left content permanently invisible
+      // without JS or an IntersectionObserver. The card must be visible
+      // before the viewport trigger, not hidden until it scrolls in.
+      expect(cardMotionDiv).toHaveStyle({ opacity: '1' });
     });
 
     it('renders cleanly without dead cardRef allocation (#CC-061)', () => {

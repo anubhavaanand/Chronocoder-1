@@ -133,11 +133,36 @@ def get_supabase_client() -> Client:
     return supabase
 
 
-def get_session_repo() -> Optional[SessionRepository]:
-    """Dependency provider returning a cached SessionRepository, or None in development.
+def get_jwt_token(authorization: Optional[str] = Header(None)) -> Optional[str]:
+    """Return the raw Bearer token from the Authorization header, or None.
 
-    The cache lives in backend.db.session_repo; keeping a second one here
-    meant the two could disagree (#284).
+    Deliberately does NOT validate the token — :func:`verify_jwt_token` (a
+    sibling dependency of the session endpoint) does that and rejects bad
+    tokens with 401. This function only extracts the raw string so it can be
+    handed to ``SessionRepository.create_for_user``, which attaches it to the
+    PostgREST ``apikey``/auth headers so row-level security sees the caller's
+    identity instead of the service role (#248).
+    """
+    if authorization and authorization.startswith("Bearer "):
+        return authorization.split(" ", 1)[1]
+    return None
+
+
+def get_session_repo(
+    jwt_token: Optional[str] = Depends(get_jwt_token),
+) -> Optional[SessionRepository]:
+    """Dependency provider returning a SessionRepository, or None in development.
+
+    Single source of truth for repo construction: the cache and the
+    admin/user factories live in :mod:`backend.db.session_repo`, and this is
+    the only function the app calls, so there is no second cache to drift
+    (#284).
+
+    When a verified JWT is present (i.e. ``SUPABASE_JWT_SECRET`` is configured
+    and the caller passed a valid Bearer token), the repo is scoped to that
+    user's identity so RLS policies are enforced. Without a secret the app is
+    in dev mode and falls back to the service-role singleton, matching the
+    pre-existing anonymous behaviour (#248).
     """
     url = os.getenv("SUPABASE_URL", SUPABASE_URL)
     key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_ANON_KEY", SUPABASE_ANON_KEY)
@@ -151,6 +176,8 @@ def get_session_repo() -> Optional[SessionRepository]:
         return None
 
     try:
+        if jwt_token and SUPABASE_JWT_SECRET:
+            return get_session_repo_module(jwt_token)
         return get_session_repo_module()
     except Exception as e:
         # Never interpolate the exception text into a response: it can carry
@@ -165,13 +192,22 @@ def get_session_repo() -> Optional[SessionRepository]:
         return None
 
 
-async def verify_jwt_token(authorization: Optional[str] = Header(None)) -> str:
-    """Extract and verify Supabase JWT, return user_id."""
+def _decode_supabase_jwt(authorization: str) -> str:
+    """Verify a ``Bearer <token>`` Authorization header and return the user id.
+
+    Shared by the HTTP dependency (:func:`verify_jwt_token`) and the WebSocket
+    handshake (:func:`verify_ws_token`) so the two paths can never drift —
+    #190 existed because the socket accepted connections with no token at all
+    while the REST path already enforced one.
+
+    In dev mode without ``SUPABASE_JWT_SECRET`` set, verification is skipped and
+    ``"anonymous"`` is returned, matching the existing dev fallback.
+    """
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
-    
+
     token = authorization.split(" ")[1]
-    
+
     if not SUPABASE_JWT_SECRET:
         current_env = os.getenv("FASTAPI_ENV", FASTAPI_ENV).lower()
         if current_env == "production":
@@ -181,7 +217,7 @@ async def verify_jwt_token(authorization: Optional[str] = Header(None)) -> str:
             )
         # Dev mode: allow anonymous
         return "anonymous"
-    
+
     try:
         payload = jwt.decode(token, SUPABASE_JWT_SECRET, algorithms=["HS256"], audience="authenticated")
         user_id = payload.get("sub")
@@ -194,6 +230,34 @@ async def verify_jwt_token(authorization: Optional[str] = Header(None)) -> str:
         # rejected (#187).
         logger.warning("JWT verification failed: %s", e)
         raise HTTPException(status_code=401, detail="Invalid token")
+
+
+async def verify_jwt_token(authorization: Optional[str] = Header(None)) -> str:
+    """Extract and verify Supabase JWT, return user_id."""
+    return _decode_supabase_jwt(authorization or "")
+
+
+async def verify_ws_token(websocket: WebSocket) -> str:
+    """Verify the JWT carried in the WebSocket handshake.
+
+    The token is read from the ``Authorization`` header first. Browsers do not
+    let page JS set handshake headers on a ``WebSocket``, so the frontend
+    encodes the token in the connection URL's ``token`` query parameter as a
+    fallback (#286). A missing or invalid token closes the socket with 1008
+    (Policy Violation) — a terminal close code the frontend treats as an
+    unrecoverable auth failure (#CC-048) rather than a transient drop it would
+    retry forever.
+    """
+    authorization = websocket.headers.get("authorization") or ""
+    if not authorization:
+        token_param = websocket.query_params.get("token")
+        if token_param:
+            authorization = f"Bearer {token_param}"
+    try:
+        return _decode_supabase_jwt(authorization)
+    except HTTPException:
+        await websocket.close(code=1008, reason="Unauthorized")
+        raise
 
 
 def _parse_trusted_proxies(raw: Optional[str]) -> tuple[str, ...]:
@@ -540,10 +604,17 @@ def get_stream_pace_delay() -> float:
 # WebSocket endpoint with auth
 @app.websocket("/ws/feedback")
 async def feedback_websocket(websocket: WebSocket):
+    # #190: authenticate the socket before accepting. Without this the
+    # /ws/feedback endpoint was open to anyone with a network path, and the
+    # rate limit below was keyed only on IP — so an unauthenticated caller
+    # could flood the shared anonymous bucket. Dev mode without
+    # SUPABASE_JWT_SECRET falls back to "anonymous" to keep local dev working.
+    user_id = await verify_ws_token(websocket)
+
     connected = await manager.connect(websocket)
     if not connected:
         return
-    
+
     try:
         while True:
             # A malformed / non-JSON frame must not silently drop the connection
@@ -615,12 +686,13 @@ async def feedback_websocket(websocket: WebSocket):
                 })
                 continue
             
-            # Rate limit by trusted client IP. The session id is supplied by the
-            # unauthenticated client, so keying on it lets a caller rotate ids to
-            # mint a fresh bucket (#216). Authenticated requests can be keyed by
-            # user id once WS auth lands (#190).
+            # Rate limit by authenticated user id when a real JWT is present,
+            # falling back to trusted client IP for anonymous/dev callers. The
+            # session id is supplied by the client, so keying on it lets a
+            # caller rotate ids to mint a fresh bucket (#216) — hence the user
+            # id takes precedence now that the socket is authenticated (#190).
             client_ip = get_client_ip(websocket)
-            rate_limit_key = f"ip:{client_ip}"
+            rate_limit_key = f"user:{user_id}" if user_id != "anonymous" else f"ip:{client_ip}"
             if not check_rate_limit(rate_limit_key):
                 await websocket.send_json({
                     "type": "error",

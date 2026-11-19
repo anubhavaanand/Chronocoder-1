@@ -432,6 +432,52 @@ describe.sequential('useMentorWebSocket', () => {
     unmount();
   });
 
+  it('discards messages from a superseded request so a new question never renders stale feedback (#319/#243/#207)', () => {
+    const onFeedbackChunk = vi.fn();
+    const onAnalysisComplete = vi.fn();
+    const onFeedbackComplete = vi.fn();
+    const { result, unmount } = renderHook(() =>
+      useMentorWebSocket({
+        mentorId: 'ada',
+        onFeedbackChunk,
+        onAnalysisComplete,
+        onFeedbackComplete,
+      })
+    );
+
+    act(() => {
+      result.current.requestFeedback('x = 1');
+    });
+    const ws = MockWebSocket.instances[0];
+    act(() => {
+      ws.simulateOpen();
+    });
+
+    // First question produces partial feedback, then a second question is
+    // submitted before the first stream finishes.
+    act(() => {
+      ws.onmessage?.({ data: JSON.stringify({ type: 'analysis_complete', payload: {} }) });
+    });
+    act(() => {
+      ws.onmessage?.({ data: JSON.stringify({ type: 'feedback_chunk', payload: { reading: 'stale' } }) });
+    });
+    expect(onFeedbackChunk).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      result.current.requestFeedback('x = 2');
+    });
+
+    // The old socket is still connected and keeps streaming — its messages
+    // must be ignored because they belong to a question the user moved on
+    // from. The new question's callbacks must not fire on stale data.
+    act(() => {
+      ws.onmessage?.({ data: JSON.stringify({ type: 'feedback_chunk', payload: { reading: 'stale' } }) });
+    });
+    expect(onFeedbackChunk).toHaveBeenCalledTimes(1);
+
+    unmount();
+  });
+
   it('attempts reconnection with backoff on abnormal close while analysis is pending', () => {
     vi.useFakeTimers();
     try {

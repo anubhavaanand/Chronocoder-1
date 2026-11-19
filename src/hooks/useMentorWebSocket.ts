@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { getStoredAuthToken } from "../lib/auth";
 
 export interface FeedbackSectionView {
   id?: string;
@@ -59,7 +60,7 @@ type ConnectFn = (onOpen?: (ws: WebSocket) => void) => void;
  *      made the browser dial the *user's* machine whenever the var was unset
  *      (#121).
  */
-export function resolveWebSocketUrl(baseUrl?: string): string {
+export function resolveWebSocketUrl(baseUrl?: string, token?: string | null): string {
   const base =
     baseUrl ||
     process.env.NEXT_PUBLIC_WS_URL ||
@@ -82,6 +83,15 @@ export function resolveWebSocketUrl(baseUrl?: string): string {
     if (url.startsWith("ws://")) {
       url = "wss://" + url.slice(5);
     }
+  }
+
+  // #190/#286: browsers cannot set handshake headers on a WebSocket, so the
+  // session token is carried in the URL query string. The backend verifies it
+  // the same way it does for REST calls (Authorization header) and closes the
+  // socket with 1008 when it is missing or invalid.
+  if (token) {
+    const separator = url.includes("?") ? "&" : "?";
+    url = `${url}${separator}token=${encodeURIComponent(token)}`;
   }
 
   return `${url}/ws/feedback`;
@@ -132,6 +142,10 @@ export function useMentorWebSocket(options: UseMentorWSOptions) {
   const reconnectAttempts = useRef(0);
   const maxReconnectAttempts = 3;
   const pendingRequest = useRef<FeedbackRequest | null>(null);
+  // Monotonic generation counter. Each requestFeedback bumps it; handlers
+  // discard any message from a superseded generation so a new question
+  // cannot be answered by a still-in-flight older stream (#319/#243/#207).
+  const generationRef = useRef(0);
   const intentionalClose = useRef(false);
   const sessionRef = useRef<string>("");
   const connectRef = useRef<ConnectFn | null>(null);
@@ -169,10 +183,20 @@ export function useMentorWebSocket(options: UseMentorWSOptions) {
       // CLOSING/CLOSED: fall through and open a fresh socket.
     }
 
-    const wsUrl = resolveWebSocketUrl();
+    // #190/#286: include the auth token in the URL so the backend can verify it
+    // during the WebSocket handshake. `getStoredAuthToken()` mirrors the same
+    // keys `getAuthHeaders()` uses for REST calls (chrono_auth_token,
+    // sb-access-token, supabase_token, supabase.auth.token).
+    const authToken = getStoredAuthToken();
+    const wsUrl = resolveWebSocketUrl(undefined, authToken);
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
     intentionalClose.current = false;
+    // Snapshot the generation this socket was opened for. Messages arriving
+    // after a newer requestFeedback() has superseded it are silently
+    // discarded — they belong to a question the user has already moved on
+    // from, and acting on them would render stale feedback (#319/#243/#207).
+    const generation = generationRef.current;
 
     ws.onopen = () => {
       setIsConnected(true);
@@ -181,6 +205,7 @@ export function useMentorWebSocket(options: UseMentorWSOptions) {
     };
 
     ws.onmessage = (event) => {
+      if (generation !== generationRef.current) return;
       try {
         const msg: WSMessage = JSON.parse(event.data);
 
@@ -294,6 +319,9 @@ export function useMentorWebSocket(options: UseMentorWSOptions) {
         session_id: sessionRef.current,
       };
       pendingRequest.current = request;
+      // Bump the generation counter so any in-flight stream from a previous
+      // question is discarded once this one starts producing output (#319).
+      generationRef.current += 1;
       setIsAnalyzing(true);
 
       if (wsRef.current?.readyState === WebSocket.OPEN) {

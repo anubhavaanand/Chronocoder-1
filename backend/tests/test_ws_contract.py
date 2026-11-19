@@ -75,7 +75,7 @@ def test_health_endpoint(client):
 
 def test_feedback_message_sequence(client):
     """The exact event order the frontend hook depends on."""
-    with client.websocket_connect("/ws/feedback") as ws:
+    with client.websocket_connect("/ws/feedback?token=test-dev-token") as ws:
         ws.send_json({"mentor_id": "ada_lovelace", "user_code": VALID_CODE, "session_id": "t1"})
         messages = [ws.receive_json() for _ in range(3)]
 
@@ -105,7 +105,7 @@ def test_line_count_ignores_trailing_newline_and_handles_crlf():
 
 
 def test_invalid_input_is_rejected(client):
-    with client.websocket_connect("/ws/feedback") as ws:
+    with client.websocket_connect("/ws/feedback?token=test-dev-token") as ws:
         ws.send_json({"mentor_id": "", "user_code": ""})
         message = ws.receive_json()
 
@@ -115,7 +115,7 @@ def test_invalid_input_is_rejected(client):
 
 def test_malformed_json_keeps_connection_open(client):
     """A malformed frame returns INVALID_JSON and does not drop the socket (#312)."""
-    with client.websocket_connect("/ws/feedback") as ws:
+    with client.websocket_connect("/ws/feedback?token=test-dev-token") as ws:
         ws.send_text("this is not json")
         message = ws.receive_json()
         assert message["type"] == "error"
@@ -139,7 +139,7 @@ def test_ai_error_does_not_leak_internal_text(client, monkeypatch, caplog):
     monkeypatch.setattr(backend_main, "ai_gateway", ExplodingGateway())
 
     with caplog.at_level(logging.ERROR, logger="backend.main"):
-        with client.websocket_connect("/ws/feedback") as ws:
+        with client.websocket_connect("/ws/feedback?token=test-dev-token") as ws:
             ws.send_json({"mentor_id": "ada_lovelace", "user_code": VALID_CODE, "session_id": "t3"})
             # analysis_complete is emitted before streaming fails
             first = ws.receive_json()
@@ -162,7 +162,7 @@ def test_oversized_user_code_is_rejected(client, monkeypatch):
     """
     monkeypatch.setattr(backend_main, "MAX_CODE_LENGTH", 10)
 
-    with client.websocket_connect("/ws/feedback") as ws:
+    with client.websocket_connect("/ws/feedback?token=test-dev-token") as ws:
         ws.send_json({"mentor_id": "ada_lovelace", "user_code": "x" * 11})
         message = ws.receive_json()
 
@@ -182,7 +182,7 @@ def test_non_string_user_code_is_rejected_without_disconnect(client):
     `analyze_code_locally()` with AttributeError, which the outer handler
     swallowed and turned into a disconnect with no error event.
     """
-    with client.websocket_connect("/ws/feedback") as ws:
+    with client.websocket_connect("/ws/feedback?token=test-dev-token") as ws:
         ws.send_json({"mentor_id": "ada_lovelace", "user_code": 123})
         message = ws.receive_json()
 
@@ -199,7 +199,7 @@ def test_non_string_user_code_is_rejected_without_disconnect(client):
 
 def test_non_string_mentor_id_is_rejected(client):
     """A non-string mentor_id must yield INVALID_INPUT instead of a TypeError crash (#311)."""
-    with client.websocket_connect("/ws/feedback") as ws:
+    with client.websocket_connect("/ws/feedback?token=test-dev-token") as ws:
         ws.send_json({"mentor_id": ["ada_lovelace"], "user_code": VALID_CODE})
         message = ws.receive_json()
 
@@ -210,7 +210,7 @@ def test_non_string_mentor_id_is_rejected(client):
 def test_non_string_user_code_list_is_rejected(client):
     """A list/dict user_code is truthy but must still be rejected as INVALID_INPUT (#311)."""
     for bad in ([], {}, ["print(1)"]):
-        with client.websocket_connect("/ws/feedback") as ws:
+        with client.websocket_connect("/ws/feedback?token=test-dev-token") as ws:
             ws.send_json({"mentor_id": "ada_lovelace", "user_code": bad})
             message = ws.receive_json()
 
@@ -219,7 +219,7 @@ def test_non_string_user_code_list_is_rejected(client):
 
 
 def test_unknown_mentor_is_rejected_before_analysis(client):
-    with client.websocket_connect("/ws/feedback") as ws:
+    with client.websocket_connect("/ws/feedback?token=test-dev-token") as ws:
         ws.send_json({"mentor_id": "ghost_mentor", "user_code": VALID_CODE})
         message = ws.receive_json()
 
@@ -696,7 +696,7 @@ def test_websocket_anonymous_rate_limiting_isolated_per_ip(client, monkeypatch):
 
 
     # Client A from IP 198.51.100.1 sends 2 requests without session_id (rate limit = 2)
-    with client.websocket_connect("/ws/feedback", headers={"x-forwarded-for": "198.51.100.1"}) as ws_a:
+    with client.websocket_connect("/ws/feedback?token=test-dev-token", headers={"x-forwarded-for": "198.51.100.1"}) as ws_a:
         ws_a.send_json({"mentor_id": "ada_lovelace", "user_code": VALID_CODE})
         m1 = ws_a.receive_json()
         assert m1["type"] == "analysis_complete"
@@ -720,7 +720,7 @@ def test_websocket_anonymous_rate_limiting_isolated_per_ip(client, monkeypatch):
 
     # Client B from IP 203.0.113.2 connects without session_id
     # Client B must NOT be blocked by Client A's exhaustion of their quota
-    with client.websocket_connect("/ws/feedback", headers={"x-forwarded-for": "203.0.113.2"}) as ws_b:
+    with client.websocket_connect("/ws/feedback?token=test-dev-token", headers={"x-forwarded-for": "203.0.113.2"}) as ws_b:
         ws_b.send_json({"mentor_id": "ada_lovelace", "user_code": VALID_CODE})
         m_b = ws_b.receive_json()
         assert m_b["type"] == "analysis_complete"
@@ -735,7 +735,7 @@ def test_websocket_rate_limit_ignores_client_session_id(client, monkeypatch):
     monkeypatch.setattr(backend_main, "TRUSTED_PROXIES", ("testclient",))
 
     with client.websocket_connect(
-        "/ws/feedback", headers={"x-forwarded-for": "198.51.100.20"}
+        "/ws/feedback?token=test-dev-token", headers={"x-forwarded-for": "198.51.100.20"}
     ) as ws:
         for session_id in ("s1", "s2"):
             ws.send_json({
@@ -1035,7 +1035,7 @@ async def test_connection_manager_purges_disconnected():
 
 def test_websocket_ping_pong_keepalive(client):
     """Ensure WebSocket endpoint responds to heartbeat ping messages with pong (#CC-016)."""
-    with client.websocket_connect("/ws/feedback") as ws:
+    with client.websocket_connect("/ws/feedback?token=test-dev-token") as ws:
         # Send heartbeat ping
         ws.send_json({"type": "ping"})
         pong = ws.receive_json()
@@ -1131,10 +1131,10 @@ def test_websocket_endpoint_rejects_at_capacity(client, monkeypatch):
     monkeypatch.setattr(backend_main.manager, "max_connections", 1)
 
     # First client occupies the only slot
-    with client.websocket_connect("/ws/feedback"):
+    with client.websocket_connect("/ws/feedback?token=test-dev-token"):
         # Second concurrent client should be closed with code 1013
         with pytest.raises(WebSocketDisconnect) as exc_info:
-            with client.websocket_connect("/ws/feedback"):
+            with client.websocket_connect("/ws/feedback?token=test-dev-token"):
                 pass
         assert exc_info.value.code == 1013
 
@@ -1196,7 +1196,7 @@ def test_websocket_streaming_without_artificial_delay(client, monkeypatch):
     monkeypatch.delenv("WS_STREAM_PACE_MS", raising=False)
     backend_main.request_counts.clear()
 
-    with client.websocket_connect("/ws/feedback") as ws:
+    with client.websocket_connect("/ws/feedback?token=test-dev-token") as ws:
         ws.send_json({"mentor_id": "ada_lovelace", "user_code": VALID_CODE})
         m_analysis = ws.receive_json()
         assert m_analysis["type"] == "analysis_complete"
@@ -1208,8 +1208,8 @@ def test_websocket_streaming_without_artificial_delay(client, monkeypatch):
         assert m_complete["type"] == "feedback_complete"
 
 
-def test_database_schema_mentor_id_primary_key_contract():
-    """Ensure schema.sql defines mentor_id as primary key matching JSON registry (#CC-023)."""
+def test_database_schema_no_mentors_table():
+    """Ensure schema.sql dropped the dead mentors table entirely (#113)."""
     from pathlib import Path
     import json
 
@@ -1217,17 +1217,19 @@ def test_database_schema_mentor_id_primary_key_contract():
     assert schema_path.is_file(), f"Missing schema at {schema_path}"
     schema_sql = schema_path.read_text(encoding="utf-8")
 
-    # 1. mentors table must declare mentor_id as PRIMARY KEY
-    assert "mentor_id TEXT PRIMARY KEY" in schema_sql
-    assert "avatar_url TEXT" in schema_sql
+    # 1. The mentors table was removed as dead code: the canonical catalog is
+    # the JSON registry served in-process, and the table's RLS policy + seed
+    # script were never exercised by any runtime path (#113).
+    assert "CREATE TABLE IF NOT EXISTS mentors" not in schema_sql
+    assert "ALTER TABLE mentors" not in schema_sql
 
     # 2. sessions.mentor_id is a plain TEXT column: the canonical catalog is
     # JSON, and a FK to the unseeded mentors table broke inserts on a fresh
-    # database (#285). The mentors table itself still keys on mentor_id.
+    # database (#285).
     assert "mentor_id TEXT NOT NULL," in schema_sql
-    assert "REFERENCES mentors(mentor_id)" not in schema_sql
+    assert "REFERENCES mentors" not in schema_sql
 
-    # 3. All JSON personas must provide mentor_id matching the primary key
+    # 3. All JSON personas must provide mentor_id matching the file stem
     mentors_dir = Path(__file__).resolve().parent.parent / "mentors"
     json_files = list(mentors_dir.glob("*.json"))
     assert len(json_files) == 8
@@ -1238,134 +1240,6 @@ def test_database_schema_mentor_id_primary_key_contract():
         assert data["mentor_id"] == f.stem
 
 
-def test_prepare_mentor_record_mapping_and_validation():
-    """Ensure prepare_mentor_record validates required fields and filters unknown keys (#CC-024)."""
-    import pytest
-    from backend.db.seed_mentors import prepare_mentor_record
-
-    raw_data = {
-        "mentor_id": "test_mentor",
-        "name": "Test Mentor",
-        "era": "Present",
-        "unknown_extra_field": "ignore_me",
-        "nested_unsupported": {"secret": 123},
-        "focus_areas": ["python", "testing"],
-    }
-
-    record = prepare_mentor_record(raw_data)
-    assert record["mentor_id"] == "test_mentor"
-    assert record["name"] == "Test Mentor"
-    assert record["era"] == "Present"
-    assert record["focus_areas"] == ["python", "testing"]
-    assert "unknown_extra_field" not in record
-    assert "nested_unsupported" not in record
-
-    # Legacy mapping from 'id'
-    legacy_data = {"id": "legacy_mentor", "name": "Legacy"}
-    legacy_record = prepare_mentor_record(legacy_data)
-    assert legacy_record["mentor_id"] == "legacy_mentor"
-
-    # Missing mentor_id
-    with pytest.raises(ValueError, match="missing required 'mentor_id'"):
-        prepare_mentor_record({"name": "No ID"})
-
-    # Missing name
-    with pytest.raises(ValueError, match="missing required 'name'"):
-        prepare_mentor_record({"mentor_id": "no_name"})
-
-
-def test_seed_mentors_with_mock_supabase(tmp_path):
-    """Ensure seed_mentors iterates JSON files and executes upsert with clean records (#CC-024)."""
-    import json
-    from backend.db.seed_mentors import seed_mentors
-
-    # Create dummy mentor files
-    mentor_data_1 = {
-        "mentor_id": "mentor_alpha",
-        "name": "Mentor Alpha",
-        "era": "1950",
-        "focus_areas": ["logic"],
-        "unexpected_key": "drop_this",
-    }
-    mentor_data_2 = {
-        "id": "mentor_beta",
-        "name": "Mentor Beta",
-        "era": "1980",
-    }
-    (tmp_path / "mentor_alpha.json").write_text(json.dumps(mentor_data_1), encoding="utf-8")
-    (tmp_path / "mentor_beta.json").write_text(json.dumps(mentor_data_2), encoding="utf-8")
-
-    upserted_records = []
-
-    class MockQueryBuilder:
-        def __init__(self, record):
-            self.record = record
-
-        def execute(self):
-            upserted_records.append(self.record)
-            return {"data": [self.record]}
-
-    class MockTable:
-        def upsert(self, record):
-            return MockQueryBuilder(record)
-
-    class MockSupabase:
-        def table(self, table_name):
-            assert table_name == "mentors"
-            return MockTable()
-
-    mock_client = MockSupabase()
-    results = seed_mentors(supabase=mock_client, mentors_dir=tmp_path)
-
-    assert len(results) == 2
-    assert len(upserted_records) == 2
-
-    # Check that unexpected_key was dropped
-    assert "unexpected_key" not in upserted_records[0]
-    assert upserted_records[0]["mentor_id"] == "mentor_alpha"
-    assert upserted_records[1]["mentor_id"] == "mentor_beta"
-
-
-def test_seed_mentors_utf8_encoding_multilingual(tmp_path):
-    """Ensure seed_mentors opens JSON files with UTF-8 encoding handling unicode/emojis (#CC-033)."""
-    import inspect
-    import json
-    from backend.db.seed_mentors import seed_mentors
-
-    # Verify source contract explicitly specifies encoding="utf-8"
-    source = inspect.getsource(seed_mentors)
-    assert 'encoding="utf-8"' in source
-
-    # Test reading non-ASCII multilingual content with emojis and accented characters
-    unicode_mentor = {
-        "mentor_id": "mentor_unicode",
-        "name": "Alan Turing — Théorème & Cryptographie 🚀",
-        "era": "1940s 🇬🇧",
-        "signature_opening": "Bonjour, let’s explore computability!",
-        "signature_closing": "« Q.E.D. » 🌟",
-    }
-    file_path = tmp_path / "unicode_mentor.json"
-    file_path.write_text(json.dumps(unicode_mentor, ensure_ascii=False), encoding="utf-8")
-
-    upserted_records = []
-
-    class MockTable:
-        def upsert(self, record):
-            class MockBuilder:
-                def execute(self):
-                    upserted_records.append(record)
-                    return {"data": [record]}
-
-            return MockBuilder()
-
-    class MockSupabase:
-        def table(self, table_name):
-            return MockTable()
-
-    records = seed_mentors(supabase=MockSupabase(), mentors_dir=tmp_path)
-    assert len(records) == 1
-    assert records[0]["name"] == "Alan Turing — Théorème & Cryptographie 🚀"
-    assert records[0]["signature_closing"] == "« Q.E.D. » 🌟"
 
 
 

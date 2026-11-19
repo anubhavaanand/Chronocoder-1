@@ -44,32 +44,14 @@ CREATE TRIGGER on_auth_user_created
     AFTER INSERT OR UPDATE ON auth.users
     FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
--- Mentors reference table
-CREATE TABLE IF NOT EXISTS mentors (
-    mentor_id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    era TEXT,
-    icon TEXT,
-    accent_color TEXT,
-    avatar_url TEXT,
-    system_prompt TEXT,
-    tone TEXT,
-    focus_areas JSONB,
-    feedback_schema JSONB,
-    few_shot_examples JSONB,
-    signature_opening TEXT,
-    signature_closing TEXT,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
 -- Sessions: one user + one mentor + code + feedback
 CREATE TABLE IF NOT EXISTS sessions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    -- No foreign key to mentors(mentor_id): the canonical mentor catalog is
-    -- backend/mentors/*.json, served in-process, and the mentors table is not
-    -- seeded on startup. The FK made every session insert fail on a fresh
-    -- database (#285).
+    -- mentor_id is a plain TEXT column: the canonical mentor catalog is
+    -- backend/mentors/*.json, served in-process. The mentors table was removed
+    -- as dead code (#113); keeping the FK to it made every session insert fail
+    -- on a fresh database (#285).
     mentor_id TEXT NOT NULL,
     user_code TEXT NOT NULL,
     language TEXT DEFAULT 'python',
@@ -168,6 +150,3 @@ CREATE POLICY "Users can delete messages in own sessions" ON messages
             AND sessions.user_id = auth.uid()
         )
     );
-
--- Seed mentors from JSON registry (run after mentor JSON files are in place)
--- This is a helper - actual seeding done via Python script
