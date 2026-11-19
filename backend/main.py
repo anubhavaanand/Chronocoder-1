@@ -578,11 +578,21 @@ async def create_session(
             "status": "active",
             "session_id": str(created.id),
             "mentor_id": created.mentor_id,
-            "user_id": str(created.user_id),
+            "user_id": str(user_uuid),
             "created_at": created.created_at.isoformat() if hasattr(created.created_at, "isoformat") else str(created.created_at),
         }
 
+    # Persistence is unavailable. Avoid fabricating session IDs. If the client supplied a
+    # explicit session_id, we cannot persist it and must signal failure; otherwise we return a
+    # successful response without persisting (dev fallback).
+    # Determine a session identifier (client may have supplied one).
     session_id = session_data.get("session_id") or session_data.get("sessionId") or str(uuid.uuid4())
+    if "session_id" in session_data or "sessionId" in session_data:
+        raise HTTPException(
+            status_code=503,
+            detail="Session persistence is unavailable; the database service is not configured",
+        )
+    # Fallback success path without persistence.
     return {
         "status": "active",
         "session_id": str(session_id),

@@ -15,6 +15,9 @@ Run:  python -m pytest backend/tests -v
 import asyncio
 import json
 import logging
+import types
+import uuid
+from datetime import datetime
 
 import pytest
 from fastapi import HTTPException
@@ -304,7 +307,18 @@ def test_verify_jwt_token_production_validates_token(client, monkeypatch):
     secret = "test-secret-key-for-jwt-verification-12345"
     monkeypatch.setenv("FASTAPI_ENV", "production")
     monkeypatch.setattr(backend_main, "SUPABASE_JWT_SECRET", secret)
-    backend_main.app.dependency_overrides[backend_main.get_session_repo] = lambda: None
+
+    # A mock repo keeps the request on the success path so the test exercises
+    # JWT verification rather than the 503 returned when persistence is off
+    # (#277).
+    class _Repo:
+        async def create_session(self, u_id, data):
+            return types.SimpleNamespace(
+                id=uuid.uuid4(), mentor_id=data.mentor_id, user_id=u_id,
+                created_at=datetime.now(),
+            )
+
+    backend_main.app.dependency_overrides[backend_main.get_session_repo] = lambda: _Repo()
 
     try:
         valid_token = jwt.encode({"sub": "user_123", "aud": "authenticated"}, secret, algorithm="HS256")
@@ -783,8 +797,8 @@ def test_create_session_endpoint_wires_to_repository(client):
         backend_main.app.dependency_overrides.pop(backend_main.get_session_repo, None)
 
 
-def test_create_session_dev_fallback_without_repo(client):
-    """Ensure POST /api/sessions gracefully falls back when repo is unavailable in dev (#CC-012)."""
+def test_create_session_returns_503_when_repo_unavailable(client):
+    """POST /api/sessions must NOT return 201 with a fabricated id when persistence is off (#277)."""
     backend_main.app.dependency_overrides[backend_main.get_session_repo] = lambda: None
 
     try:
@@ -797,11 +811,8 @@ def test_create_session_dev_fallback_without_repo(client):
             },
             headers={"Authorization": "Bearer test-dev-token"},
         )
-        assert response.status_code == 201
-        data = response.json()
-        assert data["status"] == "active"
-        assert data["session_id"] == "custom-sess-777"
-        assert data["mentor_id"] == "alan_turing"
+        assert response.status_code == 503
+        assert "not configured" in response.json()["detail"].lower()
     finally:
         backend_main.app.dependency_overrides.pop(backend_main.get_session_repo, None)
 
