@@ -904,7 +904,9 @@ def test_analyze_code_locally_counts_ast_constructs():
     assert result["functions"] == 2  # async_fetch + sync_method
     assert result["classes"] == 1    # DataModel
     assert result["imports"] == 2    # import math + from typing
-    assert result["complexity_score"] == min(2 * 2 + 1 + 2, 10)  # 7
+    # #214: complexity_score is McCabe cyclomatic complexity, not a weighted
+    # count of declarations. Two branchless functions -> 1 + 1 = 2.
+    assert result["complexity_score"] == 2
 
 
 def test_analyze_code_locally_fallback_on_syntax_error():
@@ -953,6 +955,46 @@ def test_regex_fallback_ignores_imports_inside_comments():
     result = backend_main.analyze_code_locally(code)
     assert result["imports"] == 0
     assert result["functions"] == 1
+
+
+def test_analyze_code_locally_complexity_is_cyclomatic():
+    """#214: complexity_score is McCabe cyclomatic complexity, not a weighted count of declarations."""
+    # Branchless function: 0 decisions + 1 = 1
+    simple = (
+        "import math\n"
+        "def add(a, b):\n"
+        "    return a + b\n"
+    )
+    assert backend_main.analyze_code_locally(simple)["complexity_score"] == 1
+
+    # if + elif + else inside a function -> 2 If nodes + 1 = 3
+    branchy = (
+        "def grade(x):\n"
+        "    if x > 90:\n"
+        "        return 'A'\n"
+        "    elif x > 80:\n"
+        "        return 'B'\n"
+        "    else:\n"
+        "        return 'C'\n"
+    )
+    assert backend_main.analyze_code_locally(branchy)["complexity_score"] == 3
+
+    # for + if + `a and b or c` (2 BoolOp decision points) -> 4 decisions + 1 = 5
+    booly = (
+        "def check(items):\n"
+        "    for item in items:\n"
+        "        if item and item > 0 or item == -1:\n"
+        "            return True\n"
+        "    return False\n"
+    )
+    assert backend_main.analyze_code_locally(booly)["complexity_score"] == 5
+
+    # Imports alone do not inflate the score (the old weighted count did)
+    imports_only = "import os\nimport sys\nfrom typing import List\n"
+    assert backend_main.analyze_code_locally(imports_only)["complexity_score"] == 1
+
+    # No functions at all: module-level complexity is 1
+    assert backend_main.analyze_code_locally("x = 1\ny = 2\n")["complexity_score"] == 1
 
 
 @pytest.mark.asyncio

@@ -74,6 +74,7 @@ jobs:
           python-version: '3.12'
 
       # ruff only needs itself; installing the full runtime stack here just
+# (issues #226) this step now only installs ruff to avoid unnecessary dependencies
       # to lint would add minutes and a dependency surface that can fail
       # for reasons unrelated to lint. The backend-tests job installs
       # requirements.txt with a pip cache.
