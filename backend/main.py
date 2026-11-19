@@ -133,11 +133,36 @@ def get_supabase_client() -> Client:
     return supabase
 
 
-def get_session_repo() -> Optional[SessionRepository]:
-    """Dependency provider returning a cached SessionRepository, or None in development.
+def get_jwt_token(authorization: Optional[str] = Header(None)) -> Optional[str]:
+    """Return the raw Bearer token from the Authorization header, or None.
 
-    The cache lives in backend.db.session_repo; keeping a second one here
-    meant the two could disagree (#284).
+    Deliberately does NOT validate the token — :func:`verify_jwt_token` (a
+    sibling dependency of the session endpoint) does that and rejects bad
+    tokens with 401. This function only extracts the raw string so it can be
+    handed to ``SessionRepository.create_for_user``, which attaches it to the
+    PostgREST ``apikey``/auth headers so row-level security sees the caller's
+    identity instead of the service role (#248).
+    """
+    if authorization and authorization.startswith("Bearer "):
+        return authorization.split(" ", 1)[1]
+    return None
+
+
+def get_session_repo(
+    jwt_token: Optional[str] = Depends(get_jwt_token),
+) -> Optional[SessionRepository]:
+    """Dependency provider returning a SessionRepository, or None in development.
+
+    Single source of truth for repo construction: the cache and the
+    admin/user factories live in :mod:`backend.db.session_repo`, and this is
+    the only function the app calls, so there is no second cache to drift
+    (#284).
+
+    When a verified JWT is present (i.e. ``SUPABASE_JWT_SECRET`` is configured
+    and the caller passed a valid Bearer token), the repo is scoped to that
+    user's identity so RLS policies are enforced. Without a secret the app is
+    in dev mode and falls back to the service-role singleton, matching the
+    pre-existing anonymous behaviour (#248).
     """
     url = os.getenv("SUPABASE_URL", SUPABASE_URL)
     key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_ANON_KEY", SUPABASE_ANON_KEY)
@@ -151,6 +176,8 @@ def get_session_repo() -> Optional[SessionRepository]:
         return None
 
     try:
+        if jwt_token and SUPABASE_JWT_SECRET:
+            return get_session_repo_module(jwt_token)
         return get_session_repo_module()
     except Exception as e:
         # Never interpolate the exception text into a response: it can carry
