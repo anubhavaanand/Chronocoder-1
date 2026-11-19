@@ -15,22 +15,19 @@
   `npx tsc --noEmit` and filter out `^tests/`.
 - Frontend suite lives in `tests/` with its own package.json: `cd tests && npm test`.
 
-## Co-authored trailers (Pair Extraordinaire goal)
-- Always pass an explicit `--body` to `gh pr merge`, and pass `--subject` too.
-  Without it GitHub reuses the PR body and **hard-wraps long trailer lines**,
-  which breaks parsing.
-- Correct form:
-  `gh pr merge N --merge --subject "<title> (#N)" --body "<body with one-line trailers>"`
-- Verify after merge:
-  `git fetch -q origin master && git log -1 --format=%B origin/master | cat -A`
-  Each `Co-authored-by:` must be one physical line.
-- Trailers must not be italicised (`_Co-authored-by: ..._`) — that is malformed
-  at the source and can never count.
-- Use the numeric-id form when known:
-  `Co-authored-by: metiquella <259600641+metiquella@users.noreply.github.com>`
-- Convention in this repo's history also uses the no-ID form
-  `metiquella@users.noreply.github.com`; GitHub accepts either as long as the
-  address matches a real account.
+## Commit trailers
+- **Do NOT add any `Co-authored-by:` trailer unless the user asks.** As of
+  2026-11-18 the user said to drop the metiquella co-author — "next time use the
+  default". Plain commits/merge commits only.
+- Pair Extraordinaire is EARNED (bronze x2 on `anubhavaanand`). The badge goes
+  to whoever is named in `Co-authored-by:` on a merged PR — the trailer holder,
+  not necessarily the git commit author. Both are eligible; the distinction is
+  `commit.author` (git --author) vs the trailer. `metiquella` has none because
+  its trailers were mostly malformed, not because co-authors can't earn it.
+- If a trailer ever IS wanted: pass an explicit `--body` (and `--subject`) to
+  `gh pr merge`. Without it GitHub reuses the PR body and **hard-wraps long
+  trailer lines**, which breaks parsing. Verify with
+  `git fetch -q origin master && git log -1 --format=%B origin/master | cat -A`.
 
 ## Frontend gotchas
 - `src/components/ui/WebGLBackground.tsx`: images added after mount need

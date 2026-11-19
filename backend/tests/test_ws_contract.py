@@ -75,7 +75,7 @@ def test_health_endpoint(client):
 
 def test_feedback_message_sequence(client):
     """The exact event order the frontend hook depends on."""
-    with client.websocket_connect("/ws/feedback") as ws:
+    with client.websocket_connect("/ws/feedback?token=test-dev-token") as ws:
         ws.send_json({"mentor_id": "ada_lovelace", "user_code": VALID_CODE, "session_id": "t1"})
         messages = [ws.receive_json() for _ in range(3)]
 
@@ -105,7 +105,7 @@ def test_line_count_ignores_trailing_newline_and_handles_crlf():
 
 
 def test_invalid_input_is_rejected(client):
-    with client.websocket_connect("/ws/feedback") as ws:
+    with client.websocket_connect("/ws/feedback?token=test-dev-token") as ws:
         ws.send_json({"mentor_id": "", "user_code": ""})
         message = ws.receive_json()
 
@@ -115,7 +115,7 @@ def test_invalid_input_is_rejected(client):
 
 def test_malformed_json_keeps_connection_open(client):
     """A malformed frame returns INVALID_JSON and does not drop the socket (#312)."""
-    with client.websocket_connect("/ws/feedback") as ws:
+    with client.websocket_connect("/ws/feedback?token=test-dev-token") as ws:
         ws.send_text("this is not json")
         message = ws.receive_json()
         assert message["type"] == "error"
@@ -139,7 +139,7 @@ def test_ai_error_does_not_leak_internal_text(client, monkeypatch, caplog):
     monkeypatch.setattr(backend_main, "ai_gateway", ExplodingGateway())
 
     with caplog.at_level(logging.ERROR, logger="backend.main"):
-        with client.websocket_connect("/ws/feedback") as ws:
+        with client.websocket_connect("/ws/feedback?token=test-dev-token") as ws:
             ws.send_json({"mentor_id": "ada_lovelace", "user_code": VALID_CODE, "session_id": "t3"})
             # analysis_complete is emitted before streaming fails
             first = ws.receive_json()
@@ -162,7 +162,7 @@ def test_oversized_user_code_is_rejected(client, monkeypatch):
     """
     monkeypatch.setattr(backend_main, "MAX_CODE_LENGTH", 10)
 
-    with client.websocket_connect("/ws/feedback") as ws:
+    with client.websocket_connect("/ws/feedback?token=test-dev-token") as ws:
         ws.send_json({"mentor_id": "ada_lovelace", "user_code": "x" * 11})
         message = ws.receive_json()
 
@@ -182,7 +182,7 @@ def test_non_string_user_code_is_rejected_without_disconnect(client):
     `analyze_code_locally()` with AttributeError, which the outer handler
     swallowed and turned into a disconnect with no error event.
     """
-    with client.websocket_connect("/ws/feedback") as ws:
+    with client.websocket_connect("/ws/feedback?token=test-dev-token") as ws:
         ws.send_json({"mentor_id": "ada_lovelace", "user_code": 123})
         message = ws.receive_json()
 
@@ -199,7 +199,7 @@ def test_non_string_user_code_is_rejected_without_disconnect(client):
 
 def test_non_string_mentor_id_is_rejected(client):
     """A non-string mentor_id must yield INVALID_INPUT instead of a TypeError crash (#311)."""
-    with client.websocket_connect("/ws/feedback") as ws:
+    with client.websocket_connect("/ws/feedback?token=test-dev-token") as ws:
         ws.send_json({"mentor_id": ["ada_lovelace"], "user_code": VALID_CODE})
         message = ws.receive_json()
 
@@ -210,7 +210,7 @@ def test_non_string_mentor_id_is_rejected(client):
 def test_non_string_user_code_list_is_rejected(client):
     """A list/dict user_code is truthy but must still be rejected as INVALID_INPUT (#311)."""
     for bad in ([], {}, ["print(1)"]):
-        with client.websocket_connect("/ws/feedback") as ws:
+        with client.websocket_connect("/ws/feedback?token=test-dev-token") as ws:
             ws.send_json({"mentor_id": "ada_lovelace", "user_code": bad})
             message = ws.receive_json()
 
@@ -219,7 +219,7 @@ def test_non_string_user_code_list_is_rejected(client):
 
 
 def test_unknown_mentor_is_rejected_before_analysis(client):
-    with client.websocket_connect("/ws/feedback") as ws:
+    with client.websocket_connect("/ws/feedback?token=test-dev-token") as ws:
         ws.send_json({"mentor_id": "ghost_mentor", "user_code": VALID_CODE})
         message = ws.receive_json()
 
@@ -663,7 +663,7 @@ def test_websocket_anonymous_rate_limiting_isolated_per_ip(client, monkeypatch):
 
 
     # Client A from IP 198.51.100.1 sends 2 requests without session_id (rate limit = 2)
-    with client.websocket_connect("/ws/feedback", headers={"x-forwarded-for": "198.51.100.1"}) as ws_a:
+    with client.websocket_connect("/ws/feedback?token=test-dev-token", headers={"x-forwarded-for": "198.51.100.1"}) as ws_a:
         ws_a.send_json({"mentor_id": "ada_lovelace", "user_code": VALID_CODE})
         m1 = ws_a.receive_json()
         assert m1["type"] == "analysis_complete"
@@ -687,7 +687,7 @@ def test_websocket_anonymous_rate_limiting_isolated_per_ip(client, monkeypatch):
 
     # Client B from IP 203.0.113.2 connects without session_id
     # Client B must NOT be blocked by Client A's exhaustion of their quota
-    with client.websocket_connect("/ws/feedback", headers={"x-forwarded-for": "203.0.113.2"}) as ws_b:
+    with client.websocket_connect("/ws/feedback?token=test-dev-token", headers={"x-forwarded-for": "203.0.113.2"}) as ws_b:
         ws_b.send_json({"mentor_id": "ada_lovelace", "user_code": VALID_CODE})
         m_b = ws_b.receive_json()
         assert m_b["type"] == "analysis_complete"
@@ -702,7 +702,7 @@ def test_websocket_rate_limit_ignores_client_session_id(client, monkeypatch):
     monkeypatch.setattr(backend_main, "TRUSTED_PROXIES", ("testclient",))
 
     with client.websocket_connect(
-        "/ws/feedback", headers={"x-forwarded-for": "198.51.100.20"}
+        "/ws/feedback?token=test-dev-token", headers={"x-forwarded-for": "198.51.100.20"}
     ) as ws:
         for session_id in ("s1", "s2"):
             ws.send_json({
@@ -1002,7 +1002,7 @@ async def test_connection_manager_purges_disconnected():
 
 def test_websocket_ping_pong_keepalive(client):
     """Ensure WebSocket endpoint responds to heartbeat ping messages with pong (#CC-016)."""
-    with client.websocket_connect("/ws/feedback") as ws:
+    with client.websocket_connect("/ws/feedback?token=test-dev-token") as ws:
         # Send heartbeat ping
         ws.send_json({"type": "ping"})
         pong = ws.receive_json()
@@ -1098,10 +1098,10 @@ def test_websocket_endpoint_rejects_at_capacity(client, monkeypatch):
     monkeypatch.setattr(backend_main.manager, "max_connections", 1)
 
     # First client occupies the only slot
-    with client.websocket_connect("/ws/feedback"):
+    with client.websocket_connect("/ws/feedback?token=test-dev-token"):
         # Second concurrent client should be closed with code 1013
         with pytest.raises(WebSocketDisconnect) as exc_info:
-            with client.websocket_connect("/ws/feedback"):
+            with client.websocket_connect("/ws/feedback?token=test-dev-token"):
                 pass
         assert exc_info.value.code == 1013
 
@@ -1163,7 +1163,7 @@ def test_websocket_streaming_without_artificial_delay(client, monkeypatch):
     monkeypatch.delenv("WS_STREAM_PACE_MS", raising=False)
     backend_main.request_counts.clear()
 
-    with client.websocket_connect("/ws/feedback") as ws:
+    with client.websocket_connect("/ws/feedback?token=test-dev-token") as ws:
         ws.send_json({"mentor_id": "ada_lovelace", "user_code": VALID_CODE})
         m_analysis = ws.receive_json()
         assert m_analysis["type"] == "analysis_complete"

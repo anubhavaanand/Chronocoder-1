@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { getStoredAuthToken } from "../lib/auth";
 
 export interface FeedbackSectionView {
   id?: string;
@@ -59,7 +60,7 @@ type ConnectFn = (onOpen?: (ws: WebSocket) => void) => void;
  *      made the browser dial the *user's* machine whenever the var was unset
  *      (#121).
  */
-export function resolveWebSocketUrl(baseUrl?: string): string {
+export function resolveWebSocketUrl(baseUrl?: string, token?: string | null): string {
   const base =
     baseUrl ||
     process.env.NEXT_PUBLIC_WS_URL ||
@@ -82,6 +83,15 @@ export function resolveWebSocketUrl(baseUrl?: string): string {
     if (url.startsWith("ws://")) {
       url = "wss://" + url.slice(5);
     }
+  }
+
+  // #190/#286: browsers cannot set handshake headers on a WebSocket, so the
+  // session token is carried in the URL query string. The backend verifies it
+  // the same way it does for REST calls (Authorization header) and closes the
+  // socket with 1008 when it is missing or invalid.
+  if (token) {
+    const separator = url.includes("?") ? "&" : "?";
+    url = `${url}${separator}token=${encodeURIComponent(token)}`;
   }
 
   return `${url}/ws/feedback`;
@@ -169,7 +179,12 @@ export function useMentorWebSocket(options: UseMentorWSOptions) {
       // CLOSING/CLOSED: fall through and open a fresh socket.
     }
 
-    const wsUrl = resolveWebSocketUrl();
+    // #190/#286: include the auth token in the URL so the backend can verify it
+    // during the WebSocket handshake. `getStoredAuthToken()` mirrors the same
+    // keys `getAuthHeaders()` uses for REST calls (chrono_auth_token,
+    // sb-access-token, supabase_token, supabase.auth.token).
+    const authToken = getStoredAuthToken();
+    const wsUrl = resolveWebSocketUrl(undefined, authToken);
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
     intentionalClose.current = false;
