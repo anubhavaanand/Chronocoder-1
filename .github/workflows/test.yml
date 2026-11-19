@@ -76,7 +76,7 @@ jobs:
       # ruff only needs itself; installing the full runtime stack here just
       # to lint would add minutes and a dependency surface that can fail
       # for reasons unrelated to lint. The backend-tests job installs
-      # requirements.txt with a pip cache.
+      # requirements.txt with a pip cache. (#226)
       - name: Install dependencies
         run: pip install ruff
 
