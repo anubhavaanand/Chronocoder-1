@@ -103,6 +103,14 @@ CREATE INDEX IF NOT EXISTS idx_messages_sequence ON messages(session_id, sequenc
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE mentors ENABLE ROW LEVEL SECURITY;
+
+-- Mentors: read-only reference catalog, readable by anyone authenticated.
+-- No write policies: the canonical catalog is backend/mentors/*.json served
+-- in-process, and the table is seeded only by the service-role seed script (#245).
+DROP POLICY IF EXISTS "Anyone can view mentor catalog" ON mentors;
+CREATE POLICY "Anyone can view mentor catalog" ON mentors
+    FOR SELECT USING (true);
 
 -- Users: users can only see their own row
 DROP POLICY IF EXISTS "Users can view own profile" ON users;
