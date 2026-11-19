@@ -310,13 +310,16 @@ def test_verify_jwt_token_production_validates_token(client, monkeypatch):
         valid_token = jwt.encode({"sub": "user_123", "aud": "authenticated"}, secret, algorithm="HS256")
         invalid_token = jwt.encode({"sub": "user_123", "aud": "wrong_audience"}, "wrong_secret", algorithm="HS256")
 
-        # Valid token succeeds
+        # Valid token succeeds — but only if persistence is configured. When
+        # the session repo is unavailable the endpoint must refuse rather than
+        # mint a fake id, so the caller never persists garbage (#277).
         res_valid = client.post(
             "/api/sessions",
             json={"mentor_id": "ada_lovelace", "user_code": "x = 1"},
             headers={"Authorization": f"Bearer {valid_token}"},
         )
-        assert res_valid.status_code == 201
+        assert res_valid.status_code == 503
+        assert "persistence is unavailable" in res_valid.json()["detail"]
 
         # Invalid token fails with 401
         res_invalid = client.post(
@@ -326,6 +329,32 @@ def test_verify_jwt_token_production_validates_token(client, monkeypatch):
         )
         assert res_invalid.status_code == 401
         assert "Invalid token" in res_invalid.json()["detail"]
+    finally:
+        backend_main.app.dependency_overrides.pop(backend_main.get_session_repo, None)
+
+
+def test_create_session_returns_503_not_fake_id_when_persistence_off(client, monkeypatch):
+    """When no session repo is configured, refuse instead of returning a 201
+    with a minted uuid4() that callers would treat as a real session id (#277)."""
+    from jose import jwt
+
+    secret = "test-secret-key-for-jwt-verification-12345"
+    monkeypatch.setenv("FASTAPI_ENV", "production")
+    monkeypatch.setattr(backend_main, "SUPABASE_JWT_SECRET", secret)
+    backend_main.app.dependency_overrides[backend_main.get_session_repo] = lambda: None
+
+    try:
+        token = jwt.encode({"sub": "user_123", "aud": "authenticated"}, secret, algorithm="HS256")
+        res = client.post(
+            "/api/sessions",
+            json={"mentor_id": "ada_lovelace", "user_code": "x = 1"},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert res.status_code == 503
+        assert "persistence is unavailable" in res.json()["detail"]
+
+        # The response must never carry a fabricated session id.
+        assert "session_id" not in res.json()
     finally:
         backend_main.app.dependency_overrides.pop(backend_main.get_session_repo, None)
 
@@ -462,7 +491,11 @@ def test_verify_jwt_token_accepts_valid_hs256_and_rejects_bad_signature(client, 
             json={"mentor_id": "ada_lovelace", "user_code": "x = 1"},
             headers=_bearer(valid),
         )
-        assert ok.status_code == 201
+        # A valid token authenticates the request; the *persistence* layer is
+        # what decides the status. With no repo configured the endpoint refuses
+        # rather than minting a fake id (#277), so the auth assertion lives in
+        # test_create_session_returns_503_not_fake_id_when_persistence_off.
+        assert ok.status_code == 503
 
         rejected = client.post(
             "/api/sessions",
@@ -784,7 +817,8 @@ def test_create_session_endpoint_wires_to_repository(client):
 
 
 def test_create_session_dev_fallback_without_repo(client):
-    """Ensure POST /api/sessions gracefully falls back when repo is unavailable in dev (#CC-012)."""
+    """When no session repo is configured the endpoint refuses instead of
+    echoing a client-supplied session id back as real (#CC-012, #277)."""
     backend_main.app.dependency_overrides[backend_main.get_session_repo] = lambda: None
 
     try:
@@ -797,11 +831,10 @@ def test_create_session_dev_fallback_without_repo(client):
             },
             headers={"Authorization": "Bearer test-dev-token"},
         )
-        assert response.status_code == 201
-        data = response.json()
-        assert data["status"] == "active"
-        assert data["session_id"] == "custom-sess-777"
-        assert data["mentor_id"] == "alan_turing"
+        assert response.status_code == 503
+        assert "persistence is unavailable" in response.json()["detail"]
+        # The client-supplied id must never be echoed back as a real session.
+        assert response.json().get("session_id") is None
     finally:
         backend_main.app.dependency_overrides.pop(backend_main.get_session_repo, None)
 

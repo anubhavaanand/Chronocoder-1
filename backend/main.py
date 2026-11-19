@@ -518,14 +518,14 @@ async def create_session(
             "created_at": created.created_at.isoformat() if hasattr(created.created_at, "isoformat") else str(created.created_at),
         }
 
-    session_id = session_data.get("session_id") or session_data.get("sessionId") or str(uuid.uuid4())
-    return {
-        "status": "active",
-        "session_id": str(session_id),
-        "mentor_id": mentor_id,
-        "user_id": str(user_uuid),
-        "created_at": datetime.now(timezone.utc).isoformat(),
-    }
+    # Persistence is unavailable (dev mode without SUPABASE_URL, or a
+    # misconfigured database). Refuse rather than mint a fake id: a 201 with a
+    # random uuid4() looks like a real session to any caller that reads the
+    # response body, and that caller then persists garbage keyed on it (#277).
+    raise HTTPException(
+        status_code=503,
+        detail="Session persistence is unavailable; configure SUPABASE_URL and a database key",
+    )
 
 
 def get_stream_pace_delay() -> float:
