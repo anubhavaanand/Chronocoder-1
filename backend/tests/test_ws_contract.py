@@ -1175,8 +1175,8 @@ def test_websocket_streaming_without_artificial_delay(client, monkeypatch):
         assert m_complete["type"] == "feedback_complete"
 
 
-def test_database_schema_mentor_id_primary_key_contract():
-    """Ensure schema.sql defines mentor_id as primary key matching JSON registry (#CC-023)."""
+def test_database_schema_no_mentors_table():
+    """Ensure schema.sql dropped the dead mentors table entirely (#113)."""
     from pathlib import Path
     import json
 
@@ -1184,17 +1184,19 @@ def test_database_schema_mentor_id_primary_key_contract():
     assert schema_path.is_file(), f"Missing schema at {schema_path}"
     schema_sql = schema_path.read_text(encoding="utf-8")
 
-    # 1. mentors table must declare mentor_id as PRIMARY KEY
-    assert "mentor_id TEXT PRIMARY KEY" in schema_sql
-    assert "avatar_url TEXT" in schema_sql
+    # 1. The mentors table was removed as dead code: the canonical catalog is
+    # the JSON registry served in-process, and the table's RLS policy + seed
+    # script were never exercised by any runtime path (#113).
+    assert "CREATE TABLE IF NOT EXISTS mentors" not in schema_sql
+    assert "ALTER TABLE mentors" not in schema_sql
 
     # 2. sessions.mentor_id is a plain TEXT column: the canonical catalog is
     # JSON, and a FK to the unseeded mentors table broke inserts on a fresh
-    # database (#285). The mentors table itself still keys on mentor_id.
+    # database (#285).
     assert "mentor_id TEXT NOT NULL," in schema_sql
-    assert "REFERENCES mentors(mentor_id)" not in schema_sql
+    assert "REFERENCES mentors" not in schema_sql
 
-    # 3. All JSON personas must provide mentor_id matching the primary key
+    # 3. All JSON personas must provide mentor_id matching the file stem
     mentors_dir = Path(__file__).resolve().parent.parent / "mentors"
     json_files = list(mentors_dir.glob("*.json"))
     assert len(json_files) == 8
@@ -1205,134 +1207,6 @@ def test_database_schema_mentor_id_primary_key_contract():
         assert data["mentor_id"] == f.stem
 
 
-def test_prepare_mentor_record_mapping_and_validation():
-    """Ensure prepare_mentor_record validates required fields and filters unknown keys (#CC-024)."""
-    import pytest
-    from backend.db.seed_mentors import prepare_mentor_record
-
-    raw_data = {
-        "mentor_id": "test_mentor",
-        "name": "Test Mentor",
-        "era": "Present",
-        "unknown_extra_field": "ignore_me",
-        "nested_unsupported": {"secret": 123},
-        "focus_areas": ["python", "testing"],
-    }
-
-    record = prepare_mentor_record(raw_data)
-    assert record["mentor_id"] == "test_mentor"
-    assert record["name"] == "Test Mentor"
-    assert record["era"] == "Present"
-    assert record["focus_areas"] == ["python", "testing"]
-    assert "unknown_extra_field" not in record
-    assert "nested_unsupported" not in record
-
-    # Legacy mapping from 'id'
-    legacy_data = {"id": "legacy_mentor", "name": "Legacy"}
-    legacy_record = prepare_mentor_record(legacy_data)
-    assert legacy_record["mentor_id"] == "legacy_mentor"
-
-    # Missing mentor_id
-    with pytest.raises(ValueError, match="missing required 'mentor_id'"):
-        prepare_mentor_record({"name": "No ID"})
-
-    # Missing name
-    with pytest.raises(ValueError, match="missing required 'name'"):
-        prepare_mentor_record({"mentor_id": "no_name"})
-
-
-def test_seed_mentors_with_mock_supabase(tmp_path):
-    """Ensure seed_mentors iterates JSON files and executes upsert with clean records (#CC-024)."""
-    import json
-    from backend.db.seed_mentors import seed_mentors
-
-    # Create dummy mentor files
-    mentor_data_1 = {
-        "mentor_id": "mentor_alpha",
-        "name": "Mentor Alpha",
-        "era": "1950",
-        "focus_areas": ["logic"],
-        "unexpected_key": "drop_this",
-    }
-    mentor_data_2 = {
-        "id": "mentor_beta",
-        "name": "Mentor Beta",
-        "era": "1980",
-    }
-    (tmp_path / "mentor_alpha.json").write_text(json.dumps(mentor_data_1), encoding="utf-8")
-    (tmp_path / "mentor_beta.json").write_text(json.dumps(mentor_data_2), encoding="utf-8")
-
-    upserted_records = []
-
-    class MockQueryBuilder:
-        def __init__(self, record):
-            self.record = record
-
-        def execute(self):
-            upserted_records.append(self.record)
-            return {"data": [self.record]}
-
-    class MockTable:
-        def upsert(self, record):
-            return MockQueryBuilder(record)
-
-    class MockSupabase:
-        def table(self, table_name):
-            assert table_name == "mentors"
-            return MockTable()
-
-    mock_client = MockSupabase()
-    results = seed_mentors(supabase=mock_client, mentors_dir=tmp_path)
-
-    assert len(results) == 2
-    assert len(upserted_records) == 2
-
-    # Check that unexpected_key was dropped
-    assert "unexpected_key" not in upserted_records[0]
-    assert upserted_records[0]["mentor_id"] == "mentor_alpha"
-    assert upserted_records[1]["mentor_id"] == "mentor_beta"
-
-
-def test_seed_mentors_utf8_encoding_multilingual(tmp_path):
-    """Ensure seed_mentors opens JSON files with UTF-8 encoding handling unicode/emojis (#CC-033)."""
-    import inspect
-    import json
-    from backend.db.seed_mentors import seed_mentors
-
-    # Verify source contract explicitly specifies encoding="utf-8"
-    source = inspect.getsource(seed_mentors)
-    assert 'encoding="utf-8"' in source
-
-    # Test reading non-ASCII multilingual content with emojis and accented characters
-    unicode_mentor = {
-        "mentor_id": "mentor_unicode",
-        "name": "Alan Turing — Théorème & Cryptographie 🚀",
-        "era": "1940s 🇬🇧",
-        "signature_opening": "Bonjour, let’s explore computability!",
-        "signature_closing": "« Q.E.D. » 🌟",
-    }
-    file_path = tmp_path / "unicode_mentor.json"
-    file_path.write_text(json.dumps(unicode_mentor, ensure_ascii=False), encoding="utf-8")
-
-    upserted_records = []
-
-    class MockTable:
-        def upsert(self, record):
-            class MockBuilder:
-                def execute(self):
-                    upserted_records.append(record)
-                    return {"data": [record]}
-
-            return MockBuilder()
-
-    class MockSupabase:
-        def table(self, table_name):
-            return MockTable()
-
-    records = seed_mentors(supabase=MockSupabase(), mentors_dir=tmp_path)
-    assert len(records) == 1
-    assert records[0]["name"] == "Alan Turing — Théorème & Cryptographie 🚀"
-    assert records[0]["signature_closing"] == "« Q.E.D. » 🌟"
 
 
 
