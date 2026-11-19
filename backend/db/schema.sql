@@ -103,6 +103,7 @@ CREATE INDEX IF NOT EXISTS idx_messages_sequence ON messages(session_id, sequenc
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE mentors ENABLE ROW LEVEL SECURITY;
 
 -- Users: users can only see their own row
 DROP POLICY IF EXISTS "Users can view own profile" ON users;
