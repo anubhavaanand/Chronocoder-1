@@ -42,7 +42,7 @@ export function MentorCard({
       className="group/card rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-[oklch(72%_0.18_165)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]"
     >
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: staggerDelay }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
