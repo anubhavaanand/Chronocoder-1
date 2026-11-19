@@ -732,6 +732,28 @@ def _strip_strings_and_comments(line: str, in_triple: str) -> tuple[str, str]:
     return "".join(out), in_triple
 
 
+def _cyclomatic_complexity(tree: ast.AST) -> int:
+    """McCabe cyclomatic complexity of an AST subtree: decision points + 1 (#214).
+
+    Counts branch/loop nodes (If, For, While, ExceptHandler, With, Assert,
+    BoolOp, IfExp and comprehension ifs) and adds 1 for the entry path. A
+    module with no function definitions is scored as a single function.
+    """
+    decisions = 0
+    for node in ast.walk(tree):
+        if isinstance(node, ast.BoolOp):
+            # `a and b or c` has two decision points, not one.
+            decisions += len(node.values) - 1
+        elif isinstance(
+            node,
+            (ast.If, ast.For, ast.While, ast.ExceptHandler, ast.With, ast.Assert, ast.IfExp),
+        ):
+            decisions += 1
+        elif isinstance(node, ast.comprehension):
+            decisions += len(node.ifs)
+    return decisions + 1
+
+
 def analyze_code_locally(code: str) -> dict:
     """Analyze code locally using Python AST parser with regex fallback for incomplete syntax (#CC-013)."""
     # splitlines() handles \r\n and does not count a trailing newline as a line (#288)
@@ -742,13 +764,23 @@ def analyze_code_locally(code: str) -> dict:
 
     try:
         tree = ast.parse(code)
-        for node in ast.walk(tree):
+        nodes = list(ast.walk(tree))
+        for node in nodes:
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 functions += 1
             elif isinstance(node, ast.ClassDef):
                 classes += 1
             elif isinstance(node, (ast.Import, ast.ImportFrom)):
                 imports += 1
+        # #214: complexity_score is now McCabe cyclomatic complexity (summed
+        # across every function), not a weighted count of declarations. A file
+        # with five imports and no branches scores 1, not 5.
+        func_nodes = [
+            n
+            for n in nodes
+            if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+        ]
+        complexity = sum(_cyclomatic_complexity(f) for f in func_nodes) or _cyclomatic_complexity(tree)
     except SyntaxError:
         # Fallback regex parsing when code contains syntax errors (e.g. typing
         # in progress). Strings and comments are stripped first: without that,
@@ -768,15 +800,17 @@ def analyze_code_locally(code: str) -> dict:
                 classes += 1
             elif stripped.startswith("import ") or stripped.startswith("from "):
                 imports += 1
-
-    complexity_score = min((functions * 2 + classes + imports), 10)
+        # Syntax-error fallback: the regex path cannot walk the AST, so
+        # complexity falls back to the old weighted count of declarations. It
+        # is documented as a fallback heuristic, not cyclomatic complexity (#214).
+        complexity = min((functions * 2 + classes + imports), 10)
 
     return {
         "line_count": len(lines),
         "functions": functions,
         "classes": classes,
         "imports": imports,
-        "complexity_score": complexity_score,
+        "complexity_score": complexity,
         "estimated_tokens": max(0 if not code else 1, len(code) // 4),
     }
 

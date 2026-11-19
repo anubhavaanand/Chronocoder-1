@@ -392,20 +392,22 @@ print(fibonacci(10))`);
                       </div>
                     ))}
 
-                    {/* Complexity Score Badge */}
+                    {/* Complexity Score Badge — McCabe cyclomatic complexity (#214) */}
                     {analysis.complexity_score != null && analysis.complexity_score > 0 && (
                       <div className="col-span-2 md:col-span-4 mt-4 pt-4 border-t border-retro-border">
                         <div className="flex items-center justify-center space-x-3">
-                          <span className="text-sm text-gray-400">Complexity Score:</span>
+                          <span className="text-sm text-gray-400" title="McCabe cyclomatic complexity: decision points (if/for/while/except/with/assert/bool ops) per function + 1">
+                            Complexity Score:
+                          </span>
                           <div className="relative">
                             <div className="w-48 h-2 bg-retro-dark rounded-full overflow-hidden">
                               <div
                                 className="absolute inset-y-0 left-0 bg-gradient-primary rounded-full"
-                                style={{ width: `${(analysis.complexity_score / 10) * 100}%` }}
+                                style={{ width: `${Math.min(100, analysis.complexity_score * 10)}%` }}
                               />
                             </div>
                             <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-white">
-                              {analysis.complexity_score}/10
+                              {analysis.complexity_score}
                             </div>
                           </div>
                         </div>
