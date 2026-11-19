@@ -142,6 +142,10 @@ export function useMentorWebSocket(options: UseMentorWSOptions) {
   const reconnectAttempts = useRef(0);
   const maxReconnectAttempts = 3;
   const pendingRequest = useRef<FeedbackRequest | null>(null);
+  // Monotonic generation counter. Each requestFeedback bumps it; handlers
+  // discard any message from a superseded generation so a new question
+  // cannot be answered by a still-in-flight older stream (#319/#243/#207).
+  const generationRef = useRef(0);
   const intentionalClose = useRef(false);
   const sessionRef = useRef<string>("");
   const connectRef = useRef<ConnectFn | null>(null);
@@ -188,6 +192,11 @@ export function useMentorWebSocket(options: UseMentorWSOptions) {
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
     intentionalClose.current = false;
+    // Snapshot the generation this socket was opened for. Messages arriving
+    // after a newer requestFeedback() has superseded it are silently
+    // discarded — they belong to a question the user has already moved on
+    // from, and acting on them would render stale feedback (#319/#243/#207).
+    const generation = generationRef.current;
 
     ws.onopen = () => {
       setIsConnected(true);
@@ -196,6 +205,7 @@ export function useMentorWebSocket(options: UseMentorWSOptions) {
     };
 
     ws.onmessage = (event) => {
+      if (generation !== generationRef.current) return;
       try {
         const msg: WSMessage = JSON.parse(event.data);
 
@@ -309,6 +319,9 @@ export function useMentorWebSocket(options: UseMentorWSOptions) {
         session_id: sessionRef.current,
       };
       pendingRequest.current = request;
+      // Bump the generation counter so any in-flight stream from a previous
+      // question is discarded once this one starts producing output (#319).
+      generationRef.current += 1;
       setIsAnalyzing(true);
 
       if (wsRef.current?.readyState === WebSocket.OPEN) {
