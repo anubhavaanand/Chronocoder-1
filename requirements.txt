@@ -6,7 +6,7 @@ uvicorn[standard]>=0.27.0
 python-multipart>=0.0.6
 
 # Database Client
-supabase>=2.0.0
+supabase>=2.34.1
 
 # API Client
 aiohttp>=3.9.0
