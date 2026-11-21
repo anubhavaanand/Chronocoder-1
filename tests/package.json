@@ -28,7 +28,7 @@
     "@vitest/coverage-v8": "^2.1.4",
     "@vitest/ui": "^2.1.4",
     "happy-dom": "^17.0.0",
-    "jsdom": "^26.0.0",
+    "jsdom": "^31.0.1",
     "msw": "^2.6.5",
     "typescript": "^5.7.2",
     "vite": "^5.4.11",
